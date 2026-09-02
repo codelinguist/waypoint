@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-waypoint}
+      POSTGRES_USER: ${DB_USER:-waypoint}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-waypoint}
+    volumes:
+      - waypoint-postgres-data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-waypoint} -d ${DB_NAME:-waypoint}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-waypoint}
+      DB_USER: ${DB_USER:-waypoint}
+      DB_PASSWORD: ${DB_PASSWORD:-waypoint}
+      SERVER_PORT: 8080
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+
+volumes:
+  waypoint-postgres-data:
+    name: waypoint-postgres-data
