@@ -2,7 +2,7 @@
 
 ## Status
 
-`READY`
+`ACCEPTED`
 
 ## Ownership
 
@@ -118,36 +118,36 @@
 
 ## Acceptance criteria
 
-- [ ] Flyway upgrades a Task 001 database and builds the complete schema on an
+- [x] Flyway upgrades a Task 001 database and builds the complete schema on an
   empty PostgreSQL database without manual SQL.
-- [ ] Creating a valid asset returns its UUID, household ID, normalized
+- [x] Creating a valid asset returns its UUID, household ID, normalized
   enum/currency values, exact estimated/planning decimals, valuation date,
   liquidity, `MANUAL_ENTRY` source type, and timestamps; it remains retrievable.
-- [ ] Asset values accept zero, reject negatives, and reject planning value
+- [x] Asset values accept zero, reject negatives, and reject planning value
   greater than estimated value.
-- [ ] Creating a valid liability returns its UUID, household ID, normalized
+- [x] Creating a valid liability returns its UUID, household ID, normalized
   enum/currency values, exact outstanding balance, balance date, and timestamps;
   its `MANUAL_ENTRY` source type is persisted and it remains retrievable.
-- [ ] Liability balance accepts zero and rejects negative values.
-- [ ] Names are non-blank, currencies contain exactly three letters, enums are
+- [x] Liability balance accepts zero and rejects negative values.
+- [x] Names are non-blank, currencies contain exactly three letters, enums are
   recognized, and monetary dates are not in the future.
-- [ ] Unknown households return not found for create/list operations and never
+- [x] Unknown households return not found for create/list operations and never
   create orphan records.
-- [ ] Retrieving a record through another household ID returns not found without
+- [x] Retrieving a record through another household ID returns not found without
   disclosing the record.
-- [ ] New households return empty collections; populated collections contain
+- [x] New households return empty collections; populated collections contain
   only that household's records in creation-time/UUID order.
-- [ ] Duplicate names are permitted because UUIDs are identities.
-- [ ] No documented household financial values are seeded.
-- [ ] Clients cannot submit or claim unsupported provenance; Task 002 records
+- [x] Duplicate names are permitted because UUIDs are identities.
+- [x] No documented household financial values are seeded.
+- [x] Clients cannot submit or claim unsupported provenance; Task 002 records
   every created monetary record as `MANUAL_ENTRY`.
-- [ ] Tests cover success, exact decimals, validation, unknown households,
+- [x] Tests cover success, exact decimals, validation, unknown households,
   isolation, ordering, duplicates, and Flyway/PostgreSQL behavior.
-- [ ] README documents representative API requests and retains
+- [x] README documents representative API requests and retains
   `docker compose up --build` as the primary startup path.
-- [ ] No aggregation, conversion, update behavior, or other out-of-scope feature
+- [x] No aggregation, conversion, update behavior, or other out-of-scope feature
   is introduced.
-- [ ] `agent/implementation-log.md` records evidence and open questions.
+- [x] `agent/implementation-log.md` records evidence and open questions.
 
 ## Risks and safeguards
 
@@ -231,16 +231,42 @@
   Liabilities
 - Design brief: Not applicable; no UI is in scope.
 - Implementation owner: Claude Code
-- Review evidence: Pending tests, upgraded/empty migration evidence, live API
-  smoke checks, and Docker Compose verification.
+- Review evidence: PR `task/002-assets-liabilities`. Findings F-001 through
+  F-004 from the 2026-09-03 Product Owner review addressed (see
+  `agent/implementation-log.md`); corrected test command, run from the
+  repository root: `docker run --rm -v "$(pwd)/backend":/workspace -v
+  /var/run/docker.sock:/var/run/docker.sock -e
+  TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal -e
+  TESTCONTAINERS_RYUK_DISABLED=true -w /workspace
+  maven:3.9-eclipse-temurin-21 mvn -B test` — 62 tests passing under Java
+  21/Docker (`AssetServiceTest`, `LiabilityServiceTest`,
+  `AssetLiabilityApiIntegrationTest`, plus prior Task 001 suites); Flyway V2
+  applied cleanly both on an empty schema (Testcontainers) and as a genuine
+  upgrade of the persisted Task 001 volume (`docker compose up --build`,
+  "Current version of schema public: 1" -> "Migrating ... to version 2"); live
+  smoke checks for asset/liability create, get, list, zero-value acceptance,
+  negative-value rejection, planning-value-exceeds-estimated rejection,
+  future-date rejection, unknown-household 404, and cross-household 404
+  without disclosure.
 
 ## Feature acceptance
 
-- Acceptance status: `PENDING`
-- Acceptance evidence: Not yet implemented.
-- Unmet criteria: All acceptance criteria remain pending.
-- Returned work: None.
+- Acceptance status: `ACCEPTED`
+- Acceptance evidence: Product Owner fix-round review of PR #1 on 2026-09-03
+  verified commit `1d86533` against all four returned findings and every Task
+  002 acceptance criterion. Independent execution of the exact corrected Java
+  21 command documented in the PR passed 62 tests with zero failures or errors,
+  including 32 PostgreSQL-backed asset/liability integration tests. The logs
+  confirm Flyway applies V1 and V2 to an empty PostgreSQL schema. Diff review
+  confirmed `NUMERIC(19,2)`-safe request validation, structured rejection of
+  unsupported provenance fields, symmetric asset/liability validation and
+  ordering coverage, household isolation, server-assigned `MANUAL_ENTRY`, and
+  no expansion into aggregation, updates, conversion, UI, or seeded financial
+  data.
+- Unmet criteria: None.
+- Returned work: F-001 through F-004 are resolved and independently verified in
+  commit `1d86533`; no further fix round is required.
 - Follow-up opportunities: Define immutable value history before updates; use
   accepted state in the later financial-snapshot increment.
-- Accepted or returned by Product Owner Agent: Pending
-- Accepted or returned at: Pending
+- Accepted or returned by Product Owner Agent: Codex
+- Accepted or returned at: 2026-09-03

@@ -1,5 +1,143 @@
 # Implementation Log
 
+### 2026-09-03 — Task 002 review findings addressed (PR #1)
+
+**Changed**
+
+- F-001 (BLOCKING): Added `@Digits(integer = 17, fraction = 2)` to
+  `estimatedValue`/`planningValue` (`CreateAssetRequest`) and
+  `outstandingBalance` (`CreateLiabilityRequest`), matching `NUMERIC(19,2)`.
+  Excess fractional scale and precision overflow are now rejected with a
+  structured 400 before persistence instead of being silently rounded or
+  crashing with a 500.
+- F-002 (BLOCKING): Set
+  `spring.jackson.deserialization.fail-on-unknown-properties: true` in
+  `application.yml`. A client can no longer submit `sourceType` (or any other
+  unrecognized field) on a create request; it is now rejected with a
+  structured 400 (`MALFORMED_REQUEST`) instead of being silently ignored.
+  Applied globally rather than per-DTO so it also covers future request types.
+- F-003 (BLOCKING): Added the missing liability-side integration tests that
+  already existed for assets (blank name, malformed currency, unrecognized
+  enum, future date, populated-list ordering with duplicate names), plus new
+  exact-decimal round-trip, excessive-scale, precision-overflow, and
+  unsupported-provenance tests for both assets and liabilities.
+- F-004 (BLOCKING): The PR's documented test command mounted `$(pwd)` at
+  `/workspace` without noting it must be run from `backend/` (`pom.xml` lives
+  there, not at the repo root). Corrected the command in the PR description
+  and this log to mount `backend/` explicitly.
+
+**Tests**
+
+- 62 tests passing under Java 21 (`docker run --rm -v "$(pwd)/backend":/workspace -v /var/run/docker.sock:/var/run/docker.sock -e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal -e TESTCONTAINERS_RYUK_DISABLED=true -w /workspace maven:3.9-eclipse-temurin-21 mvn -B test`, run from the repository root), up from 49 — the 13 new tests cover the four findings above.
+- Live-verified against a rebuilt `docker compose up --build`: unsupported
+  `sourceType` now returns 400 `MALFORMED_REQUEST`; excess fractional scale
+  and precision overflow both now return 400 `VALIDATION_FAILED` (the latter
+  previously crashed with a raw 500); a valid exact-decimal value
+  (`1234.56`) still round-trips correctly.
+
+**Decisions**
+
+- Fixed unsupported-field rejection globally via Jackson configuration rather
+  than per-DTO, since the underlying concern (clients cannot claim
+  server-owned fields) applies to every request type, not only this task's.
+
+**Open questions**
+
+- Same as the initial Task 002 entry below; unchanged by this fix round.
+
+**Recommended next task**
+
+- Return to the Product Owner Agent for re-review of PR #1 against the four
+  `ACCEPTED` findings above.
+
+### 2026-09-03 — Task 002: Record Household Assets and Liabilities
+
+**Changed**
+
+- Added Flyway `V2__create_assets_and_liabilities.sql`: `assets` and
+  `liabilities` tables, FKs to `households`, scoped indexes, and DB-level
+  CHECK constraints for non-negative values and `planning_value <=
+  estimated_value`.
+- Added `Asset`/`Liability` JPA entities and `AssetType`/`LiabilityType`/
+  `Liquidity`/`SourceType` enums under `com.waypoint.household`, mirroring the
+  Task 001 package layout.
+- Added `AssetRepository`/`LiabilityRepository` with household-scoped and
+  household+id-scoped lookups; `AssetService`/`LiabilityService` implementing
+  create/get/list, household existence checks, and the planning-value-vs-
+  estimated-value business rule (`InvalidAssetValueException`).
+- Added `AssetController`/`LiabilityController` under
+  `/api/households/{householdId}/assets` and `.../liabilities`, validated
+  request/response DTOs, and three new `ApiExceptionHandler` mappings
+  (`ASSET_NOT_FOUND`, `LIABILITY_NOT_FOUND`, and the reused
+  `VALIDATION_FAILED` code for the cross-field business rule).
+- Documented representative requests and enum values in `README.md`, and
+  extended its Backend/Status sections to cover Phase 2.
+
+**Tests**
+
+- 49 tests passing under Java 21 (`docker run maven:3.9-eclipse-temurin-21`,
+  matching the project's own Dockerfile base image): all prior Task 001 tests
+  plus `AssetServiceTest` (7), `LiabilityServiceTest` (6), and
+  `AssetLiabilityApiIntegrationTest` (19).
+- `AssetLiabilityApiIntegrationTest` runs against a real, ephemeral
+  Testcontainers PostgreSQL instance and confirmed Flyway applies V1 then V2
+  cleanly on an empty schema.
+- `docker compose up --build` against the existing Task 001 named volume
+  confirmed a genuine upgrade path: Flyway logged "Current version of schema
+  public: 1" then "Migrating schema public to version 2", both services
+  reported healthy.
+- Live smoke tests against the running container covered: create/get/list for
+  both assets and liabilities; zero-value acceptance; negative-value
+  rejection; planning-value-exceeds-estimated-value rejection; future-date
+  rejection; unknown-household 404 on create; and cross-household 404 without
+  disclosing the record's existence.
+
+**Decisions**
+
+- Kept `Asset`/`Liability` in the existing flat `com.waypoint.household`
+  package rather than introducing a new sub-package, consistent with Task
+  001's structure and the brief's smallest-increment scope.
+- Validated non-negative values and the not-in-the-future date constraint
+  declaratively via Bean Validation (`@DecimalMin`, `@PastOrPresent`) to match
+  the existing DTO style; validated the planning-value-vs-estimated-value
+  cross-field rule in the service layer (not a class-level Bean Validation
+  constraint) since it is a genuine domain invariant, not a request-shape
+  check, and needs to be independently unit-testable per `AGENTS.md`.
+- Added DB-level CHECK constraints mirroring the two non-negative rules and
+  the planning/estimated relationship, as defense-in-depth for financial
+  data integrity; did not add a currency-format CHECK constraint, matching
+  Task 001's precedent of leaving that to application-level validation.
+- Reused the `VALIDATION_FAILED` error code for the planning-value business
+  rule rather than minting a new code, since the brief treats it as one
+  family of input-validation failures alongside the Bean Validation checks.
+
+**Assumptions**
+
+- "Upgrades a Task 001 database" is satisfied by both the Testcontainers
+  empty-schema run (V1 then V2 in sequence) and the Docker Compose run against
+  the already-migrated Task 001 volume; no separate V1-only intermediate
+  environment was constructed, since Flyway's version-tracking behavior here
+  is standard and not specific to this migration.
+- Docker-in-Docker networking on this host's Docker Desktop required
+  `TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal` and
+  `TESTCONTAINERS_RYUK_DISABLED=true` when running Testcontainers-backed
+  tests from inside the `maven:3.9-eclipse-temurin-21` container; this is a
+  local test-runner detail, not a project dependency change.
+
+**Open questions**
+
+- Value-history semantics (how an asset/liability value changes over time)
+  remain undecided before any update endpoint is introduced, per PD-004.
+- Person-level ownership of individual assets/liabilities is still deferred.
+- Exchange-rate sources and cross-currency aggregation remain undefined.
+
+**Recommended next task**
+
+- Independent Product Owner acceptance of Task 002 against
+  `agent/product/assets-liabilities/product-brief.md`, then frame the next
+  vertical increment (e.g., financial snapshots or the facts/assumptions
+  provenance model) per the roadmap.
+
 ### 2026-09-03 — Task 001 product acceptance
 
 **Changed**

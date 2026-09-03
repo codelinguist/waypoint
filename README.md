@@ -63,9 +63,14 @@ in step 6) apply only when `agent/current-task.md` includes UI work.
 ## Backend
 
 The `backend/` directory contains the Spring Boot modular monolith described
-in `docs/architecture/architecture.md`. It currently implements the
-`Household` and `Person` aggregates (Phase 1 of `docs/product/roadmap.md`):
-create and retrieve a household, and add and retrieve its members.
+in `docs/architecture/architecture.md`. It currently implements:
+
+- `Household` and `Person` (Phase 1 of `docs/product/roadmap.md`): create and
+  retrieve a household, and add and retrieve its members.
+- `Asset` and `Liability` (Phase 2): record and retrieve a household's owned
+  and owed balance-sheet items with explicit values, dates, currencies, and
+  liquidity/type classification. Create and read only — no update, delete, or
+  aggregation yet.
 
 ### Prerequisites
 
@@ -99,6 +104,48 @@ curl -X POST http://localhost:8080/api/households \
   -H 'Content-Type: application/json' \
   -d '{"name": "Example Household", "baseCurrency": "PHP"}'
 ```
+
+Assets and liabilities are recorded and read under a household. Both accept
+only explicit, caller-supplied values (create/read only; no update endpoints
+yet):
+
+```bash
+curl -X POST http://localhost:8080/api/households/{householdId}/assets \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "name": "Emergency Fund",
+        "assetType": "CASH",
+        "estimatedValue": "1000.00",
+        "planningValue": "1000.00",
+        "currency": "PHP",
+        "valuedAt": "2026-09-01",
+        "liquidity": "LIQUID"
+      }'
+
+curl http://localhost:8080/api/households/{householdId}/assets
+curl http://localhost:8080/api/households/{householdId}/assets/{assetId}
+
+curl -X POST http://localhost:8080/api/households/{householdId}/liabilities \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "name": "Credit Card",
+        "liabilityType": "CREDIT_CARD",
+        "outstandingBalance": "500.00",
+        "currency": "PHP",
+        "balanceAsOf": "2026-09-01"
+      }'
+
+curl http://localhost:8080/api/households/{householdId}/liabilities
+curl http://localhost:8080/api/households/{householdId}/liabilities/{liabilityId}
+```
+
+`assetType` is one of `CASH`, `BANK_ACCOUNT`, `PROPERTY`, `INVESTMENT`,
+`BUSINESS_OWNERSHIP`, `OTHER`. `liabilityType` is one of `CREDIT_CARD`,
+`MORTGAGE`, `PERSONAL_LOAN`, `BUSINESS_LOAN`, `OTHER`. `liquidity` is one of
+`LIQUID`, `RESTRICTED`, `ILLIQUID`. `planningValue` must not exceed
+`estimatedValue`; all monetary values must be non-negative; `valuedAt` and
+`balanceAsOf` must not be in the future. Every created record is stamped
+`sourceType: "MANUAL_ENTRY"` by the server.
 
 ### Stopping and resetting
 
@@ -153,13 +200,14 @@ cd backend
 ./mvnw test
 ```
 
-Tests include unit coverage of the household/person services and
-Testcontainers-backed integration tests that run the application against a
-real, ephemeral PostgreSQL container (Flyway migrations included). Docker
-must be running locally for the Testcontainers-backed tests to execute.
+Tests include unit coverage of the household/person and asset/liability
+services and Testcontainers-backed integration tests that run the application
+against a real, ephemeral PostgreSQL container (Flyway migrations included).
+Docker must be running locally for the Testcontainers-backed tests to execute.
 
 ## Status
 
-Phase 1 of the roadmap (Household and Person foundation) is implemented. See
-`agent/implementation-log.md` for the current state and next recommended
-task.
+Phase 1 (Household and Person foundation) is implemented and accepted. Phase 2
+(Asset and Liability records) is implemented and pending Product Owner
+acceptance. See `agent/implementation-log.md` for the current state and next
+recommended task.
