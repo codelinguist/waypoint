@@ -199,7 +199,12 @@
   Snapshots
 - Design brief: Not applicable; no UI is in scope.
 - Implementation owner: Claude Code
-- Review evidence: Pending implementation and PR evidence.
+- Review evidence: PR #4 (`task/005-financial-snapshots` -> `main`) —
+  https://github.com/codelinguist/waypoint/pull/4. Local `./verify.sh`:
+  PASS, 137 tests, 0 failures. Required CI `verify` check: PASS. Primary
+  flow manually exercised against `docker compose up --build` (see PR
+  description and `agent/implementation-log.md`'s Task 005 entry for
+  details). Awaiting Product Owner review.
 
 ## Feature acceptance
 
