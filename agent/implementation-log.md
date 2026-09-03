@@ -1,5 +1,46 @@
 # Implementation Log
 
+### 2026-09-04 — Task 005 product framing
+
+**Changed**
+
+- Defined the Task 005 product brief for immutable financial position
+  snapshots and made it the active task in `agent/current-task.md`.
+- Scoped the increment to copied asset/liability observations and
+  per-currency net worth, with no FX conversion or cash-flow normalization.
+
+**Tests**
+
+- No application tests apply to product framing; implementation verification
+  is pending.
+
+**Decisions**
+
+- Snapshots filter currently stored source records by `asOfDate`, preserve the
+  actual `capturedAt` timestamp, and explicitly do not claim unavailable
+  historical valuation reconstruction.
+- Net worth is calculated only within each original currency.
+- Snapshot data is copied and create/read-only so later source changes cannot
+  rewrite historical observations.
+
+**Assumptions**
+
+- A household with no eligible records can create an empty zero-total
+  snapshot.
+- Duplicate snapshot dates are allowed because capture events are distinct.
+
+**Open questions**
+
+- Historical income/obligation schedule capture and deterministic cash-flow
+  normalization remain for a later increment.
+- Full source valuation history and historical comparison endpoints remain
+  deferred.
+
+**Recommended next task**
+
+- Implement Task 005 on `task/005-financial-snapshots`, then return to the
+  Product Owner Agent for independent review against the brief.
+
 ### 2026-09-03 — Task 002 review findings addressed (PR #1)
 
 **Changed**
