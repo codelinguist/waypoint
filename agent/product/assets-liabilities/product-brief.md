@@ -2,7 +2,7 @@
 
 ## Status
 
-`READY`
+`ACCEPTED`
 
 ## Ownership
 
@@ -118,36 +118,36 @@
 
 ## Acceptance criteria
 
-- [ ] Flyway upgrades a Task 001 database and builds the complete schema on an
+- [x] Flyway upgrades a Task 001 database and builds the complete schema on an
   empty PostgreSQL database without manual SQL.
-- [ ] Creating a valid asset returns its UUID, household ID, normalized
+- [x] Creating a valid asset returns its UUID, household ID, normalized
   enum/currency values, exact estimated/planning decimals, valuation date,
   liquidity, `MANUAL_ENTRY` source type, and timestamps; it remains retrievable.
-- [ ] Asset values accept zero, reject negatives, and reject planning value
+- [x] Asset values accept zero, reject negatives, and reject planning value
   greater than estimated value.
-- [ ] Creating a valid liability returns its UUID, household ID, normalized
+- [x] Creating a valid liability returns its UUID, household ID, normalized
   enum/currency values, exact outstanding balance, balance date, and timestamps;
   its `MANUAL_ENTRY` source type is persisted and it remains retrievable.
-- [ ] Liability balance accepts zero and rejects negative values.
-- [ ] Names are non-blank, currencies contain exactly three letters, enums are
+- [x] Liability balance accepts zero and rejects negative values.
+- [x] Names are non-blank, currencies contain exactly three letters, enums are
   recognized, and monetary dates are not in the future.
-- [ ] Unknown households return not found for create/list operations and never
+- [x] Unknown households return not found for create/list operations and never
   create orphan records.
-- [ ] Retrieving a record through another household ID returns not found without
+- [x] Retrieving a record through another household ID returns not found without
   disclosing the record.
-- [ ] New households return empty collections; populated collections contain
+- [x] New households return empty collections; populated collections contain
   only that household's records in creation-time/UUID order.
-- [ ] Duplicate names are permitted because UUIDs are identities.
-- [ ] No documented household financial values are seeded.
-- [ ] Clients cannot submit or claim unsupported provenance; Task 002 records
+- [x] Duplicate names are permitted because UUIDs are identities.
+- [x] No documented household financial values are seeded.
+- [x] Clients cannot submit or claim unsupported provenance; Task 002 records
   every created monetary record as `MANUAL_ENTRY`.
-- [ ] Tests cover success, exact decimals, validation, unknown households,
+- [x] Tests cover success, exact decimals, validation, unknown households,
   isolation, ordering, duplicates, and Flyway/PostgreSQL behavior.
-- [ ] README documents representative API requests and retains
+- [x] README documents representative API requests and retains
   `docker compose up --build` as the primary startup path.
-- [ ] No aggregation, conversion, update behavior, or other out-of-scope feature
+- [x] No aggregation, conversion, update behavior, or other out-of-scope feature
   is introduced.
-- [ ] `agent/implementation-log.md` records evidence and open questions.
+- [x] `agent/implementation-log.md` records evidence and open questions.
 
 ## Risks and safeguards
 
@@ -251,52 +251,21 @@
 
 ## Feature acceptance
 
-- Acceptance status: `RETURNED`
-- Acceptance evidence: Product Owner review of PR #1 on 2026-09-03 confirmed
-  that the branch targets `main`, is mergeable, and stays within the Task 002
-  feature boundary. Independent execution of the corrected Java 21 command
-  from `/workspace/backend` passed all 49 tests with zero failures or errors;
-  the Testcontainers logs show Flyway applying V1 and V2 to empty PostgreSQL
-  schemas. Source review confirmed household-scoped repositories, deterministic
-  ordering, database integrity constraints, server-side assignment of
-  `MANUAL_ENTRY`, structured not-found handling, and no seeded household data.
-- Unmet criteria: Exact fixed-precision monetary input is not protected at the
-  API boundary; clients can submit an unsupported provenance field without a
-  rejection; the committed tests do not yet demonstrate the full acceptance
-  matrix for both assets and liabilities; and the PR's documented test command
-  is not executable as written.
-- Returned work:
-  - `F-001` — `BLOCKING`, `ACCEPTED`: `CreateAssetRequest` and
-    `CreateLiabilityRequest` enforce non-negativity but no `NUMERIC(19,2)`-safe
-    precision/scale limit. A value with more than two fractional digits can
-    reach PostgreSQL and be rounded instead of being preserved exactly, while
-    an oversized value can fail at persistence rather than return a structured
-    validation response. Acceptance condition: reject every unrepresentable
-    asset/liability monetary input before persistence with a structured 400,
-    and add PostgreSQL-backed tests for exact fractional round trips, excessive
-    fractional scale, and precision overflow for all three monetary fields.
-  - `F-002` — `BLOCKING`, `ACCEPTED`: The create DTOs omit `sourceType`, but the
-    current Jackson configuration ignores unknown request properties. A client
-    can therefore submit an unsupported provenance claim and still receive a
-    successful create response, contrary to the criterion that clients cannot
-    submit or claim unsupported provenance. Acceptance condition: attempts to
-    provide `sourceType` on either create endpoint are explicitly rejected with
-    a structured 400, with integration coverage; persisted provenance remains
-    server-assigned `MANUAL_ENTRY`.
-  - `F-003` — `BLOCKING`, `ACCEPTED`: The 19-test integration suite demonstrates
-    blank-name, currency, enum, future-date, populated ordering, and duplicate-
-    name behavior only for assets. It does not demonstrate those required
-    behaviors for liabilities, and its whole-number JSON assertions do not
-    prove exact decimal persistence. Acceptance condition: add focused
-    PostgreSQL-backed liability tests for the missing validation and populated
-    list/duplicate cases, plus exact non-whole decimal round-trip assertions for
-    both aggregates.
-  - `F-004` — `BLOCKING`, `ACCEPTED`: PR #1 documents the Maven container with
-    `-w /workspace`, where no `pom.xml` exists; independent execution fails with
-    Maven's `MissingProjectException`. The successful command uses
-    `-w /workspace/backend`. Acceptance condition: correct the command in the
-    PR description and durable implementation evidence, then record the updated
-    test count and result from that exact command.
+- Acceptance status: `ACCEPTED`
+- Acceptance evidence: Product Owner fix-round review of PR #1 on 2026-09-03
+  verified commit `1d86533` against all four returned findings and every Task
+  002 acceptance criterion. Independent execution of the exact corrected Java
+  21 command documented in the PR passed 62 tests with zero failures or errors,
+  including 32 PostgreSQL-backed asset/liability integration tests. The logs
+  confirm Flyway applies V1 and V2 to an empty PostgreSQL schema. Diff review
+  confirmed `NUMERIC(19,2)`-safe request validation, structured rejection of
+  unsupported provenance fields, symmetric asset/liability validation and
+  ordering coverage, household isolation, server-assigned `MANUAL_ENTRY`, and
+  no expansion into aggregation, updates, conversion, UI, or seeded financial
+  data.
+- Unmet criteria: None.
+- Returned work: F-001 through F-004 are resolved and independently verified in
+  commit `1d86533`; no further fix round is required.
 - Follow-up opportunities: Define immutable value history before updates; use
   accepted state in the later financial-snapshot increment.
 - Accepted or returned by Product Owner Agent: Codex
