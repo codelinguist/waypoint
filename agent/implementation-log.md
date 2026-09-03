@@ -1,5 +1,148 @@
 # Implementation Log
 
+### 2026-09-03 — Task 004: Income and Recurring Obligations
+
+**Changed**
+
+- `task/004-income-obligations` was cut from `main` before Task 003 merged,
+  so it was missing `verify.sh`, the required `verify` CI check, and the
+  Task 003 documentation updates. Merged `origin/main` into the task branch
+  before implementing; the only conflict was `agent/current-task.md` (stale
+  Task 003 content vs. the already-defined Task 004 task), resolved in favor
+  of the Task 004 content since Task 003 was already accepted and merged.
+- Added `IncomeStream` and `Obligation` JPA entities
+  (`backend/src/main/java/com/waypoint/household/`), both household-scoped
+  via a `@ManyToOne` to `Household`, with server-assigned `id`,
+  `sourceType = MANUAL_ENTRY`, and Hibernate-managed `createdAt`/`updatedAt`.
+  `IncomeStream` carries `incomeType`, `amount` (rate or flat amount
+  depending on `frequency`), `frequency`, `currency`,
+  `compensationClassification` (`GROSS`/`NET`/`UNKNOWN`), `certainty`
+  (`CONFIRMED`/`EXPECTED`/`VARIABLE`), `startDate`, and optional `endDate`.
+  `Obligation` carries `obligationType`, `amount`, `frequency`, `currency`,
+  `startDate`, and optional `endDate`. Added the supporting enums
+  (`Frequency`, `IncomeType`, `IncomeCertainty`,
+  `CompensationClassification`, `ObligationType`) and a shared
+  `InvalidScheduleException` for the `endDate < startDate` rule.
+- Added `IncomeStreamRepository`/`ObligationRepository`
+  (household-scoped `findBy...OrderByCreatedAtAscIdAsc` and
+  `findByIdAndHousehold_Id` queries, matching the `Asset`/`Liability`
+  pattern), `IncomeStreamService`/`ObligationService` (household lookup,
+  name/currency normalization, `endDate`-not-before-`startDate` validation,
+  not-found semantics), and `IncomeStreamNotFoundException`/
+  `ObligationNotFoundException`.
+- Added `IncomeStreamController`/`ObligationController` under
+  `/api/households/{householdId}/income-streams` and
+  `/api/households/{householdId}/obligations` (`POST`, `GET /{id}`, `GET`
+  list), plus `CreateIncomeStreamRequest`/`IncomeStreamResponse` and
+  `CreateObligationRequest`/`ObligationResponse` DTOs with Bean Validation
+  (`@NotBlank`/`@NotNull`/`@DecimalMin(0)`/`@Digits(17,2)`/3-letter currency
+  `@Pattern`). Unlike `valuedAt`/`balanceAsOf` on `Asset`/`Liability`,
+  `startDate` has no `@PastOrPresent` constraint, so future starts are
+  accepted per the product brief (the household has jobs starting in
+  October 2026).
+- Wired `IncomeStreamNotFoundException`, `ObligationNotFoundException`, and
+  `InvalidScheduleException` into `ApiExceptionHandler`
+  (`INCOME_STREAM_NOT_FOUND` / `OBLIGATION_NOT_FOUND` 404,
+  `VALIDATION_FAILED` 400).
+- Added Flyway migration `V3__create_income_streams_and_obligations.sql`
+  creating `income_streams` and `obligations` tables (both with a
+  household-id index and a `CHECK (amount >= 0)` constraint, matching the
+  `assets`/`liabilities` non-negativity-constraint pattern; `endDate`
+  ordering is enforced in the service layer only, consistent with how
+  `Asset.planningValue <= estimatedValue` is enforced today).
+- Updated `README.md`: documented the new endpoints, enum values, and
+  semantics (future-dated starts allowed; `certainty` always returned as
+  submitted, never inferred; `amount` is schedule-relative, not annualized),
+  and updated the Status section (Phase 1/2 and Task 003 are accepted; Phase
+  3 is implemented and pending Product Owner acceptance).
+
+**Tests**
+
+- `IncomeStreamServiceTest` / `ObligationServiceTest` (Mockito unit tests):
+  name/currency normalization, household-not-found on create/get/list,
+  `endDate`-before-`startDate` rejection, household-scoped retrieval and
+  isolation, and creation-order listing.
+- `IncomeObligationApiIntegrationTest` (`@SpringBootTest` +
+  `@AutoConfigureMockMvc` + Testcontainers `PostgreSQLContainer`, real
+  Flyway migration run): create/retrieve for both resources; future
+  `startDate` accepted; zero amount accepted and negative rejected; blank
+  name, malformed currency, and unrecognized `incomeType`/`obligationType`/
+  `frequency`/`certainty`/`compensationClassification` rejected; `endDate`
+  before `startDate` rejected and equal-to-`startDate` accepted; exact
+  `NUMERIC(19,2)` decimal preservation; excessive fractional scale and
+  precision-overflow rejection; an unsupported client-submitted `sourceType`
+  field rejected; unknown-household 404 on create/list; cross-household
+  retrieval returns 404 without disclosing the record; new households return
+  empty lists; creation-order listing with permitted duplicate names; and
+  cross-household isolation. 37 tests, all passing.
+- Full suite: `./verify.sh` — 113 tests (32 asset/liability +
+  37 income/obligation + 44 household/person/misc.), 0 failures, Flyway
+  migrating a clean database through V1 -> V2 -> V3 automatically.
+- Exercised the primary flow manually against `docker compose up --build`
+  (Docker Desktop started for this session): created a household, an
+  `EXPECTED`/`GROSS` monthly salary income stream with an October 2026
+  start date, a `VARIABLE`/`UNKNOWN` hourly freelance income stream, and a
+  monthly mortgage obligation; listed both collections back in creation
+  order; confirmed a negative-amount obligation and an `endDate` before
+  `startDate` both return `VALIDATION_FAILED` 400; confirmed an unknown
+  household returns 404; confirmed the created records survived a
+  `docker compose down` / `up` cycle (named-volume persistence), then tore
+  the stack down.
+
+**Decisions**
+
+- Kept `IncomeStream`/`Obligation` in the existing `com.waypoint.household`
+  package/module rather than introducing a separate `cash_flow` module,
+  matching how `Asset`/`Liability` were placed in Task 002 and preserving
+  the current single-module boundary until a concrete feature needs the
+  split described in `docs/architecture/architecture.md`.
+- Used one shared `Frequency` enum (`HOURLY`, `WEEKLY`, `BIWEEKLY`,
+  `MONTHLY`, `ANNUAL`) for both `IncomeStream` and `Obligation`, since the
+  product brief defines frequency once and both resources need the same
+  vocabulary.
+- Named the income amount/rate field `amount` (not `rate`) on both
+  entities: per PD-001 it is stored and returned exactly as submitted, with
+  `frequency` giving it meaning (e.g. an `HOURLY` amount is an hourly rate);
+  no normalization, annualization, or total is calculated in this task.
+- Did not add a database-level `CHECK` for `endDate >= startDate`, matching
+  the existing precedent that `Asset.planningValue <= estimatedValue` is
+  enforced only in `AssetService`, not in the V2 migration; enforced it in
+  `IncomeStreamService`/`ObligationService` via `InvalidScheduleException`
+  instead.
+- Followed the product brief's PD-001-PD-003: preserved caller-stated
+  schedule semantics without aggregation/annualization; made income
+  `certainty` and `compensationClassification` caller-supplied and returned
+  verbatim (never inferred from `incomeType` or `amount`); implemented
+  create/read only, with no update/delete/history endpoints.
+
+**Assumptions**
+
+- `certainty` and `compensationClassification` apply to `IncomeStream` only,
+  per the product brief's field list; `Obligation` has no comparable
+  certainty concept in this task.
+- A caller-supplied three-letter currency code (normalized to uppercase),
+  matching the `Asset`/`Liability` precedent, is sufficient for this
+  increment; no per-currency FX or catalogue validation is applied.
+- No household data was seeded; the manual verification evidence above used
+  a disposable "Task 004 Smoke Test" household in the local Docker Compose
+  Postgres volume, alongside pre-existing smoke-test households left by
+  prior tasks in that same shared local volume.
+
+**Open questions**
+
+- Same as the product brief: an hourly-rate expected-hours companion field,
+  required-vs-discretionary obligation flagging beyond `obligationType`,
+  and day- vs. month-level date precision remain deferred to a concrete
+  downstream planning need.
+- Aggregation, FX conversion, taxes, and net-cash-flow semantics remain
+  undefined until the deterministic planning-engine phase.
+
+**Recommended next task**
+
+- Phase 4 of the roadmap: financial snapshots (point-in-time net worth and
+  cash-flow summary), which can now read from `Asset`, `Liability`,
+  `IncomeStream`, and `Obligation`.
+
 ### 2026-09-03 — Task 003: Automate Delivery Gates (PR #2)
 
 **Changed**

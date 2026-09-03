@@ -2,8 +2,11 @@ package com.waypoint.web;
 
 import com.waypoint.household.AssetNotFoundException;
 import com.waypoint.household.HouseholdNotFoundException;
+import com.waypoint.household.IncomeStreamNotFoundException;
 import com.waypoint.household.InvalidAssetValueException;
+import com.waypoint.household.InvalidScheduleException;
 import com.waypoint.household.LiabilityNotFoundException;
+import com.waypoint.household.ObligationNotFoundException;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -57,6 +60,24 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(InvalidAssetValueException.class)
     public ResponseEntity<ErrorResponse> handleInvalidAssetValue(InvalidAssetValueException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse("VALIDATION_FAILED", ex.getMessage(), List.of()));
+    }
+
+    @ExceptionHandler(IncomeStreamNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleIncomeStreamNotFound(IncomeStreamNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("INCOME_STREAM_NOT_FOUND", ex.getMessage(), List.of()));
+    }
+
+    @ExceptionHandler(ObligationNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleObligationNotFound(ObligationNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("OBLIGATION_NOT_FOUND", ex.getMessage(), List.of()));
+    }
+
+    @ExceptionHandler(InvalidScheduleException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidSchedule(InvalidScheduleException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse("VALIDATION_FAILED", ex.getMessage(), List.of()));
     }
