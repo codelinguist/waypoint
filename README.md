@@ -71,6 +71,11 @@ in `docs/architecture/architecture.md`. It currently implements:
   and owed balance-sheet items with explicit values, dates, currencies, and
   liquidity/type classification. Create and read only — no update, delete, or
   aggregation yet.
+- `IncomeStream` and `Obligation` (Phase 3): record and retrieve a household's
+  recurring cash inflows and outflows with explicit amount/rate, frequency,
+  currency, dates, and — for income — gross/net/unknown and
+  confirmed/expected/variable classification. Create and read only; no
+  update, delete, aggregation, FX conversion, or cash-flow totals yet.
 
 ### Prerequisites
 
@@ -147,6 +152,57 @@ curl http://localhost:8080/api/households/{householdId}/liabilities/{liabilityId
 `balanceAsOf` must not be in the future. Every created record is stamped
 `sourceType: "MANUAL_ENTRY"` by the server.
 
+Income streams and recurring obligations are recorded and read the same way.
+Income streams may start in the future (e.g. a job that has not begun yet),
+unlike `valuedAt`/`balanceAsOf` above:
+
+```bash
+curl -X POST http://localhost:8080/api/households/{householdId}/income-streams \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "name": "New Job Salary",
+        "incomeType": "SALARY",
+        "amount": "50000.00",
+        "frequency": "MONTHLY",
+        "currency": "PHP",
+        "compensationClassification": "GROSS",
+        "certainty": "EXPECTED",
+        "startDate": "2026-10-01"
+      }'
+
+curl http://localhost:8080/api/households/{householdId}/income-streams
+curl http://localhost:8080/api/households/{householdId}/income-streams/{incomeStreamId}
+
+curl -X POST http://localhost:8080/api/households/{householdId}/obligations \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "name": "Mortgage",
+        "obligationType": "MORTGAGE",
+        "amount": "22000.00",
+        "frequency": "MONTHLY",
+        "currency": "PHP",
+        "startDate": "2026-09-01"
+      }'
+
+curl http://localhost:8080/api/households/{householdId}/obligations
+curl http://localhost:8080/api/households/{householdId}/obligations/{obligationId}
+```
+
+`incomeType` is one of `SALARY`, `HOURLY_CONTRACT`, `BUSINESS_DISTRIBUTION`,
+`OTHER`. `obligationType` is one of `HOUSEHOLD_BASELINE`, `MORTGAGE`,
+`LOAN_PAYMENT`, `INSURANCE`, `TUITION`, `TRAVEL_SINKING_FUND`,
+`DISCRETIONARY`, `OTHER`. `frequency` (shared by both) is one of `HOURLY`,
+`WEEKLY`, `BIWEEKLY`, `MONTHLY`, `ANNUAL`. `compensationClassification`
+(income only) is one of `GROSS`, `NET`, `UNKNOWN`. `certainty` (income only)
+is one of `CONFIRMED`, `EXPECTED`, `VARIABLE` and is always returned exactly
+as submitted — it is never inferred from `incomeType` or `amount`, so
+`EXPECTED`/`VARIABLE` income is never presented as a confirmed fact.
+`amount` represents either a flat amount or a rate depending on `frequency`
+(e.g. an `HOURLY` amount is an hourly rate); no annualization, FX conversion,
+or cash-flow total is calculated. `amount` must be non-negative; `endDate`,
+if present, must not precede `startDate`; `startDate` may be in the future.
+Every created record is stamped `sourceType: "MANUAL_ENTRY"` by the server.
+
 ### Stopping and resetting
 
 ```bash
@@ -195,19 +251,38 @@ the same `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, and
 
 ### Tests
 
+Run the canonical repository verification command from the repository root
+(requires a JDK on PATH and a running Docker daemon; Docker is used by
+Testcontainers, not to run Maven itself):
+
 ```bash
-cd backend
-./mvnw test
+./verify.sh
 ```
 
-Tests include unit coverage of the household/person and asset/liability
-services and Testcontainers-backed integration tests that run the application
-against a real, ephemeral PostgreSQL container (Flyway migrations included).
-Docker must be running locally for the Testcontainers-backed tests to execute.
+This is exactly what the required `verify` GitHub Actions check runs on every
+pull request targeting `main` — there is one definition of "green," not
+separate local and CI notions of passing. Equivalently, from `backend/`:
+`./mvnw test`.
+
+Tests include unit coverage of the household/person, asset/liability, and
+income-stream/obligation services, and Testcontainers-backed integration
+tests that run the application against a real, ephemeral PostgreSQL
+container (Flyway migrations included).
+
+## Continuous integration
+
+Every pull request targeting `main` runs `./verify.sh` in GitHub Actions
+(`.github/workflows/verify.yml`) as the required `verify` status check.
+`main` branch protection requires that check to pass before merge; see
+`agent/implementation-log.md` for the settings read-back evidence. See
+`agent/collaboration-workflow.md` -> "Branching and pull requests" for how
+this fits the task-branch/PR/review/acceptance workflow.
 
 ## Status
 
-Phase 1 (Household and Person foundation) is implemented and accepted. Phase 2
-(Asset and Liability records) is implemented and pending Product Owner
-acceptance. See `agent/implementation-log.md` for the current state and next
-recommended task.
+Phase 1 (Household and Person foundation) and Phase 2 (Asset and Liability
+records) are implemented and accepted. Task 003 (automated delivery gates:
+`verify.sh`, the required CI check, and branch protection) is implemented and
+accepted. Phase 3 (Income and Recurring Obligations) is implemented and
+pending Product Owner acceptance. See `agent/implementation-log.md` for the
+current state and next recommended task.

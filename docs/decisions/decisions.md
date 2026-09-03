@@ -167,3 +167,32 @@ PostgreSQL configuration while keeping the modular-monolith boundary intact.
 **Tradeoff:** Docker adds build time and container-specific configuration, so
 the Compose setup should stay minimal and must not be treated as production
 orchestration.
+
+---
+
+## D014 — CI is a required merge gate on `main`, driven by one canonical command
+
+**Status:** Accepted
+
+Every pull request targeting `main` runs the root-level `./verify.sh`
+command — the complete Java 21 Maven suite, including the
+PostgreSQL/Testcontainers integration tests — via a least-privilege GitHub
+Actions workflow. `main` branch protection requires that check (`verify`)
+before merge. Local agents run the same script before opening or updating a
+PR, so there is exactly one definition of "green," not separate local and CI
+notions of passing.
+
+Because Claude Code and Codex currently authenticate to GitHub as the same
+account, GitHub cannot provide an independent formal approving review; the
+product brief's recorded findings and acceptance remain the durable approval
+record, and are not represented as a GitHub-native approval.
+
+**Reason:** PR #1 demonstrated that review quality alone is not a safety net
+when the verification command is undocumented and ambiguous and no check is
+required at the repository boundary — deterministic financial software needs
+an objective, reproducible gate that neither implementation nor review prose
+can override.
+
+**Tradeoff:** A required check can deadlock merging if its definition breaks;
+recovering from that is a deliberate, explicitly-decided administrator action,
+not a routine bypass.
