@@ -1,5 +1,158 @@
 # Implementation Log
 
+### 2026-09-03 — Task 003: Automate Delivery Gates (PR #2)
+
+**Changed**
+
+- Added `verify.sh` at the repository root: the single canonical verification
+  command. It `cd`s into `backend/` (no location ambiguity for the caller)
+  and runs `./mvnw --batch-mode test` — the complete Java 21 Maven suite,
+  including the PostgreSQL/Testcontainers integration tests. Requires only a
+  JDK on PATH (the Maven wrapper provisions Maven) and a running Docker
+  daemon (used by Testcontainers, not to run Maven itself); exits nonzero on
+  any test failure.
+- Added `.github/workflows/verify.yml`: a least-privilege (`permissions:
+  contents: read`) GitHub Actions workflow that runs on `pull_request`
+  events targeting `main`, checks out the PR, sets up Temurin JDK 21, and
+  runs `./verify.sh` unmodified — the same command local agents run. The job
+  is named `verify`, which is also the exact reported status-check context.
+- Revised `.github/pull_request_template.md` to require: the local
+  `./verify.sh` result, the required CI `verify` check result and run link,
+  the manually exercised primary flow, task/product-brief links, UI evidence
+  (when applicable), and deviations/known limitations.
+- Updated `AGENTS.md` ("Agent collaboration") and
+  `agent/collaboration-workflow.md` ("Branching and pull requests", and
+  step 4's checklist) so both documents consistently state: Codex may
+  commit and push completed Product Owner review findings/acceptance
+  without asking each time; Codex may merge only after its acceptance
+  commit is on the PR and the required `verify` check is green; neither
+  agent may merge past, or routinely bypass, a failed or missing required
+  check; and same-account Codex review is not an independent formal GitHub
+  approval — the product brief's recorded acceptance is the durable record.
+- Added decision `D014` to `docs/decisions/decisions.md` documenting the
+  required-CI-gate/one-canonical-command decision and its rationale.
+- Updated `README.md`: the Tests section now documents `./verify.sh` as the
+  canonical command (with `./mvnw test` from `backend/` noted as
+  equivalent), and a new "Continuous integration" section documents the
+  required `verify` check and points to this log for the settings
+  read-back.
+- Opened PR #2 (`task/003-delivery-gates` -> `main`) and configured `main`
+  branch protection to require the `verify` status check.
+
+**Tests / verification evidence**
+
+- Local: `./verify.sh` from the repository root — `Tests run: 62, Failures:
+  0, Errors: 0, Skipped: 0`, `BUILD SUCCESS`. Confirmed identical to running
+  `./mvnw -B test` directly from `backend/` (no behavior change from the
+  command wrapper).
+- Fail-fast behavior verified deliberately: temporarily injected a failing
+  JUnit test (`Assertions.fail("canary")`) into `HouseholdServiceTest`, ran
+  `./verify.sh`, confirmed exit code `1` and a Maven `BUILD FAILURE` /
+  surefire failure report, then reverted the file (`git checkout --`) before
+  committing anything.
+- CI: PR #2's `verify` job on GitHub-hosted `ubuntu-latest`
+  (run `https://github.com/codelinguist/waypoint/actions/runs/33758865382`)
+  reported `Tests run: 62, Failures: 0, Errors: 0, Skipped: 0` and
+  `BUILD SUCCESS` — the same count and result as the local run, satisfying
+  the "reported test count agrees with local execution" criterion.
+- Branch protection read-back (`gh api
+  repos/codelinguist/waypoint/branches/main/protection`, credentials never
+  logged):
+  ```json
+  {
+    "required_status_checks": {
+      "strict": false,
+      "contexts": ["verify"],
+      "checks": [{"context": "verify", "app_id": 15368}]
+    },
+    "enforce_admins": {"enabled": false},
+    "required_linear_history": {"enabled": false},
+    "allow_force_pushes": {"enabled": false},
+    "allow_deletions": {"enabled": false}
+  }
+  ```
+  No `required_pull_request_reviews` is configured (confirmed absent from
+  the read-back), so `main` does not require an approving review that a
+  single shared GitHub identity (`codelinguist`, used by both Claude Code
+  and Codex) could not validly provide. `enforce_admins: false` preserves a
+  deliberate administrator recovery path if the CI definition itself breaks,
+  per the product brief's PD-002/PD-003 and the acceptance criteria.
+- Confirmed the required check is live on PR #2 itself:
+  `gh pr view 2 --json mergeable,mergeStateStatus,statusCheckRollup`
+  reported `mergeable: MERGEABLE`, `mergeStateStatus: CLEAN`, and a single
+  `verify` check with `conclusion: SUCCESS` — i.e., GitHub is actually
+  evaluating the required check against this PR, not merely accepting the
+  protection configuration.
+- Directly observed GitHub blocking merge while the check runs, not just
+  after: pushing the implementation-log update triggered a second `verify`
+  run; while it was `IN_PROGRESS`, `gh pr view 2` reported
+  `mergeStateStatus: BLOCKED`; once that run completed
+  (`conclusion: SUCCESS`), the same query reported `mergeStateStatus: CLEAN`
+  again — confirming the "GitHub prevents merge while the check is missing,
+  running, or failing" behavior empirically, not just via configuration
+  read-back.
+- Full pre-existing suite (Task 001 + Task 002 tests) is included in the 62
+  and remains green; no application-domain, API, schema, or UI code was
+  touched by this task.
+
+**Decisions**
+
+- Wrapped the verification command as a thin shell script that `cd`s into
+  `backend/` and calls the existing Maven wrapper directly on the runner's
+  JDK, rather than re-running Maven inside a nested `maven:3.9-eclipse-
+  temurin-21` container (as an earlier local Task 002 session had done to
+  work around a sandbox that lacked a host JDK). Running Maven natively lets
+  Testcontainers talk to the Docker daemon directly with zero extra
+  networking configuration (no `TESTCONTAINERS_HOST_OVERRIDE` /
+  `TESTCONTAINERS_RYUK_DISABLED` needed), works identically on this host and
+  on GitHub-hosted `ubuntu-latest` runners via `actions/setup-java`, and
+  avoids Docker-Desktop-vs-Linux `host.docker.internal` networking
+  differences entirely. See `D014`.
+- Named the workflow `Verify` and its single job `verify`; GitHub reports
+  the status-check context as exactly `verify`, which is what branch
+  protection now requires — confirmed empirically from the first live run
+  rather than assumed.
+- Required only the `verify` status check on `main`, deliberately omitting a
+  required approving review, since Claude Code and Codex share one GitHub
+  identity and an unsatisfiable requirement would deadlock every PR. Recorded
+  this explicitly (`AGENTS.md`, `agent/collaboration-workflow.md`, PR
+  template) rather than silently relying on the same-account review as if it
+  were independent.
+- Left `enforce_admins: false` so a broken CI definition has a real recovery
+  path, per the acceptance criteria; this is intentionally not a routine
+  bypass and is documented as a deliberate exception in `D014` and the
+  collaboration workflow.
+
+**Assumptions**
+
+- GitHub Actions and branch protection on this repository's current plan
+  support one required status check without cost; confirmed directly rather
+  than assumed, since this session has admin access to `codelinguist/
+  waypoint`.
+- A JDK is available on every environment expected to run `./verify.sh`
+  directly (this host, and GitHub Actions via `actions/setup-java`). If a
+  future contributor's environment has Docker but no JDK, `verify.sh` would
+  need a container-based fallback; not built now since it is not the
+  documented constraint (Docker, not Java, is the project's stated only
+  local-development prerequisite for *running the application*; running
+  tests directly has always been the documented "optional, faster inner
+  loop" path per `README.md`).
+
+**Open questions**
+
+- Per the product brief: separate GitHub identities/Apps for genuinely
+  independent reviewer identity, and additional security/UI/deployment/
+  risk-tier-specific checks, remain deliberate follow-up work, not part of
+  this baseline gate.
+
+**Recommended next task**
+
+- Return to the Product Owner Agent (Codex) for independent review of PR #2
+  against `agent/product/delivery-gates/product-brief.md`'s acceptance
+  criteria, then resume the product-domain roadmap (e.g., financial
+  snapshots or the facts/assumptions provenance model) once Task 003 is
+  accepted and merged.
+
 ### 2026-09-03 — Task 002 review findings addressed (PR #1)
 
 **Changed**

@@ -115,10 +115,25 @@ If a new long-lived architectural or product decision is made, add it to `docs/d
 - Every task ships on its own branch (`task/<NNN>-<feature-slug>`) via a pull
   request, never a direct commit to `main`. The user has standing-authorized
   Claude Code to push the branch and open the PR itself as part of completing
-  a task, without asking each time; merging still requires the Product Owner
-  Agent's acceptance and is performed by the user, or by Claude Code only when
-  explicitly asked. See `agent/collaboration-workflow.md` -> "Branching and
-  pull requests".
+  a task, without asking each time.
+- Every pull request targeting `main` must pass the required `verify` GitHub
+  Actions check, which runs the same root-level `./verify.sh` command Claude
+  Code runs locally before opening or updating a PR. Neither agent may merge,
+  nor routinely bypass via administrator override, a PR whose required check
+  is failing, pending, or missing.
+- The Product Owner Agent (Codex) has standing authorization to commit and
+  push its completed review findings and acceptance record directly to the
+  task branch, without asking each time.
+- Merging requires both the Product Owner Agent's acceptance (`ACCEPTED` in
+  the product brief) and a green required check. Once both hold, merging is
+  performed by the user, by Codex, or by Claude Code only when the user
+  explicitly asks — never automatically.
+- Claude Code and Codex currently authenticate to GitHub as the same account,
+  so GitHub cannot provide an independent formal approving review. The
+  product brief's recorded findings and acceptance — not a same-account
+  GitHub review — are the durable, authoritative record of independent
+  review. See `agent/collaboration-workflow.md` -> "Branching and pull
+  requests".
 - These are defaults, not capability restrictions. The current task, acceptance
   criteria, and verified output take precedence over agent identity.
 - The Product Owner Agent may make reversible product decisions from documented

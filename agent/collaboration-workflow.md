@@ -96,18 +96,38 @@ task includes UI work.
   (or a fix round) is ready for review, without asking per task. The user has
   standing-authorized this so the loop stays hands-off; it does not extend to
   merging.
+- Before opening or updating a PR, Claude Code runs the canonical repository
+  verification command, `./verify.sh` (repository root), which runs the
+  complete Java 21 Maven suite including the PostgreSQL/Testcontainers
+  integration tests. The same command runs, unmodified, as the required
+  `verify` GitHub Actions check on every PR targeting `main`; there is no
+  separate local-only or CI-only verification path.
 - The PR description must link `agent/current-task.md`'s task, the linked
-  product brief, and the design brief when one applies, and must record the
-  check commands run and their results (mirroring what step 4 below requires
-  in the brief).
+  product brief, and the design brief when one applies, and must record: the
+  local `./verify.sh` result, the CI `verify` check result and run link, the
+  primary user flow as manually exercised, applicable UI evidence, and any
+  deviations or known limitations (mirroring what step 4 below requires in
+  the brief, and the pull-request template).
 - The Product Owner Agent reviews the PR diff and evidence — via `gh pr diff` /
   `gh pr view` or the GitHub UI — instead of raw working-tree files. Findings
   are still recorded in the product brief (and `visual-review.md` for UI
   work); referencing the PR number is enough, PR review comments are not the
-  durable record.
-- Merging happens only after the Product Owner Agent marks the brief
-  `ACCEPTED`, and is performed by the user or by Claude Code when the user
-  explicitly asks — never automatically.
+  durable record. The Product Owner Agent (Codex) has standing authorization
+  to commit and push its completed review findings and acceptance record
+  directly to the task branch, without asking each time.
+- Claude Code and Codex currently authenticate to GitHub as the same account,
+  so GitHub cannot provide an independent formal approving review. The
+  product brief's recorded findings and acceptance are the durable,
+  authoritative record of independent review; a same-account GitHub review
+  must never be represented as one.
+- Merging requires both the Product Owner Agent marking the brief `ACCEPTED`
+  and the PR's required `verify` check reporting green. Once both hold,
+  merging is performed by the user, by the Product Owner Agent (Codex), or by
+  Claude Code only when the user explicitly asks — never automatically.
+  Neither agent merges, nor routinely bypasses via administrator override, a
+  PR whose required check is failing, pending, or missing; recovering from a
+  genuinely broken check definition is a deliberate, explicitly-decided
+  exception, not a routine action.
 - Keep one task branch open at a time, matching the single-active-task
   convention in `agent/current-task.md`.
 
@@ -168,7 +188,8 @@ services for financial calculations.
 
 Before handoff, Claude Code must:
 
-- run relevant unit, integration, type, and lint checks
+- run the canonical verification command, `./verify.sh`, plus any other
+  relevant type/lint checks
 - exercise the primary user flow
 - render representative wide and narrow layouts (UI tasks only)
 - place screenshots or other evidence in the feature's `evidence/` directory
