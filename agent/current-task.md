@@ -1,103 +1,98 @@
 # Current Task
 
-## Task 001 — Scaffold the Backend and Household Aggregate
+## Task 002 — Record Household Assets and Liabilities
 
 ### Goal
 
-Create the initial backend application and implement the first domain aggregate:
+Add the first canonical balance-sheet records so a household can explicitly
+record and retrieve what it owns and owes.
 
-- Household
-- Person
+Detailed requirements and acceptance criteria:
 
-### Stack
+- `agent/product/assets-liabilities/product-brief.md`
 
-- Java with Spring Boot
-- PostgreSQL
-- Spring Data JPA with Hibernate
-- Flyway
-- JUnit 5
-- Testcontainers where PostgreSQL integration behavior is under test
-- Docker and Docker Compose for the local development environment
+### Outcome
 
-### Requirements
+A trusted local caller can create, retrieve, and list household assets and
+liabilities; preserve exact dated values in original currencies; distinguish
+estimated from conservative planning value; and classify liquidity explicitly.
 
-Implement:
+### Required domain fields
 
-1. Spring Boot application scaffold.
-2. PostgreSQL configuration through environment variables.
-3. JPA/Hibernate configuration.
-4. Flyway migrations.
-5. `Household` persistence model.
-6. `Person` persistence model.
-7. Corresponding request/response DTOs with Bean Validation.
-8. REST endpoints to:
-   - create a household
-   - retrieve a household
-   - add a person to a household
-   - retrieve household members
-9. Automated tests.
-10. A production-shaped `Dockerfile` for the Spring Boot application.
-11. A Docker Compose configuration that starts:
-    - the Spring Boot application
-    - PostgreSQL with a persistent named volume and health check
-12. Container configuration that waits for PostgreSQL readiness and supplies
-    application/database settings through environment variables without
-    committing secrets.
-13. Local development instructions in `README.md`, with
-    `docker compose up --build` as the primary startup path.
+Asset:
 
-### Domain expectations
-
-Household should include at least:
-
-- UUID id
+- UUID id and household_id
 - name
-- base_currency
-- created_at
-- updated_at
+- asset_type: `CASH`, `BANK_ACCOUNT`, `PROPERTY`, `INVESTMENT`,
+  `BUSINESS_OWNERSHIP`, or `OTHER`
+- estimated_value and planning_value as non-negative fixed-precision decimals;
+  planning value must not exceed estimated value
+- normalized three-letter currency
+- non-future valued_at date
+- liquidity: `LIQUID`, `RESTRICTED`, or `ILLIQUID`
+- source_type: server-assigned `MANUAL_ENTRY`
+- created_at and updated_at
 
-Person should include at least:
+Liability:
 
-- UUID id
-- household_id
+- UUID id and household_id
 - name
-- role
-- created_at
-- updated_at
+- liability_type: `CREDIT_CARD`, `MORTGAGE`, `PERSONAL_LOAN`, `BUSINESS_LOAN`,
+  or `OTHER`
+- outstanding_balance as a non-negative fixed-precision decimal
+- normalized three-letter currency
+- non-future balance_as_of date
+- source_type: server-assigned `MANUAL_ENTRY`
+- created_at and updated_at
 
-Do not add unnecessary personal/sensitive information yet.
+Use `BigDecimal` in Java and `NUMERIC(19,2)` in PostgreSQL.
+
+### Required API
+
+- `POST /api/households/{householdId}/assets`
+- `GET /api/households/{householdId}/assets`
+- `GET /api/households/{householdId}/assets/{assetId}`
+- `POST /api/households/{householdId}/liabilities`
+- `GET /api/households/{householdId}/liabilities`
+- `GET /api/households/{householdId}/liabilities/{liabilityId}`
+
+All lookups are household-scoped. Unknown households and records belonging to a
+different household return structured not-found responses. Lists sort by
+creation time ascending, then UUID ascending. Duplicate names are permitted.
+
+### Implementation requirements
+
+1. Add Flyway migration(s) with foreign keys, constraints, and scoped indexes.
+2. Add JPA models, repositories, services, validated requests, and explicit
+   responses within the modular monolith.
+3. Keep validation and business rules outside controllers.
+4. Extend structured errors for invalid enums and missing records.
+5. Add unit and PostgreSQL/Testcontainers integration tests for the brief.
+6. Verify migration from Task 001 and startup on an empty database.
+7. Verify through the existing Docker Compose environment.
+8. Document representative requests in `README.md`.
+9. Update `agent/implementation-log.md` with evidence.
 
 ### Constraints
 
-Do not implement:
+Do not implement seeded household financial data; update/delete/archive/transfer
+endpoints; value history; aggregation or net-worth math; currency conversion;
+loan interest, schedules, amortization, payoff, or projections; person-level
+ownership; authentication; UI; AI; external integrations; or new services.
 
-- authentication
-- AI features
-- assets
-- liabilities
-- transactions
-- event sourcing
-- queues
-- vector database
-- external integrations
-- Kubernetes
-- production deployment infrastructure
-
-Docker is required for local development, but the setup should remain small:
-one application container and one PostgreSQL container. Do not introduce a
-general-purpose container platform or production orchestration concerns.
+Liquidity and planning value are explicit caller inputs and must not be inferred
+from asset type. The API must assign `MANUAL_ENTRY`; clients cannot claim an
+unsupported import or calculation source. Do not log request bodies containing
+financial values.
 
 ### Definition of Done
 
-- `docker compose up --build` starts the application and PostgreSQL from a
-  clean checkout with only Docker as a prerequisite
-- application becomes ready only after it can connect to PostgreSQL
-- database migrations run successfully
-- household can be created and retrieved
-- household member can be added and retrieved
-- tests pass
-- PostgreSQL data survives a normal Compose stop/start cycle
-- no secrets are committed in Docker, Compose, or application configuration
-- README explains Docker-based setup, shutdown, data reset, logs, and test
-  commands
-- `agent/implementation-log.md` is updated
+- every acceptance criterion in the linked product brief is satisfied
+- all tests pass under Java 21/Docker
+- upgraded and clean-start Flyway paths are verified
+- `docker compose up --build` produces healthy app and PostgreSQL services
+- live smoke tests cover create, retrieve, list, validation, not-found, and
+  household isolation
+- no real household financial records are seeded
+- README and `agent/implementation-log.md` are updated
+- concrete evidence is ready for independent Product Owner acceptance
