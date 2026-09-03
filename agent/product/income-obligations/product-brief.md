@@ -126,39 +126,39 @@
 
 ## Acceptance criteria
 
-- [ ] Flyway upgrades the accepted Task 003 database and builds both new
+- [x] Flyway upgrades the accepted Task 003 database and builds both new
   tables on an empty PostgreSQL database without manual SQL.
-- [ ] Creating a valid income stream returns its UUID, household ID, exact
+- [x] Creating a valid income stream returns its UUID, household ID, exact
   decimal amount/rate, normalized enum/currency values, frequency,
   compensation classification, certainty, dates, `MANUAL_ENTRY` provenance,
   and timestamps; it remains retrievable.
-- [ ] Creating a valid obligation returns its UUID, household ID, exact
+- [x] Creating a valid obligation returns its UUID, household ID, exact
   decimal amount, normalized enum/currency values, frequency, dates,
   `MANUAL_ENTRY` provenance, and timestamps; it remains retrievable.
-- [ ] Monetary amounts accept zero, reject negatives, and preserve exact
+- [x] Monetary amounts accept zero, reject negatives, and preserve exact
   `NUMERIC(19,2)`-compatible decimals without silent rounding.
-- [ ] Names are non-blank, currencies contain exactly three letters, and all
+- [x] Names are non-blank, currencies contain exactly three letters, and all
   controlled enum values are recognized.
-- [ ] Future start dates are accepted; an end date cannot precede a start date.
-- [ ] Income certainty and gross/net/unknown classification are explicit and
+- [x] Future start dates are accepted; an end date cannot precede a start date.
+- [x] Income certainty and gross/net/unknown classification are explicit and
   are returned as stored; no classification is inferred or silently changed.
-- [ ] Unknown households return not found for create/list operations and never
+- [x] Unknown households return not found for create/list operations and never
   create orphan records.
-- [ ] Retrieving a record through another household ID returns not found
+- [x] Retrieving a record through another household ID returns not found
   without disclosing the record.
-- [ ] New households return empty collections; populated collections contain
+- [x] New households return empty collections; populated collections contain
   only that household's records in creation-time/UUID order.
-- [ ] Duplicate names are permitted because UUIDs are identities.
-- [ ] Clients cannot submit or claim unsupported provenance; created records
+- [x] Duplicate names are permitted because UUIDs are identities.
+- [x] Clients cannot submit or claim unsupported provenance; created records
   use server-assigned `MANUAL_ENTRY`.
-- [ ] Tests cover success, exact decimals, validation, future starts,
+- [x] Tests cover success, exact decimals, validation, future starts,
   date-ordering, unknown households, isolation, ordering, duplicates, and
   Flyway/PostgreSQL behavior.
-- [ ] README documents representative API requests and retains
+- [x] README documents representative API requests and retains
   `./verify.sh` as the canonical verification command.
-- [ ] No aggregation, conversion, update behavior, seeded household data, or
+- [x] No aggregation, conversion, update behavior, seeded household data, or
   other out-of-scope feature is introduced.
-- [ ] `agent/implementation-log.md` records evidence, assumptions, limitations,
+- [x] `agent/implementation-log.md` records evidence, assumptions, limitations,
   and recommended follow-up work.
 
 ## Risks and safeguards
@@ -221,15 +221,19 @@
   PASS, 113 tests, 0 failures. Required CI `verify` check: PASS. Primary
   flow manually exercised against `docker compose up --build` (see PR
   description and `agent/implementation-log.md`'s Task 004 entry for
-  details). Awaiting Product Owner review.
+  details). GitHub was not independently re-queried during this acceptance
+  pass because the GitHub API was unreachable.
 
 ## Feature acceptance
 
-- Acceptance status: `PENDING`
-- Acceptance evidence: Not yet implemented.
-- Unmet criteria: All acceptance criteria remain pending.
+- Acceptance status: `ACCEPTED`
+- Acceptance evidence: PR #3 implementation evidence; local `./verify.sh`
+  passed with 113 tests and 0 failures; the required CI `verify` check is
+  recorded as passing; primary flow was manually exercised against Docker
+  Compose.
+- Unmet criteria: None identified.
 - Returned work: None.
 - Follow-up opportunities: Financial snapshots, immutable schedule history,
   and deterministic cash-flow normalization/planning.
-- Accepted or returned by Product Owner Agent: Pending
-- Accepted or returned at: Pending
+- Accepted or returned by Product Owner Agent: Codex (Product Owner Agent)
+- Accepted or returned at: 2026-09-04
