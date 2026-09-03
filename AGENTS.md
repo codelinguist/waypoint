@@ -41,8 +41,9 @@ Read:
 8. `docs/product/roadmap.md`
 9. `agent/current-task.md`
 
-For user-interface work, also read `agent/collaboration-workflow.md`. UI work must
-follow its design approval and visual-review gates.
+Also read `agent/collaboration-workflow.md` for the branching and pull-request
+mechanics that apply to every task. UI work additionally follows its design
+approval and visual-review gates.
 
 ## Implementation style
 
@@ -111,6 +112,13 @@ If a new long-lived architectural or product decision is made, add it to `docs/d
 - Claude Code is the default implementation and integration owner for
   repository-wide work, deterministic behavior, and tests. For UI features it
   also explores directions and writes the design brief before implementing.
+- Every task ships on its own branch (`task/<NNN>-<feature-slug>`) via a pull
+  request, never a direct commit to `main`. The user has standing-authorized
+  Claude Code to push the branch and open the PR itself as part of completing
+  a task, without asking each time; merging still requires the Product Owner
+  Agent's acceptance and is performed by the user, or by Claude Code only when
+  explicitly asked. See `agent/collaboration-workflow.md` -> "Branching and
+  pull requests".
 - These are defaults, not capability restrictions. The current task, acceptance
   criteria, and verified output take precedence over agent identity.
 - The Product Owner Agent may make reversible product decisions from documented

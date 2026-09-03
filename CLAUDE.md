@@ -3,8 +3,9 @@
 Read and follow `AGENTS.md`; it is the shared source of repository instructions
 for every coding agent.
 
-For UI work, also read `agent/collaboration-workflow.md`. Use the templates in
-`agent/templates/` and write durable handoff artifacts under
+Read `agent/collaboration-workflow.md` for the branching and pull-request
+mechanics that apply to every task. For UI work, additionally use the
+templates in `agent/templates/` and write durable handoff artifacts under
 `agent/ui/<feature-slug>/`.
 
 ## Default role
@@ -21,6 +22,9 @@ For repository-wide and backend work, Claude Code:
 - keeps domain logic separate from transport/UI concerns per `AGENTS.md`
 - runs relevant unit, integration, type, and lint checks
 - updates `agent/implementation-log.md` after coding
+- pushes the task branch (`task/<NNN>-<feature-slug>`) and opens the PR,
+  without asking first — the user has standing-authorized this; it does not
+  extend to merging
 
 For UI features, Claude Code additionally:
 

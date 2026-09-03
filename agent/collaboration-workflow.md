@@ -5,8 +5,10 @@
 Use each agent where it tends to add the most value while keeping the repository,
 not chat history, as the source of truth.
 
-This workflow is required for material UI features. It is optional for small,
-mechanical UI changes and does not apply to backend-only tasks.
+The design-brief and visual-review stages are required for material UI
+features and optional for small, mechanical UI changes; they do not apply to
+backend-only tasks. Branching and pull requests (below) apply to every task
+regardless of size.
 
 ## Default responsibilities
 
@@ -80,6 +82,35 @@ The brief and review must be understandable without access to either agent's
 conversation. Images and recordings belong in `evidence/`; do not put sensitive
 household financial data in screenshots when representative fixtures will do.
 
+## Branching and pull requests
+
+Every task — UI or backend-only — ships through a branch and a pull request,
+not a direct commit to `main`. This is the general delivery mechanism; the
+UI-specific design-brief and visual-review artifacts above apply only when the
+task includes UI work.
+
+- One branch per task, cut from `main`: `task/<NNN>-<feature-slug>`, matching
+  the task number and slug in `agent/current-task.md` and
+  `agent/product/<feature-slug>/`.
+- Claude Code pushes the branch and opens the PR itself when implementation
+  (or a fix round) is ready for review, without asking per task. The user has
+  standing-authorized this so the loop stays hands-off; it does not extend to
+  merging.
+- The PR description must link `agent/current-task.md`'s task, the linked
+  product brief, and the design brief when one applies, and must record the
+  check commands run and their results (mirroring what step 4 below requires
+  in the brief).
+- The Product Owner Agent reviews the PR diff and evidence — via `gh pr diff` /
+  `gh pr view` or the GitHub UI — instead of raw working-tree files. Findings
+  are still recorded in the product brief (and `visual-review.md` for UI
+  work); referencing the PR number is enough, PR review comments are not the
+  durable record.
+- Merging happens only after the Product Owner Agent marks the brief
+  `ACCEPTED`, and is performed by the user or by Claude Code when the user
+  explicitly asks — never automatically.
+- Keep one task branch open at a time, matching the single-active-task
+  convention in `agent/current-task.md`.
+
 ## Workflow
 
 ### 0. User presents a problem
@@ -139,10 +170,12 @@ Before handoff, Claude Code must:
 
 - run relevant unit, integration, type, and lint checks
 - exercise the primary user flow
-- render representative wide and narrow layouts
+- render representative wide and narrow layouts (UI tasks only)
 - place screenshots or other evidence in the feature's `evidence/` directory
+  (UI tasks only)
 - record commands, results, deviations, and known limitations in the brief
 - update `agent/implementation-log.md`
+- push the task branch and open the PR per "Branching and pull requests" above
 
 If implementation reveals a material design change, status returns to `DRAFT`
 until the Product Owner Agent approves the revised brief.
@@ -150,8 +183,9 @@ until the Product Owner Agent approves the revised brief.
 ### 5. Review and decide on follow-up changes with the Product Owner Agent
 
 Back in the Codex session, the Product Owner Agent inspects the approved brief
-and the implementation evidence — it does not edit application code. Findings
-go in `visual-review.md` and are classified as:
+and the PR's diff and evidence — it does not edit application code. Findings
+go in the product brief (and `visual-review.md` for UI work) and are
+classified as:
 
 - `BLOCKING`: prevents correct, accessible, or usable completion
 - `RECOMMENDED`: meaningful improvement that remains within approved intent
@@ -166,9 +200,10 @@ new product decision.
 ### 6. Apply and verify with Claude Code
 
 Claude Code applies accepted findings, reruns the relevant automated checks,
-and re-renders affected layouts. It updates the review with verification
-evidence, marks the brief `IMPLEMENTED`, and updates
-`agent/implementation-log.md` again.
+and re-renders affected layouts if applicable. It pushes the fix commits to
+the same task branch and PR, updates the review with verification evidence,
+marks the brief `IMPLEMENTED`, and updates `agent/implementation-log.md`
+again.
 
 ### 7. Accept the feature
 
@@ -178,6 +213,9 @@ the feature with specific unmet criteria. New ideas discovered during acceptance
 become follow-up tasks rather than silently expanding the feature. The user may
 always provide feedback or reject an outcome that does not solve the real
 problem; the Product Owner Agent then reframes or reprioritizes the work.
+
+Acceptance authorizes the merge; it does not perform it — see "Branching and
+pull requests" above.
 
 ## Completion scorecard
 

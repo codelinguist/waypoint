@@ -34,9 +34,10 @@ Read these documents in order:
 
 ## Agent collaboration workflow
 
-UI features use a planning-to-implementation handoff between Codex (Product
-Owner Agent) and Claude Code (implementer). The workflow, approval gates, and
-reusable artifacts are documented in
+Every task uses a planning-to-implementation handoff between Codex (Product
+Owner Agent) and Claude Code (implementer), shipped through a branch and pull
+request rather than a direct commit to `main`. The workflow, approval gates,
+branching mechanics, and reusable artifacts are documented in
 [`agent/collaboration-workflow.md`](agent/collaboration-workflow.md).
 
 The short version is:
@@ -45,18 +46,19 @@ The short version is:
 2. Codex, acting as the Product Owner Agent in its own session, defines the
    outcome, priority, scope, and acceptance criteria in a durable product
    brief, then points `agent/current-task.md` at it.
-3. Claude Code explores UI directions and writes a design brief.
+3. Claude Code explores UI directions and writes a design brief (UI tasks only).
 4. Codex selects a direction based on the product brief and asks the user
-   only when a material preference cannot be inferred safely.
-5. Claude Code implements the approved design and verifies it in the real
-   application.
-6. Codex reviews the rendered evidence, without editing the implementation,
-   and triages findings.
+   only when a material preference cannot be inferred safely (UI tasks only).
+5. Claude Code implements on a task branch, verifies it in the real
+   application, and pushes the branch and opens a PR.
+6. Codex reviews the PR's diff and evidence, without editing the
+   implementation, and triages findings.
 7. Claude Code applies accepted changes and re-verifies.
-8. Codex accepts the completed feature against evidence.
+8. Codex accepts the completed feature against evidence, authorizing the
+   merge; the user (or Claude Code, if explicitly asked) merges it.
 
-This workflow applies only when `agent/current-task.md` includes UI work. The
-current backend task does not require a speculative frontend or design pass.
+The design-brief and visual-review stages (steps 3–4 and the review evidence
+in step 6) apply only when `agent/current-task.md` includes UI work.
 
 ## Backend
 
