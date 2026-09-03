@@ -195,15 +195,31 @@ the same `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, and
 
 ### Tests
 
+Run the canonical repository verification command from the repository root
+(requires a JDK on PATH and a running Docker daemon; Docker is used by
+Testcontainers, not to run Maven itself):
+
 ```bash
-cd backend
-./mvnw test
+./verify.sh
 ```
+
+This is exactly what the required `verify` GitHub Actions check runs on every
+pull request targeting `main` — there is one definition of "green," not
+separate local and CI notions of passing. Equivalently, from `backend/`:
+`./mvnw test`.
 
 Tests include unit coverage of the household/person and asset/liability
 services and Testcontainers-backed integration tests that run the application
 against a real, ephemeral PostgreSQL container (Flyway migrations included).
-Docker must be running locally for the Testcontainers-backed tests to execute.
+
+## Continuous integration
+
+Every pull request targeting `main` runs `./verify.sh` in GitHub Actions
+(`.github/workflows/verify.yml`) as the required `verify` status check.
+`main` branch protection requires that check to pass before merge; see
+`agent/implementation-log.md` for the settings read-back evidence. See
+`agent/collaboration-workflow.md` -> "Branching and pull requests" for how
+this fits the task-branch/PR/review/acceptance workflow.
 
 ## Status
 
