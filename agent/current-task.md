@@ -1,68 +1,62 @@
 # Current Task
 
-## Task 003 — Automate Delivery Gates
+## Task 004 — Income and Recurring Obligations
 
 ### Goal
 
-Turn the proven Claude implementation -> Codex review -> acceptance -> merge
-workflow into a reproducible, enforced repository contract.
+Add canonical household records for recurring income streams and recurring
+obligations so later snapshots and deterministic planning can work from dated,
+frequency-aware cash-flow commitments.
 
 Detailed requirements and acceptance criteria:
 
-- `agent/product/delivery-gates/product-brief.md`
+- `agent/product/income-obligations/product-brief.md`
 
 ### Outcome
 
-Every pull request targeting `main` runs one canonical repository verification
-command in GitHub Actions, GitHub requires that check before merge, and the
-written workflow clearly authorizes Codex to push review artifacts and merge
-only accepted, green pull requests.
+A trusted caller can create and retrieve household-scoped income streams and
+recurring obligations with explicit amounts, frequencies, currencies, dates,
+and uncertainty/classification. The API preserves schedule semantics without
+calculating totals or silently converting estimates into facts.
 
 ### Required deliverables
 
-1. Add one executable verification command at the repository root.
-2. Ensure it runs the complete Java 21 Maven suite, including the existing
-   PostgreSQL/Testcontainers integration tests, in the supported local Docker
-   environment.
-3. Add a least-privilege GitHub Actions workflow for pull requests to `main`
-   that invokes the same command and exposes a stable, documented check name.
-4. Configure `main` branch protection to require that exact check and read the
-   setting back as reviewable evidence.
-5. Revise the existing pull-request template to require the canonical local
-   result, CI result, task/product links, applicable UI evidence, manual-flow
-   evidence, deviations, and known limitations.
-6. Update `AGENTS.md` and `agent/collaboration-workflow.md` consistently:
-   - Codex may commit and push completed Product Owner review artifacts without
-     asking each time.
-   - Codex may merge only after its acceptance commit is included in the PR and
-     every required check is green.
-   - Neither agent may bypass failed or missing required checks.
-   - Same-account Codex review is not an independent formal GitHub approval;
-     the product brief is the durable acceptance record.
-7. Update `agent/implementation-log.md` with verification and GitHub-settings
-   evidence.
+1. Add Flyway migrations and explicit domain entities for income streams and
+   recurring obligations, linked to households.
+2. Add validated create/get/list APIs with structured errors, exact decimal
+   handling, household isolation, deterministic ordering, and server-assigned
+   `MANUAL_ENTRY` provenance.
+3. Represent income frequency, compensation classification, and certainty
+   explicitly; allow valid future starts and reject invalid date ranges.
+4. Add focused unit and PostgreSQL/Testcontainers integration tests covering
+   the product brief's success, validation, provenance, isolation, ordering,
+   and persistence criteria.
+5. Update README and `agent/implementation-log.md` with representative API,
+   verification, assumptions, limitations, and recommended follow-up evidence.
+6. Preserve the existing modular-monolith architecture and run the canonical
+   root command `./verify.sh` before handoff.
 
 ### Constraints
 
-- Do not change application-domain behavior, API contracts, database schemas,
-  UI, or canonical household financial data.
-- Do not add separate GitHub identities, paid services, secrets, deployment
-  pipelines, security scanners, preview environments, risk tiers, workflow
-  metrics, worktree orchestration, or autonomous agent swarms.
-- Do not weaken, skip, or conditionally exclude the PostgreSQL/Testcontainers
-  integration tests.
-- Use representative fixtures only; do not upload databases or expose tokens.
-- Preserve one active task branch and one implementation owner.
-- Branch: `task/003-delivery-gates`.
+- Do not seed Ralph's documented income or obligations.
+- Do not add aggregation, FX conversion, taxes, annualization, forecasting,
+  runway, goals, snapshots, update/delete/history behavior, UI, AI, or
+  external integrations.
+- Preserve Java 21, PostgreSQL, Flyway, JPA, and the existing API/error style.
+- Use exact decimal monetary storage and validation compatible with
+  `NUMERIC(19,2)`.
+- Keep all records household-scoped; cross-household access must not disclose
+  existence.
+- Preserve explicit uncertainty: `EXPECTED` or `VARIABLE` income is not a
+  confirmed fact merely because it was submitted through the API.
+- Use branch `task/004-income-obligations` and the established PR workflow.
 
 ### Definition of Done
 
 - every acceptance criterion in the linked product brief is satisfied
-- the canonical verification command passes locally and fails when a test fails
-- the Task 003 PR reports the same command passing on a clean GitHub runner
-- `main` requires the stable CI check, confirmed through settings read-back
-- the PR template and both workflow-policy documents agree
-- the full pre-existing test suite remains green
-- implementation evidence is recorded for independent Product Owner review
-- Claude pushes the branch and opens the PR; Codex accepts and merges only after
-  the required check is green
+- the full pre-existing and new test suite passes via `./verify.sh`
+- the PR reports matching local and GitHub `verify` results
+- no application behavior outside this increment is changed
+- implementation evidence is recorded for Product Owner review
+- Claude pushes the branch and opens the PR; Codex reviews and accepts only
+  after the required check is green
