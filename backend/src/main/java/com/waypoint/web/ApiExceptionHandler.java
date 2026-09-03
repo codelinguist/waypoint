@@ -1,6 +1,9 @@
 package com.waypoint.web;
 
+import com.waypoint.household.AssetNotFoundException;
 import com.waypoint.household.HouseholdNotFoundException;
+import com.waypoint.household.InvalidAssetValueException;
+import com.waypoint.household.LiabilityNotFoundException;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -38,5 +41,23 @@ public class ApiExceptionHandler {
     public ResponseEntity<ErrorResponse> handleHouseholdNotFound(HouseholdNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ErrorResponse("HOUSEHOLD_NOT_FOUND", ex.getMessage(), List.of()));
+    }
+
+    @ExceptionHandler(AssetNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleAssetNotFound(AssetNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("ASSET_NOT_FOUND", ex.getMessage(), List.of()));
+    }
+
+    @ExceptionHandler(LiabilityNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleLiabilityNotFound(LiabilityNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("LIABILITY_NOT_FOUND", ex.getMessage(), List.of()));
+    }
+
+    @ExceptionHandler(InvalidAssetValueException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidAssetValue(InvalidAssetValueException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse("VALIDATION_FAILED", ex.getMessage(), List.of()));
     }
 }

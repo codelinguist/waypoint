@@ -231,8 +231,16 @@
   Liabilities
 - Design brief: Not applicable; no UI is in scope.
 - Implementation owner: Claude Code
-- Review evidence: Pending tests, upgraded/empty migration evidence, live API
-  smoke checks, and Docker Compose verification.
+- Review evidence: PR `task/002-assets-liabilities`; 49 tests passing under
+  Java 21/Docker (`AssetServiceTest`, `LiabilityServiceTest`,
+  `AssetLiabilityApiIntegrationTest`, plus prior Task 001 suites); Flyway V2
+  applied cleanly both on an empty schema (Testcontainers) and as a genuine
+  upgrade of the persisted Task 001 volume (`docker compose up --build`,
+  "Current version of schema public: 1" -> "Migrating ... to version 2"); live
+  smoke checks for asset/liability create, get, list, zero-value acceptance,
+  negative-value rejection, planning-value-exceeds-estimated rejection,
+  future-date rejection, unknown-household 404, and cross-household 404
+  without disclosure.
 
 ## Feature acceptance
 
