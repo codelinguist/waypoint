@@ -216,8 +216,12 @@
   Obligations
 - Design brief: Not applicable; no UI is in scope.
 - Implementation owner: Claude Code
-- Review evidence: Pending implementation, canonical verification, CI, and
-  Product Owner review.
+- Review evidence: PR #3 (`task/004-income-obligations` -> `main`) —
+  https://github.com/codelinguist/waypoint/pull/3. Local `./verify.sh`:
+  PASS, 113 tests, 0 failures. Required CI `verify` check: PASS. Primary
+  flow manually exercised against `docker compose up --build` (see PR
+  description and `agent/implementation-log.md`'s Task 004 entry for
+  details). Awaiting Product Owner review.
 
 ## Feature acceptance
 
