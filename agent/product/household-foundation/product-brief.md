@@ -2,7 +2,7 @@
 
 ## Status
 
-`READY`
+`ACCEPTED`
 
 ## Ownership
 
@@ -125,33 +125,33 @@
 
 ## Acceptance criteria
 
-- [ ] On a clean PostgreSQL database, the application starts and Flyway creates
+- [x] On a clean PostgreSQL database, the application starts and Flyway creates
   the required household and person schema without manual SQL steps.
-- [ ] Creating a household with a non-blank name and a valid three-letter base
+- [x] Creating a household with a non-blank name and a valid three-letter base
   currency returns a generated UUID, normalized uppercase currency, and
   populated creation/update timestamps, and the record remains retrievable.
-- [ ] Blank names, blank roles, and malformed currency codes are rejected with a
+- [x] Blank names, blank roles, and malformed currency codes are rejected with a
   validation response and do not persist records.
-- [ ] Retrieving an existing household returns its ID, name, base currency, and
+- [x] Retrieving an existing household returns its ID, name, base currency, and
   timestamps; retrieving an unknown UUID returns a not-found response.
-- [ ] Adding a person to an existing household returns a generated UUID, the
+- [x] Adding a person to an existing household returns a generated UUID, the
   household association, name, role, and timestamps, and persists the member.
-- [ ] Adding a person to an unknown household returns a not-found response and
+- [x] Adding a person to an unknown household returns a not-found response and
   does not create an orphaned person.
-- [ ] Retrieving members for a new household returns an empty collection;
+- [x] Retrieving members for a new household returns an empty collection;
   retrieving after additions returns every member for that household only in
   deterministic creation order.
-- [ ] Duplicate person names within a household are permitted because a name is
+- [x] Duplicate person names within a household are permitted because a name is
   not a reliable unique identity and no disambiguation rule is documented yet.
-- [ ] Person records contain no date of birth, contact details, government IDs,
+- [x] Person records contain no date of birth, contact details, government IDs,
   financial values, or other sensitive fields outside the approved minimum.
-- [ ] Automated tests cover successful creation/retrieval, validation failures,
+- [x] Automated tests cover successful creation/retrieval, validation failures,
   unknown-household behavior, household isolation, and the PostgreSQL/Flyway
   boundary where relevant.
-- [ ] The README documents prerequisites, environment variables, database setup,
+- [x] The README documents prerequisites, environment variables, database setup,
   application startup, migrations, and test commands that a developer can
   follow locally.
-- [ ] No out-of-scope infrastructure or domain feature is introduced.
+- [x] No out-of-scope infrastructure or domain feature is introduced.
 
 ## Risks and safeguards
 
@@ -246,18 +246,26 @@
 - Current task: `agent/current-task.md` — Task 001, Scaffold the Backend and
   Household Aggregate
 - Design brief, if applicable: Not applicable; no UI is in scope.
-- Implementation owner: Codex
-- Review evidence: Pending implementation, automated test results, clean-database
-  migration evidence, and README setup verification.
+- Implementation owner: Claude Code
+- Review evidence: Commit `62972a9`; independent code and documentation review;
+  Java 21 Docker test run with 17 tests passing; clean Docker Compose startup
+  with healthy application and PostgreSQL containers; Flyway V1 applied to an
+  empty schema; live API checks for create/retrieve/add/list, validation, and
+  not-found behavior; and successful retrieval of a pre-existing household
+  after `docker compose down` followed by `docker compose up`.
 
 ## Feature acceptance
 
-- Acceptance status: `PENDING`
-- Acceptance evidence: Not yet implemented.
-- Unmet criteria: All acceptance criteria remain pending.
+- Acceptance status: `ACCEPTED`
+- Acceptance evidence: All acceptance criteria were independently verified on
+  2026-09-03. The complete Java 21 suite passed (`17` tests, `0` failures,
+  `0` errors), both Compose services became healthy, Flyway created and
+  validated the schema, live REST behavior matched the brief, and PostgreSQL
+  data survived a normal Compose stop/start cycle.
+- Unmet criteria: None.
 - Returned work: None.
 - Follow-up opportunities: Define member lifecycle and role taxonomy only when a
   concrete downstream feature requires them; define authentication before any
   non-private deployment.
-- Accepted or returned by Product Owner Agent: Pending
-- Accepted or returned at: Pending
+- Accepted or returned by Product Owner Agent: Codex
+- Accepted or returned at: 2026-09-03

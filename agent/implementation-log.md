@@ -1,5 +1,45 @@
 # Implementation Log
 
+### 2026-09-03 — Task 001 product acceptance
+
+**Changed**
+
+- Product Owner Agent accepted Task 001 against the linked Household Foundation
+  product brief and recorded the evidence there.
+- No implementation changes were required during acceptance.
+
+**Tests**
+
+- Independently ran the complete suite under the declared Java 21 Docker
+  environment: 17 tests passed with 0 failures and 0 errors.
+- Built and started the application with Docker Compose from an empty database;
+  PostgreSQL and the application both became healthy, and Flyway applied V1.
+- Exercised household create/retrieve, person add/list, validation, and
+  not-found responses through the live HTTP API.
+- Verified a created household remained retrievable after `docker compose down`
+  and `docker compose up`, confirming named-volume persistence.
+
+**Decisions**
+
+- Accepted Task 001 with no returned work or new architectural decision.
+
+**Assumptions**
+
+- The failed host-side test attempt under an installed Java 26 runtime is not a
+  product failure: the project declares Java 21, and the same suite passed in
+  the Java 21 Docker environment. Docker remains the canonical local path under
+  D013.
+
+**Open questions**
+
+- Person-role vocabulary and member lifecycle remain intentionally deferred.
+- Authentication remains required before any non-private deployment.
+
+**Recommended next task**
+
+- Frame Phase 2 as a small vertical increment for household assets and
+  liabilities before overwriting `agent/current-task.md`.
+
 ### 2026-09-03 — Task 001: Scaffold the backend and Household aggregate
 
 **Changed**
