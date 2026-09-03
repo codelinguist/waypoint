@@ -83,6 +83,14 @@
   `verify` check with `conclusion: SUCCESS` — i.e., GitHub is actually
   evaluating the required check against this PR, not merely accepting the
   protection configuration.
+- Directly observed GitHub blocking merge while the check runs, not just
+  after: pushing the implementation-log update triggered a second `verify`
+  run; while it was `IN_PROGRESS`, `gh pr view 2` reported
+  `mergeStateStatus: BLOCKED`; once that run completed
+  (`conclusion: SUCCESS`), the same query reported `mergeStateStatus: CLEAN`
+  again — confirming the "GitHub prevents merge while the check is missing,
+  running, or failing" behavior empirically, not just via configuration
+  read-back.
 - Full pre-existing suite (Task 001 + Task 002 tests) is included in the 62
   and remains green; no application-domain, API, schema, or UI code was
   touched by this task.
