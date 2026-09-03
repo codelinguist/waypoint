@@ -244,11 +244,53 @@
 
 ## Feature acceptance
 
-- Acceptance status: `PENDING`
-- Acceptance evidence: Not yet implemented.
-- Unmet criteria: All acceptance criteria remain pending.
-- Returned work: None.
+- Acceptance status: `RETURNED`
+- Acceptance evidence: Product Owner review of PR #1 on 2026-09-03 confirmed
+  that the branch targets `main`, is mergeable, and stays within the Task 002
+  feature boundary. Independent execution of the corrected Java 21 command
+  from `/workspace/backend` passed all 49 tests with zero failures or errors;
+  the Testcontainers logs show Flyway applying V1 and V2 to empty PostgreSQL
+  schemas. Source review confirmed household-scoped repositories, deterministic
+  ordering, database integrity constraints, server-side assignment of
+  `MANUAL_ENTRY`, structured not-found handling, and no seeded household data.
+- Unmet criteria: Exact fixed-precision monetary input is not protected at the
+  API boundary; clients can submit an unsupported provenance field without a
+  rejection; the committed tests do not yet demonstrate the full acceptance
+  matrix for both assets and liabilities; and the PR's documented test command
+  is not executable as written.
+- Returned work:
+  - `F-001` — `BLOCKING`, `ACCEPTED`: `CreateAssetRequest` and
+    `CreateLiabilityRequest` enforce non-negativity but no `NUMERIC(19,2)`-safe
+    precision/scale limit. A value with more than two fractional digits can
+    reach PostgreSQL and be rounded instead of being preserved exactly, while
+    an oversized value can fail at persistence rather than return a structured
+    validation response. Acceptance condition: reject every unrepresentable
+    asset/liability monetary input before persistence with a structured 400,
+    and add PostgreSQL-backed tests for exact fractional round trips, excessive
+    fractional scale, and precision overflow for all three monetary fields.
+  - `F-002` — `BLOCKING`, `ACCEPTED`: The create DTOs omit `sourceType`, but the
+    current Jackson configuration ignores unknown request properties. A client
+    can therefore submit an unsupported provenance claim and still receive a
+    successful create response, contrary to the criterion that clients cannot
+    submit or claim unsupported provenance. Acceptance condition: attempts to
+    provide `sourceType` on either create endpoint are explicitly rejected with
+    a structured 400, with integration coverage; persisted provenance remains
+    server-assigned `MANUAL_ENTRY`.
+  - `F-003` — `BLOCKING`, `ACCEPTED`: The 19-test integration suite demonstrates
+    blank-name, currency, enum, future-date, populated ordering, and duplicate-
+    name behavior only for assets. It does not demonstrate those required
+    behaviors for liabilities, and its whole-number JSON assertions do not
+    prove exact decimal persistence. Acceptance condition: add focused
+    PostgreSQL-backed liability tests for the missing validation and populated
+    list/duplicate cases, plus exact non-whole decimal round-trip assertions for
+    both aggregates.
+  - `F-004` — `BLOCKING`, `ACCEPTED`: PR #1 documents the Maven container with
+    `-w /workspace`, where no `pom.xml` exists; independent execution fails with
+    Maven's `MissingProjectException`. The successful command uses
+    `-w /workspace/backend`. Acceptance condition: correct the command in the
+    PR description and durable implementation evidence, then record the updated
+    test count and result from that exact command.
 - Follow-up opportunities: Define immutable value history before updates; use
   accepted state in the later financial-snapshot increment.
-- Accepted or returned by Product Owner Agent: Pending
-- Accepted or returned at: Pending
+- Accepted or returned by Product Owner Agent: Codex
+- Accepted or returned at: 2026-09-03
