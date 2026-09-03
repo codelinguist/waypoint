@@ -2,6 +2,7 @@ package com.waypoint.household.web.dto;
 
 import com.waypoint.household.LiabilityType;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
@@ -18,6 +19,7 @@ public record CreateLiabilityRequest(
 
         @NotNull(message = "outstandingBalance must not be null")
         @DecimalMin(value = "0", message = "outstandingBalance must not be negative")
+        @Digits(integer = 17, fraction = 2, message = "outstandingBalance must have at most 17 integer digits and 2 fraction digits")
         BigDecimal outstandingBalance,
 
         @NotBlank(message = "currency must not be blank")

@@ -132,6 +132,53 @@ class AssetLiabilityApiIntegrationTest {
     }
 
     @Test
+    void preservesExactDecimalValueForAsset() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+
+        createAsset(householdId, "Fund", "CASH", "1234.56", "1234.56", "PHP",
+                LocalDate.now().toString(), "LIQUID")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.estimatedValue").value(1234.56))
+                .andExpect(jsonPath("$.planningValue").value(1234.56));
+    }
+
+    @Test
+    void rejectsAssetValueWithExcessiveFractionalScale() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+
+        createAsset(householdId, "Fund", "CASH", "100.005", "100.00", "PHP",
+                LocalDate.now().toString(), "LIQUID")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_FAILED"));
+    }
+
+    @Test
+    void rejectsAssetValueWithPrecisionOverflow() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+
+        createAsset(householdId, "Fund", "CASH", "123456789012345678.00", "0", "PHP",
+                LocalDate.now().toString(), "LIQUID")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_FAILED"));
+    }
+
+    @Test
+    void rejectsAssetWithUnsupportedSourceTypeField() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+        String body = """
+                {
+                  "name": "Fund", "assetType": "CASH", "estimatedValue": "1", "planningValue": "1",
+                  "currency": "PHP", "valuedAt": "%s", "liquidity": "LIQUID", "sourceType": "IMPORTED"
+                }
+                """.formatted(LocalDate.now());
+
+        mockMvc.perform(post("/api/households/{h}/assets", householdId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void rejectsCreatingAssetForUnknownHousehold() throws Exception {
         createAsset(UUID.randomUUID().toString(), "Fund", "CASH", "1", "1", "PHP",
                 LocalDate.now().toString(), "LIQUID")
@@ -217,6 +264,102 @@ class AssetLiabilityApiIntegrationTest {
         createLiability(householdId, "Bad Loan", "PERSONAL_LOAN", "-1", "PHP", LocalDate.now().toString())
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("VALIDATION_FAILED"));
+    }
+
+    @Test
+    void rejectsBlankLiabilityName() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+
+        createLiability(householdId, "  ", "PERSONAL_LOAN", "1", "PHP", LocalDate.now().toString())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_FAILED"));
+    }
+
+    @Test
+    void rejectsMalformedLiabilityCurrency() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+
+        createLiability(householdId, "Loan", "PERSONAL_LOAN", "1", "PESO", LocalDate.now().toString())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_FAILED"));
+    }
+
+    @Test
+    void rejectsUnrecognizedLiabilityType() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+
+        createLiability(householdId, "Loan", "PAYDAY_LOAN", "1", "PHP", LocalDate.now().toString())
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void rejectsFutureBalanceAsOfDate() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+
+        createLiability(householdId, "Loan", "PERSONAL_LOAN", "1", "PHP",
+                LocalDate.now().plusDays(1).toString())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_FAILED"));
+    }
+
+    @Test
+    void listsLiabilitiesInCreationOrderAndAllowsDuplicateNames() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+
+        createLiability(householdId, "Loan", "PERSONAL_LOAN", "1", "PHP", LocalDate.now().toString())
+                .andExpect(status().isCreated());
+        createLiability(householdId, "Loan", "PERSONAL_LOAN", "2", "PHP", LocalDate.now().toString())
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/households/{h}/liabilities", householdId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].outstandingBalance").value(1))
+                .andExpect(jsonPath("$[1].outstandingBalance").value(2));
+    }
+
+    @Test
+    void preservesExactDecimalValueForLiability() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+
+        createLiability(householdId, "Loan", "PERSONAL_LOAN", "1234.56", "PHP", LocalDate.now().toString())
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.outstandingBalance").value(1234.56));
+    }
+
+    @Test
+    void rejectsLiabilityBalanceWithExcessiveFractionalScale() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+
+        createLiability(householdId, "Loan", "PERSONAL_LOAN", "100.005", "PHP", LocalDate.now().toString())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_FAILED"));
+    }
+
+    @Test
+    void rejectsLiabilityBalanceWithPrecisionOverflow() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+
+        createLiability(householdId, "Loan", "PERSONAL_LOAN", "123456789012345678.00", "PHP",
+                LocalDate.now().toString())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_FAILED"));
+    }
+
+    @Test
+    void rejectsLiabilityWithUnsupportedSourceTypeField() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+        String body = """
+                {
+                  "name": "Loan", "liabilityType": "PERSONAL_LOAN", "outstandingBalance": "1",
+                  "currency": "PHP", "balanceAsOf": "%s", "sourceType": "IMPORTED"
+                }
+                """.formatted(LocalDate.now());
+
+        mockMvc.perform(post("/api/households/{h}/liabilities", householdId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

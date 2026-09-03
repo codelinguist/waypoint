@@ -3,6 +3,7 @@ package com.waypoint.household.web.dto;
 import com.waypoint.household.AssetType;
 import com.waypoint.household.Liquidity;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
@@ -19,10 +20,12 @@ public record CreateAssetRequest(
 
         @NotNull(message = "estimatedValue must not be null")
         @DecimalMin(value = "0", message = "estimatedValue must not be negative")
+        @Digits(integer = 17, fraction = 2, message = "estimatedValue must have at most 17 integer digits and 2 fraction digits")
         BigDecimal estimatedValue,
 
         @NotNull(message = "planningValue must not be null")
         @DecimalMin(value = "0", message = "planningValue must not be negative")
+        @Digits(integer = 17, fraction = 2, message = "planningValue must have at most 17 integer digits and 2 fraction digits")
         BigDecimal planningValue,
 
         @NotBlank(message = "currency must not be blank")

@@ -231,8 +231,15 @@
   Liabilities
 - Design brief: Not applicable; no UI is in scope.
 - Implementation owner: Claude Code
-- Review evidence: PR `task/002-assets-liabilities`; 49 tests passing under
-  Java 21/Docker (`AssetServiceTest`, `LiabilityServiceTest`,
+- Review evidence: PR `task/002-assets-liabilities`. Findings F-001 through
+  F-004 from the 2026-09-03 Product Owner review addressed (see
+  `agent/implementation-log.md`); corrected test command, run from the
+  repository root: `docker run --rm -v "$(pwd)/backend":/workspace -v
+  /var/run/docker.sock:/var/run/docker.sock -e
+  TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal -e
+  TESTCONTAINERS_RYUK_DISABLED=true -w /workspace
+  maven:3.9-eclipse-temurin-21 mvn -B test` — 62 tests passing under Java
+  21/Docker (`AssetServiceTest`, `LiabilityServiceTest`,
   `AssetLiabilityApiIntegrationTest`, plus prior Task 001 suites); Flyway V2
   applied cleanly both on an empty schema (Testcontainers) and as a genuine
   upgrade of the persisted Task 001 volume (`docker compose up --build`,
