@@ -1,5 +1,45 @@
 # Implementation Log
 
+### 2026-09-04 — Task 005 product acceptance
+
+**Changed**
+
+- Product Owner review accepted Task 005 against the financial snapshots
+  product brief and checked all implementation criteria.
+- Confirmed the implementation remains within scope: immutable copied
+  balance-sheet observations, per-currency totals, no FX/cash-flow expansion,
+  and no seeded household data.
+
+**Tests**
+
+- PR #4 records `./verify.sh` passing with 137 tests and zero failures; the
+  required CI `verify` check is recorded as passing.
+- An independent local `./verify.sh` rerun was attempted. It was blocked by
+  the host Java 26 Mockito Byte Buddy self-attachment failure and unavailable
+  Docker/Testcontainers runtime, so no contradictory application failure was
+  observed.
+
+**Decisions**
+
+- No implementation changes were required during acceptance.
+
+**Assumptions**
+
+- The Java 21/Docker verification recorded by the implementation owner and
+  the green required CI check are the authoritative execution evidence for
+  this task; the local host environment is not the declared runtime.
+
+**Open questions**
+
+- Future work remains as recorded in the brief: source valuation history,
+  income/obligation schedule snapshots, deterministic cash-flow normalization,
+  and historical comparison.
+
+**Recommended next task**
+
+- Frame a narrow snapshot-comparison or plan-versus-actual increment, or
+  proceed to Phase 5 goals.
+
 ### 2026-09-04 — Task 005: Financial Position Snapshots
 
 **Changed**

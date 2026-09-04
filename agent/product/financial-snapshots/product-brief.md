@@ -110,37 +110,37 @@
 
 ## Acceptance criteria
 
-- [ ] Flyway upgrades the accepted Task 004 schema and builds all snapshot
+- [x] Flyway upgrades the accepted Task 004 schema and builds all snapshot
   tables on an empty PostgreSQL database without manual SQL.
-- [ ] Creating a snapshot for a known household persists an immutable header
+- [x] Creating a snapshot for a known household persists an immutable header
   and copied eligible asset/liability line items in one transaction.
-- [ ] Eligibility uses the caller's `asOfDate`; records dated after it are
+- [x] Eligibility uses the caller's `asOfDate`; records dated after it are
   excluded, while records dated on it are included.
-- [ ] Asset line items use `planningValue`; liability line items use
+- [x] Asset line items use `planningValue`; liability line items use
   `outstandingBalance`; source dates, currencies, names, types, and source
   IDs are retained.
-- [ ] Per-currency asset, liability, and net-worth totals are deterministic,
+- [x] Per-currency asset, liability, and net-worth totals are deterministic,
   exact decimals, and never combine different currencies.
-- [ ] Zero values and negative-result net worth are represented correctly;
+- [x] Zero values and negative-result net worth are represented correctly;
   no floating-point rounding is introduced.
-- [ ] Future `asOfDate` values are rejected, and malformed or missing dates
+- [x] Future `asOfDate` values are rejected, and malformed or missing dates
   produce the existing structured validation errors.
-- [ ] Snapshots are read-only: there are no update/delete routes, and later
+- [x] Snapshots are read-only: there are no update/delete routes, and later
   source-record changes cannot alter an existing snapshot.
-- [ ] Unknown households return not found for create/list operations; scoped
+- [x] Unknown households return not found for create/list operations; scoped
   retrieval through another household returns not found without disclosure.
-- [ ] New households list no snapshots; duplicate `asOfDate` snapshots are
+- [x] New households list no snapshots; duplicate `asOfDate` snapshots are
   permitted because each capture is a distinct historical observation.
-- [ ] Provenance is server-assigned `MANUAL_ENTRY`; clients cannot submit a
+- [x] Provenance is server-assigned `MANUAL_ENTRY`; clients cannot submit a
   different source type.
-- [ ] Tests cover empty snapshots, eligibility boundaries, exact decimals,
+- [x] Tests cover empty snapshots, eligibility boundaries, exact decimals,
   multi-currency isolation, ordering, immutability, duplicates, unknown
   households, cross-household access, Flyway, and PostgreSQL persistence.
-- [ ] README documents representative snapshot requests and retains
+- [x] README documents representative snapshot requests and retains
   `./verify.sh` as the canonical verification command.
-- [ ] No cash-flow aggregation, FX conversion, source update behavior, seeded
+- [x] No cash-flow aggregation, FX conversion, source update behavior, seeded
   records, or other out-of-scope feature is introduced.
-- [ ] `agent/implementation-log.md` records evidence, assumptions,
+- [x] `agent/implementation-log.md` records evidence, assumptions,
   limitations, and recommended follow-up work.
 
 ## Risks and safeguards
@@ -204,16 +204,22 @@
   PASS, 137 tests, 0 failures. Required CI `verify` check: PASS. Primary
   flow manually exercised against `docker compose up --build` (see PR
   description and `agent/implementation-log.md`'s Task 005 entry for
-  details). Awaiting Product Owner review.
+  details). Product Owner review completed below.
 
 ## Feature acceptance
 
-- Acceptance status: `PENDING`
-- Acceptance evidence: Pending implementation.
-- Unmet criteria: All implementation criteria are pending.
+- Acceptance status: `ACCEPTED`
+- Acceptance evidence: Product Owner review on 2026-09-04 confirmed the
+  implementation diff matches the approved Task 005 scope and all criteria
+  are checked above. PR #4 records local `./verify.sh` as PASS with 137 tests
+  and the required CI `verify` check as PASS. Independent local rerun was
+  attempted but could not execute in this environment because Java 26 cannot
+  self-attach Mockito's Byte Buddy agent and Docker is unavailable to
+  Testcontainers; this is an environment limitation, not a code failure.
+- Unmet criteria: None identified.
 - Returned work: None.
 - Follow-up opportunities: Immutable source valuation history, income/
   obligation schedule snapshots, deterministic cash-flow normalization, and
   historical comparison endpoints.
-- Accepted or returned by Product Owner Agent: Pending
-- Accepted or returned at: Pending
+- Accepted or returned by Product Owner Agent: Codex
+- Accepted or returned at: 2026-09-04
