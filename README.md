@@ -76,6 +76,11 @@ in `docs/architecture/architecture.md`. It currently implements:
   currency, dates, and — for income — gross/net/unknown and
   confirmed/expected/variable classification. Create and read only; no
   update, delete, aggregation, FX conversion, or cash-flow totals yet.
+- `FinancialSnapshot` (Phase 4): create an immutable, point-in-time capture
+  of a household's known asset/liability balance-sheet state as of a
+  caller-supplied date, with copied line items and deterministic
+  per-currency asset/liability/net-worth totals. Create and read only; no
+  update, delete, FX conversion, or income/obligation snapshots yet.
 
 ### Prerequisites
 
@@ -203,6 +208,38 @@ or cash-flow total is calculated. `amount` must be non-negative; `endDate`,
 if present, must not precede `startDate`; `startDate` may be in the future.
 Every created record is stamped `sourceType: "MANUAL_ENTRY"` by the server.
 
+Financial snapshots capture the household's current assets and liabilities
+as of a requested date. Only `asOfDate` is supplied by the caller — the
+server selects eligible records, copies their values, and computes totals:
+
+```bash
+curl -X POST http://localhost:8080/api/households/{householdId}/financial-snapshots \
+  -H 'Content-Type: application/json' \
+  -d '{"asOfDate": "2026-09-01"}'
+
+curl http://localhost:8080/api/households/{householdId}/financial-snapshots
+curl http://localhost:8080/api/households/{householdId}/financial-snapshots/{snapshotId}
+```
+
+An asset is eligible when its `valuedAt` is on or before `asOfDate`; a
+liability is eligible when its `balanceAsOf` is on or before `asOfDate`
+(later-dated records are excluded). Each line item copies the source
+record's identity (`sourceAssetId`/`sourceLiabilityId`), name, type,
+currency, source date, and exact value (`planningValue` for assets,
+`outstandingBalance` for liabilities) at capture time — later changes to the
+source record cannot alter an existing snapshot, since there is no update
+API for either. `totalsByCurrency` sums asset and liability line items
+separately within each currency and derives net worth
+(`assetTotal - liabilityTotal`) for that currency only; currencies are never
+combined, and a currency present on only one side shows a zero total for the
+other. `asOfDate` cannot be in the future. `capturedAt` is the actual
+generation time and is distinct from the caller-supplied `asOfDate` — a
+snapshot does not claim to reconstruct historical values that were never
+stored, only to filter currently stored records by date. Snapshots are
+create/read-only (no update or delete), and duplicate `asOfDate` values
+across snapshots are permitted since each capture is a distinct observation.
+Every created snapshot is stamped `sourceType: "MANUAL_ENTRY"` by the server.
+
 ### Stopping and resetting
 
 ```bash
@@ -264,10 +301,10 @@ pull request targeting `main` — there is one definition of "green," not
 separate local and CI notions of passing. Equivalently, from `backend/`:
 `./mvnw test`.
 
-Tests include unit coverage of the household/person, asset/liability, and
-income-stream/obligation services, and Testcontainers-backed integration
-tests that run the application against a real, ephemeral PostgreSQL
-container (Flyway migrations included).
+Tests include unit coverage of the household/person, asset/liability,
+income-stream/obligation, and financial-snapshot services, and
+Testcontainers-backed integration tests that run the application against a
+real, ephemeral PostgreSQL container (Flyway migrations included).
 
 ## Continuous integration
 
@@ -280,9 +317,10 @@ this fits the task-branch/PR/review/acceptance workflow.
 
 ## Status
 
-Phase 1 (Household and Person foundation) and Phase 2 (Asset and Liability
-records) are implemented and accepted. Task 003 (automated delivery gates:
-`verify.sh`, the required CI check, and branch protection) is implemented and
-accepted. Phase 3 (Income and Recurring Obligations) is implemented and
-pending Product Owner acceptance. See `agent/implementation-log.md` for the
-current state and next recommended task.
+Phase 1 (Household and Person foundation), Phase 2 (Asset and Liability
+records), and Phase 3 (Income and Recurring Obligations) are implemented and
+accepted. Task 003 (automated delivery gates: `verify.sh`, the required CI
+check, and branch protection) is implemented and accepted. Phase 4
+(Financial Position Snapshots) is implemented and pending Product Owner
+acceptance. See `agent/implementation-log.md` for the current state and next
+recommended task.

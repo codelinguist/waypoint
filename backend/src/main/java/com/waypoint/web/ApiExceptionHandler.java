@@ -1,6 +1,7 @@
 package com.waypoint.web;
 
 import com.waypoint.household.AssetNotFoundException;
+import com.waypoint.household.FinancialSnapshotNotFoundException;
 import com.waypoint.household.HouseholdNotFoundException;
 import com.waypoint.household.IncomeStreamNotFoundException;
 import com.waypoint.household.InvalidAssetValueException;
@@ -80,5 +81,11 @@ public class ApiExceptionHandler {
     public ResponseEntity<ErrorResponse> handleInvalidSchedule(InvalidScheduleException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse("VALIDATION_FAILED", ex.getMessage(), List.of()));
+    }
+
+    @ExceptionHandler(FinancialSnapshotNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleFinancialSnapshotNotFound(FinancialSnapshotNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("FINANCIAL_SNAPSHOT_NOT_FOUND", ex.getMessage(), List.of()));
     }
 }

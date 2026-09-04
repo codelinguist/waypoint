@@ -1,5 +1,240 @@
 # Implementation Log
 
+### 2026-09-04 — Task 005 product acceptance
+
+**Changed**
+
+- Product Owner review accepted Task 005 against the financial snapshots
+  product brief and checked all implementation criteria.
+- Confirmed the implementation remains within scope: immutable copied
+  balance-sheet observations, per-currency totals, no FX/cash-flow expansion,
+  and no seeded household data.
+
+**Tests**
+
+- PR #4 records `./verify.sh` passing with 137 tests and zero failures; the
+  required CI `verify` check is recorded as passing.
+- An independent local `./verify.sh` rerun was attempted. It was blocked by
+  the host Java 26 Mockito Byte Buddy self-attachment failure and unavailable
+  Docker/Testcontainers runtime, so no contradictory application failure was
+  observed.
+
+**Decisions**
+
+- No implementation changes were required during acceptance.
+
+**Assumptions**
+
+- The Java 21/Docker verification recorded by the implementation owner and
+  the green required CI check are the authoritative execution evidence for
+  this task; the local host environment is not the declared runtime.
+
+**Open questions**
+
+- Future work remains as recorded in the brief: source valuation history,
+  income/obligation schedule snapshots, deterministic cash-flow normalization,
+  and historical comparison.
+
+**Recommended next task**
+
+- Frame a narrow snapshot-comparison or plan-versus-actual increment, or
+  proceed to Phase 5 goals.
+
+### 2026-09-04 — Task 005: Financial Position Snapshots
+
+**Changed**
+
+- `task/005-financial-snapshots` was cut before Task 003 (`verify.sh`, the
+  required CI check) and Task 004 (income/obligations) merged to `main`.
+  Merged `origin/main` into the task branch before implementing; conflicts
+  were `agent/current-task.md` (stale Task 004 content vs. the
+  already-defined Task 005 task, resolved in favor of Task 005 since Task
+  004 was already accepted and merged) and `agent/implementation-log.md`
+  (both sides had added genuine new entries — Codex's Task 005 framing entry
+  and Task 004 acceptance entry vs. this log's own Task 004 implementation
+  entry — resolved by keeping both, newest first).
+- Added `FinancialSnapshot` (header: household, `asOfDate`, `capturedAt`,
+  `sourceType`), `SnapshotAssetLineItem`, and `SnapshotLiabilityLineItem`
+  JPA entities (`backend/src/main/java/com/waypoint/household/`).
+  `FinancialSnapshot` has no `updatedAt`: per PD-003 (create-only,
+  immutable), there is no code path that would ever set one. Each line item
+  stores `sourceAssetId`/`sourceLiabilityId` as a plain retained UUID column
+  (no DB foreign key to `assets`/`liabilities`), plus a copied name, type,
+  currency, source date (`valuedAt`/`balanceAsOf` at capture time), and
+  value (`planningValue`/`outstandingBalance` at capture time); all line-item
+  columns are `updatable = false`.
+- Added `FinancialSnapshotRepository`, `SnapshotAssetLineItemRepository`,
+  `SnapshotLiabilityLineItemRepository` (household/snapshot-scoped queries,
+  matching the existing `findBy...OrderBy...AscIdAsc` /
+  `findByIdAndHousehold_Id` pattern), `FinancialSnapshotNotFoundException`,
+  and `FinancialSnapshotService`. The service reads a household's current
+  `Asset`/`Liability` rows directly via their existing repositories
+  (no new query methods added to `AssetRepository`/`LiabilityRepository`),
+  filters in Java by `!sourceDate.isAfter(asOfDate)` (boundary-inclusive),
+  copies eligible rows into line items in one transaction, and computes
+  per-currency totals.
+- Added `CurrencyTotals` (currency, assetTotal, liabilityTotal, netWorth)
+  and `FinancialSnapshotDetail` (snapshot + both line-item lists + totals)
+  as plain records returned by the service. The web layer does not navigate
+  a lazy `snapshot.getLineItems()` collection (risky under
+  `spring.jpa.open-in-view: false`); the service loads and bundles
+  everything it needs within its own transaction instead.
+- Added `FinancialSnapshotController` under
+  `/api/households/{householdId}/financial-snapshots` (`POST`, `GET /{id}`,
+  `GET` list) and `CreateFinancialSnapshotRequest` (`asOfDate` only —
+  `@NotNull @PastOrPresent`, matching `Asset.valuedAt`'s validation style),
+  `SnapshotAssetLineItemResponse`, `SnapshotLiabilityLineItemResponse`,
+  `CurrencyTotalsResponse`, and `FinancialSnapshotResponse` DTOs.
+- Wired `FinancialSnapshotNotFoundException` into `ApiExceptionHandler`
+  (`FINANCIAL_SNAPSHOT_NOT_FOUND`, 404).
+- Added Flyway migration `V4__create_financial_snapshots.sql`:
+  `financial_snapshots`, `snapshot_asset_line_items`, and
+  `snapshot_liability_line_items`, each with a `CHECK (value >= 0)` where
+  applicable and an FK+index to their parent (line items to
+  `financial_snapshots`, not to `assets`/`liabilities`).
+- Updated `README.md`: documented the new endpoints, eligibility rule,
+  per-currency totals semantics, and the `asOfDate`-vs-`capturedAt`
+  distinction; updated the Status section (Phases 1-3 and Task 003 are
+  accepted; Phase 4 is implemented and pending Product Owner acceptance).
+
+**Tests**
+
+- `FinancialSnapshotServiceTest` (Mockito unit tests): household-not-found
+  on create/get/list; date-boundary eligibility filtering (a record dated
+  exactly on `asOfDate` is included, one dated after is excluded); per-
+  currency totals computed correctly without combining currencies (PHP
+  assets+liabilities vs. a USD-only asset); an empty snapshot for a
+  household with no eligible records; household-scoped retrieval and
+  isolation; and ascending-order listing.
+- `FinancialSnapshotApiIntegrationTest` (`@SpringBootTest` +
+  `@AutoConfigureMockMvc` + Testcontainers `PostgreSQLContainer`, real
+  Flyway migration run): create/retrieve with both an eligible asset and
+  liability; date-boundary eligibility (included on `asOfDate`, excluded
+  the day after); an empty zero-total snapshot for a household with no
+  records; copied source identity and exact-decimal value preservation
+  (with the line-item `id` asserted distinct from `sourceAssetId`); a
+  negative net-worth result when liabilities exceed assets; multi-currency
+  isolation in `totalsByCurrency`; future-`asOfDate` and missing-`asOfDate`
+  rejection; an unsupported client-submitted `sourceType` field rejected;
+  unknown-household 404 on create/list; cross-household retrieval returns
+  404 without disclosing the record; new households return an empty list;
+  duplicate `asOfDate` values permitted and listed in ascending `asOfDate`
+  order; and cross-household isolation. 16 tests, all passing.
+- Full suite: `./verify.sh` — 137 tests (24 new: 8 unit + 16 integration),
+  0 failures, Flyway migrating a clean database through V1 -> V2 -> V3 -> V4
+  automatically.
+- Exercised the primary flow manually against `docker compose up --build`:
+  created a household with a PHP asset/liability dated "today" and a USD
+  asset dated "yesterday" (container clock is UTC, one day behind the
+  host's local Asia/Manila date at the time — used the container's actual
+  UTC date for `valuedAt`/`balanceAsOf`/`asOfDate` after confirming the
+  offset via `docker exec ... date -u`); created a snapshot as of "today"
+  (all three records eligible, PHP and USD totals correct, PHP net worth
+  700.00, USD net worth 400.00) and one as of "yesterday" (only the USD
+  asset eligible); retrieved the snapshot by ID; listed snapshots back in
+  ascending `asOfDate` order; confirmed a future `asOfDate` and an unknown
+  household both return the expected 400/404; confirmed cross-household
+  retrieval returns 404; tore the stack down afterward.
+
+**Decisions**
+
+- Did not persist per-currency totals as their own table/rows: they are a
+  pure, deterministic function of the immutable copied line items (PD-003),
+  so the service recomputes them on every read from `TreeMap`-grouped sums
+  rather than storing and risking drift between a stored total and its
+  source line items.
+- Combined asset total, liability total, and net worth into one
+  `CurrencyTotals`/`totalsByCurrency` structure keyed by currency, rather
+  than three separate parallel arrays, so a consumer never has to
+  cross-reference three lists by currency code to find one figure.
+- Did not add a DB foreign key from line items to `assets`/`liabilities`:
+  the product brief calls the source reference "retained UUID metadata,"
+  and Task 002 has no delete endpoint today, but a future one should not
+  need to reason about historical snapshot references when removing a
+  source row.
+- Reused `AssetRepository`/`LiabilityRepository`'s existing
+  household-scoped list query and filtered eligibility in Java rather than
+  adding new derived-query methods to those repositories, since household
+  asset/liability counts are small (a private household, not bulk data) and
+  this keeps Task 002's repositories completely unchanged.
+- Validated `asOfDate` not-in-the-future via Bean Validation
+  (`@PastOrPresent`), matching `Asset.valuedAt`/`Liability.balanceAsOf`,
+  rather than a service-level check, since it is a single-field,
+  server-clock-relative rule with no cross-field comparison.
+- Kept `FinancialSnapshot`/line-item entities in the existing
+  `com.waypoint.household` package, consistent with Tasks 002 and 004.
+
+**Assumptions**
+
+- "Immutable" is enforced by omission (no update/delete routes and
+  `updatable = false` line-item columns) rather than a database trigger or
+  application-level guard, matching Task 004's precedent for similar
+  invariants (e.g. `IncomeStream`'s `endDate` rule) being enforced at the
+  layer that already owns write access.
+- List endpoints return each snapshot's full detail (line items and
+  totals), matching the single-GET shape, consistent with how
+  `AssetController`/`LiabilityController`/`IncomeStreamController` already
+  return full objects from their list endpoints; this is a small household
+  dataset, not a paginated bulk listing.
+- No household data was seeded; the manual verification evidence above used
+  disposable "Task 005 Smoke Test" households in the local Docker Compose
+  Postgres volume, alongside pre-existing smoke-test households left by
+  prior tasks in that same shared local volume.
+
+**Open questions**
+
+- Same as the product brief: whether income/obligation schedules join
+  future snapshots, whether asset/liability value changes become immutable
+  valuation records or financial events, and whether snapshots need labels,
+  notes, deletion, or comparison endpoints are all deferred.
+
+**Recommended next task**
+
+- A snapshot-comparison or plan-versus-actual endpoint, or continue the
+  roadmap toward goals (Phase 5), now that historical balance-sheet state
+  exists.
+
+### 2026-09-04 — Task 005 product framing
+
+**Changed**
+
+- Defined the Task 005 product brief for immutable financial position
+  snapshots and made it the active task in `agent/current-task.md`.
+- Scoped the increment to copied asset/liability observations and
+  per-currency net worth, with no FX conversion or cash-flow normalization.
+
+**Tests**
+
+- No application tests apply to product framing; implementation verification
+  is pending.
+
+**Decisions**
+
+- Snapshots filter currently stored source records by `asOfDate`, preserve the
+  actual `capturedAt` timestamp, and explicitly do not claim unavailable
+  historical valuation reconstruction.
+- Net worth is calculated only within each original currency.
+- Snapshot data is copied and create/read-only so later source changes cannot
+  rewrite historical observations.
+
+**Assumptions**
+
+- A household with no eligible records can create an empty zero-total
+  snapshot.
+- Duplicate snapshot dates are allowed because capture events are distinct.
+
+**Open questions**
+
+- Historical income/obligation schedule capture and deterministic cash-flow
+  normalization remain for a later increment.
+- Full source valuation history and historical comparison endpoints remain
+  deferred.
+
+**Recommended next task**
+
+- Implement Task 005 on `task/005-financial-snapshots`, then return to the
+  Product Owner Agent for independent review against the brief.
+
 ### 2026-09-04 — Task 004 Product Owner acceptance
 
 **Review outcome**
