@@ -14,6 +14,15 @@
 # branch a human happens to have checked out in $REPO_ROOT.
 set -euo pipefail
 
+# cron invokes this with a minimal PATH (typically just /usr/bin:/bin) that
+# doesn't include Homebrew, anaconda, or user-local install locations --
+# require_tools() below would otherwise fail to find gh/claude/codex/jq
+# even though they work fine when this script is run by hand from an
+# interactive shell. Confirmed empirically: cron got past a separate Full
+# Disk Access denial only to fail here next, with none of this visible
+# except in orchestrator.log.
+export PATH="/opt/homebrew/bin:/opt/anaconda3/bin:/usr/local/bin:$HOME/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 AUTOMATION_DIR="$REPO_ROOT/agent/automation"
 ORCHESTRATOR_HOME="$(dirname "$REPO_ROOT")/waypoint-orchestrator"
