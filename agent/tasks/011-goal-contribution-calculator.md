@@ -1,7 +1,7 @@
 ---
 status: QUEUED
 task_number: 011
-feature_slug:
+feature_slug: goal-contribution-calculator
 branch:
 worktree:
 session:

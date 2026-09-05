@@ -1,7 +1,7 @@
 ---
 status: QUEUED
 task_number: 009
-feature_slug:
+feature_slug: emergency-fund-runway
 branch:
 worktree:
 session:

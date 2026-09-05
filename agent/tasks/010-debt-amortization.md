@@ -1,7 +1,7 @@
 ---
 status: QUEUED
 task_number: 010
-feature_slug:
+feature_slug: debt-amortization
 branch:
 worktree:
 session:
