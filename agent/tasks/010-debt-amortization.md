@@ -1,12 +1,12 @@
 ---
-status: QUEUED
+status: IN_PROGRESS
 task_number: 010
 feature_slug: debt-amortization
-branch:
-worktree:
+branch: task/010-debt-amortization
+worktree: /Users/rj/Documents/projects/waypoint-orchestrator/worktrees/task-010-debt-amortization
 session:
 pr:
-claimed_at:
+claimed_at: 2026-09-05T13:43:59Z
 fix_rounds: 0
 ---
 
