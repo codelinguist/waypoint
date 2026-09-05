@@ -46,9 +46,17 @@ sibling directory:
 
 `agent/automation/state/` (gitignored) holds a single-instance lock
 (`.orchestrator.lock`, a plain `mkdir` lock — safe if a run overlaps a slow
-previous one, which just exits immediately) and one `pr-<number>.json` per
+previous one, which just exits immediately), one `pr-<number>.json` per
 open PR (`last_reviewed_sha` + `verdict`), so an unchanged PR isn't
-re-reviewed every tick.
+re-reviewed every tick, and `gh-token` (mode 600) — a cached copy of `gh
+auth token`'s output, refreshed whenever that command succeeds, and read
+back whenever it doesn't (a cron-launched process runs in a separate macOS
+security session from an interactive login shell, without that session's
+Keychain access — see `ensure_gh_token()` and the 2026-09-05 "Cron's `gh`
+auth hits the same Keychain-session gap git did" implementation-log entry).
+Never committed; if it's ever missing and `gh auth token` fails under cron,
+every `gh` call that tick fails and is logged, but nothing crashes — run
+the script once interactively (or just `gh auth token` once) to reseed it.
 
 `agent/automation/logs/orchestrator.log` (gitignored) has one line per
 significant action — claims, dispatches, review verdicts, merges, stalls.

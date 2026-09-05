@@ -333,6 +333,75 @@ test_review_error_branch_continues_before_persisting_state() {
     "the REVIEW_ERROR branch must not persist state to the PR state file"
 }
 
+# ---- gh-token cron fallback -----------------------------------------------
+
+test_ensure_gh_token_caches_and_falls_back() {
+  # Stubs `gh` in PATH with a fake that only understands `auth token`, so
+  # this never touches the real gh CLI or real credentials. Simulates the
+  # exact cron scenario: `gh auth token` succeeds once (an interactive-ish
+  # run), caching the token; a later call where it fails (the cron/Keychain
+  # gap) must fall back to that cache instead of leaving GH_TOKEN unset.
+  local fake_bin="$TEST_TMP/fake-gh-bin"
+  mkdir -p "$fake_bin"
+  cat > "$fake_bin/gh" <<'EOS'
+#!/usr/bin/env bash
+if [[ "$1 $2" == "auth token" ]]; then
+  if [[ -n "${GH_FAKE_TOKEN:-}" ]]; then
+    printf '%s' "$GH_FAKE_TOKEN"
+    exit 0
+  fi
+  exit 1
+fi
+exit 1
+EOS
+  chmod +x "$fake_bin/gh"
+
+  local saved_path="$PATH" saved_cache="$GH_TOKEN_CACHE"
+  GH_TOKEN_CACHE="$TEST_TMP/gh-token-cache"
+  rm -f "$GH_TOKEN_CACHE"
+  PATH="$fake_bin:$PATH"
+
+  GH_FAKE_TOKEN="tok-fresh" ensure_gh_token
+  assert_equals "tok-fresh" "${GH_TOKEN:-}" \
+    "ensure_gh_token should export a freshly obtained token"
+  assert_equals "tok-fresh" "$(cat "$GH_TOKEN_CACHE" 2>/dev/null || true)" \
+    "a freshly obtained token should be cached to disk"
+
+  # cron scenario: gh auth token now fails, but the earlier cache exists.
+  unset GH_TOKEN
+  GH_FAKE_TOKEN="" ensure_gh_token
+  assert_equals "tok-fresh" "${GH_TOKEN:-}" \
+    "ensure_gh_token should fall back to the cached token when gh auth token fails"
+
+  PATH="$saved_path"
+  GH_TOKEN_CACHE="$saved_cache"
+  unset GH_TOKEN
+}
+
+test_ensure_gh_token_no_cache_no_token_leaves_gh_token_unset() {
+  local fake_bin="$TEST_TMP/fake-gh-bin-empty"
+  mkdir -p "$fake_bin"
+  cat > "$fake_bin/gh" <<'EOS'
+#!/usr/bin/env bash
+exit 1
+EOS
+  chmod +x "$fake_bin/gh"
+
+  local saved_path="$PATH" saved_cache="$GH_TOKEN_CACHE"
+  GH_TOKEN_CACHE="$TEST_TMP/gh-token-cache-missing"
+  rm -f "$GH_TOKEN_CACHE"
+  PATH="$fake_bin:$PATH"
+
+  unset GH_TOKEN
+  ensure_gh_token
+  assert_equals "" "${GH_TOKEN:-}" \
+    "with no live token and no cache, ensure_gh_token must not export a bogus GH_TOKEN"
+
+  PATH="$saved_path"
+  GH_TOKEN_CACHE="$saved_cache"
+  unset GH_TOKEN
+}
+
 # ---- try_merge's verify-check classification (jq filter only) -------------
 #
 # try_merge derives $check_state from `gh pr checks ... --jq '<filter>'`.

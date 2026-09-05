@@ -1,5 +1,98 @@
 # Implementation Log
 
+### 2026-09-05 — Cron's `gh` auth hits the same Keychain-session gap git did
+
+**Changed**
+
+- Diagnosed live, in production: while checking on Tasks 009-011 after PR
+  #16 merged, found `agent/automation/logs/orchestrator.log` had logged "No
+  open task/* PRs" on every 5-minute tick since `13:45:01Z`, alongside a
+  new `ensure_authenticated_remote: 'gh auth token' returned nothing;
+  leaving existing remote URL as-is` line each time — but PRs 13, 14, and
+  15 (Tasks 009-011) had existed and had green `verify` checks since
+  `13:53-13:59Z`. No `agent/automation/state/pr-{13,14,15}.json` existed at
+  all, confirming `run_review()` had never even been triggered for them:
+  `gh pr list` was silently returning empty under cron (masked by every
+  call site's `2>/dev/null || true`), not because there was nothing to
+  review. `gh auth status` succeeded fine from an interactive shell at the
+  same moment, and reported its storage backend as `(keyring)` — this is
+  the exact class of bug `ensure_authenticated_remote()` already fixed for
+  plain `git` (PR #12): cron runs in a separate macOS security session
+  without the interactive login session's Keychain access, and that now
+  hits `gh`'s own token storage too, not just git's `osxkeychain` credential
+  helper. This was the literal open question the PR #12 entry flagged as
+  "not yet observed" — now observed, live, stalling all three in-flight
+  tasks' review/merge for 45+ minutes with no visible error anywhere.
+- Fixed with the same technique PR #12 used for git, applied to `gh`
+  itself: added `ensure_gh_token()`, called once near the top of `main()`.
+  Whenever `gh auth token` succeeds, it caches the token to
+  `agent/automation/state/gh-token` (mode 600, gitignored alongside the
+  rest of `agent/automation/state/`). Whenever it doesn't, it falls back to
+  that cached copy. Either way it exports `GH_TOKEN`, which every `gh`
+  subcommand honors ahead of its own keychain-backed lookup — so once a
+  token has been cached once (from any successful interactive or lucky
+  cron run), every `gh` call in the script keeps working under cron
+  regardless of Keychain session state, until the token is actually
+  revoked/rotated. `ensure_authenticated_remote()` now reuses that same
+  resolved `GH_TOKEN` instead of calling `gh auth token` a second time
+  itself.
+- Caught a real bug in `ensure_gh_token()` before it shipped, via the new
+  test added for it: its last statement,
+  `[[ -n "$token" ]] && export GH_TOKEN="$token"`, returns the compound
+  command's own exit status — nonzero whenever no token is available at
+  all (first-ever run, or an actually-revoked token). Called as a bare
+  statement from `main()` under this script's `set -euo pipefail`, that
+  would have made the *entire orchestrator run* abort right there instead
+  of degrading to "no `gh` access this tick, already logged, retry next
+  tick" — a worse regression than the bug being fixed. Fixed by making the
+  function always `return 0` explicitly.
+
+**Tests**
+
+- `agent/automation/tests/orchestrator_test.sh`: 42 passed, 0 failed (38
+  from PR #16 + 4 new: token caching, cron-fallback-to-cache, and the
+  no-token/no-cache case that caught the `set -e` bug above). The new
+  tests stub `gh` in `$PATH` with a fake script controlled entirely by a
+  test-local env var — no real `gh` credentials or network calls involved.
+- `bash -n` on both shell files.
+- No `./verify.sh` run: no Java application code touched.
+
+**Decisions**
+
+- Confirmed with the user before implementing, same as PR #12's git fix:
+  this persists a raw GitHub token to a local plaintext file (`chmod 600`,
+  gitignored, never committed) instead of relying on Keychain — a real
+  credential-storage tradeoff, not a silent default. The user explicitly
+  asked for this fix (over leaving it flagged-only) in the same
+  conversation that surfaced the diagnosis.
+- Left Tasks 009-011 / PRs 13-15 untouched rather than reviewing/merging
+  them by hand as an immediate stopgap — the user's explicit choice was to
+  wait for the pipeline fix and let cron pick them up normally on its next
+  tick once this lands.
+
+**Open questions**
+
+- Whether the Keychain session actually locking (vs. some other trigger)
+  is the true root cause of the *timing* — it lines up with roughly when
+  PR #12 merged and Tasks 009-011 were dispatched, but that could be
+  coincidental with an unrelated screen-lock/sleep event. Not going to be
+  fully resolved without watching it happen again with more instrumentation;
+  the fix here is robust to the cause either way (any Keychain-session gap
+  in either tool), so it doesn't block landing this.
+- The same Keychain-session gap could in principle affect any other
+  credential this pipeline depends on (`claude`'s own auth, `codex`'s). Not
+  observed yet for either — `claude --bg` and `codex exec` invocations from
+  cron have worked throughout today's run — but worth watching for the
+  same failure *shape* (silent, masked by an error-swallowing fallback)
+  rather than assuming only `git`/`gh` are exposed.
+
+**Recommended next task**
+
+- Watch the next few cron ticks in `agent/automation/logs/orchestrator.log`
+  for `ensure_gh_token`'s cache-hit log line and confirm Tasks 009-011 (PRs
+  13-15) actually get reviewed and merged automatically now, closing the
+  loop on this fix without further manual intervention.
+
 ### 2026-09-05 — PR #16 fix round: conflicting-verdict-line bug in `determine_review_verdict()`
 
 **Changed**
