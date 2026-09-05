@@ -77,7 +77,8 @@ chmod 600 agent/automation/state/gh-token.scoped
 ```
 
 The override is authoritative whenever it exists. A symlink, empty file,
-permissions other than `600` or `400`, or a token that fails `gh auth status`
+permissions other than `600` or `400`, or a token that fails an authenticated
+`gh api /user` request
 aborts the run; the orchestrator deliberately does not fall back to its broader
 account token or cache. Rotate it by replacing its contents and restoring mode
 `600`. Delete it to return to the normal `gh auth token`/cache path. The state
