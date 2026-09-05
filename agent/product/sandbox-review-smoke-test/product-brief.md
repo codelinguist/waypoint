@@ -1,6 +1,6 @@
 # Sandbox Review Smoke Test
 
-**Status:** IMPLEMENTED
+**Status:** ACCEPTED
 
 ## Goal
 
@@ -47,3 +47,19 @@ Acceptance assessment:
 
 Feature acceptance remains pending criterion 3. The task-specific instruction
 to close this disposable PR without merging remains in force.
+
+### Feature acceptance — 2026-09-06
+
+**Status:** ACCEPTED
+
+Criterion 3 is now satisfied: review commit `26701cf` was committed on
+`test/sandbox-review-smoke` and successfully pushed with
+`git push origin HEAD:refs/heads/test/sandbox-review-smoke`; the remote
+reported advancement from `3ce14cd` to `26701cf`.
+Together with the diff inspection and dated review above, this verifies all
+three acceptance criteria. There are no unresolved BLOCKING findings or
+deferred changes. This supersedes the pending assessment above.
+
+Acceptance confirms the sandbox review smoke test succeeded. The explicit
+task-specific no-merge constraint still applies to this disposable PR;
+the normal automated merge behavior is not appropriate for this fixture.
