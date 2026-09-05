@@ -2,7 +2,7 @@
 
 ## Status
 
-`READY`
+`ACCEPTED`
 
 ## Ownership
 
@@ -72,14 +72,14 @@
 
 ## Acceptance criteria
 
-- [ ] Reserve 1000.00, expenses 400.00, income 100.00 yields shortfall 300.00, runway 3.33, full months 3, and FINITE.
-- [ ] Reserve 0 with a positive shortfall yields FINITE and zero months; income equal to or above expenses yields NO_SHORTFALL with null month values, including when all inputs are zero.
-- [ ] Tests distinguish rounding down from rounding to nearest (1000/600 -> 1.66), and full-month count is derived without premature rounding.
-- [ ] The documented POST endpoint returns the defined inputs, outputs and statuses using deterministic decimal arithmetic; identical requests return identical results without clock-dependent fields.
-- [ ] Domain and HTTP tests cover required fields, currency normalization/rejection, amount bounds, precision and scale, all defined edge cases and successful calculation. Direct domain calls reject invalid values too.
-- [ ] No database reads/writes, entity changes or migrations are introduced. This endpoint accesses no household data and accepts no household/entity identifier; caller-supplied financial inputs are not logged.
-- [ ] All implementation and evidence changes stay within the exclusive ownership paths below. Existing application startup, shared error handling and the other two increments require no edits.
-- [ ] The feature works against the pre-batch main baseline without either sibling. Run `./verify.sh`, exercise the documented primary API flow with synthetic data, and record results and limitations in this brief before review. The required GitHub verify check must be green before merge.
+- [x] Reserve 1000.00, expenses 400.00, income 100.00 yields shortfall 300.00, runway 3.33, full months 3, and FINITE.
+- [x] Reserve 0 with a positive shortfall yields FINITE and zero months; income equal to or above expenses yields NO_SHORTFALL with null month values, including when all inputs are zero.
+- [x] Tests distinguish rounding down from rounding to nearest (1000/600 -> 1.66), and full-month count is derived without premature rounding.
+- [x] The documented POST endpoint returns the defined inputs, outputs and statuses using deterministic decimal arithmetic; identical requests return identical results without clock-dependent fields.
+- [x] Domain and HTTP tests cover required fields, currency normalization/rejection, amount bounds, precision and scale, all defined edge cases and successful calculation. Direct domain calls reject invalid values too.
+- [x] No database reads/writes, entity changes or migrations are introduced. This endpoint accesses no household data and accepts no household/entity identifier; caller-supplied financial inputs are not logged.
+- [x] All implementation and evidence changes stay within the exclusive ownership paths below. Existing application startup, shared error handling and the other two increments require no edits.
+- [x] The feature works against the pre-batch main baseline without either sibling. Run `./verify.sh`, exercise the documented primary API flow with synthetic data, and record results and limitations in this brief before review. The required GitHub verify check must be green before merge.
 
 ## Risks and safeguards
 
@@ -135,12 +135,12 @@
 
 ## Feature acceptance
 
-- Acceptance status: `PENDING` (fix round 1 applied; awaiting independent re-review)
-- Acceptance evidence: Independent review of PR #13 at a2a653613ae35a542ff2d011b889047e100acf4c completed on 2026-09-05; see the dated review below. Acceptance withheld pending R1 and R2. Fix round 1 (2026-09-05) resolved both — see `agent/product/emergency-fund-runway/implementation-log.md` -> "Fix round 1" for the concrete changes and new regression tests, and "Acceptance assessment" below for how each affected criterion now reads.
-- Unmet criteria: None believed remaining as of fix round 1; criteria 4–5 (currency normalization, direct-domain rejection invariants, HTTP edge-case coverage) should now be satisfied pending independent re-review confirming R1/R2's acceptance conditions.
-- Returned work: None outstanding from this round. `./verify.sh`: 245 tests, 0 failures (37 in the `runway` package, up from 34).
+- Acceptance status: `ACCEPTED`
+- Acceptance evidence: Codex independently reviewed PR #13 at `517659c5087b8106f6f1500ea3033aeffed6343d` on 2026-09-05. R1 and R2 are resolved; all eight criteria are satisfied. See the dated re-review below for criterion-by-criterion evidence and verification limits.
+- Unmet criteria: None.
+- Returned work: None. The recorded local `./verify.sh` result is 245 tests, 0 failures; the required GitHub `verify` check independently reports SUCCESS for the reviewed head.
 - Follow-up opportunities: Stored-state integration only with a separately framed provenance/approval contract; richer models only when concrete household needs justify them; shared-document consolidation after this batch.
-- Accepted or returned by Product Owner Agent: Codex — returned for fixes on 2026-09-05; re-review pending as of fix round 1.
+- Accepted or returned by Product Owner Agent: Codex — ACCEPTED on 2026-09-05.
 - Accepted or returned at: 2026-09-05
 
 ## Review findings — 2026-09-05
@@ -277,3 +277,93 @@ under this feature's exclusive ownership paths changed on main). Reran
 Acceptance status remains `PENDING` pending this independent re-review; no
 new finding, scope change, or product decision was introduced by this
 round.
+
+
+## Review findings — 2026-09-05 (fix round 1 re-review)
+
+Reviewed the actual `gh pr diff 13` against `main` at head
+`517659c5087b8106f6f1500ea3033aeffed6343d`. Context was limited to the
+four requested files and the PR diff; no implementation conversation or
+additional repository context was read. No application code was changed.
+The feature is backend-only and `agent/ui/emergency-fund-runway/visual-review.md`
+does not exist, so visual review gates do not apply.
+
+### R1 — Currency invariants and locale independence
+
+- Classification: `BLOCKING` (original finding).
+- Decision: `ACCEPTED` — resolved; the original acceptance condition is met.
+- Visible evidence: `EmergencyFundRunwayCalculator.normalizeCurrency` checks
+  the trimmed input against `^[A-Za-z]{3}$` before calling
+  `toUpperCase(Locale.ROOT)`. The domain tests explicitly exercise `inr`
+  under `tr-TR`, restore the default locale in `finally`, and reject `ßa`
+  before case expansion. Existing normal currency and HTTP error tests remain.
+- Acceptance condition verified: Three supplied ASCII letters are required,
+  normalization is independent of JVM locale, direct malformed inputs are
+  rejected, and the regression suite passes in the reviewed head's green
+  required verification check.
+
+### R2 — HTTP edge-case evidence
+
+- Classification: `BLOCKING` (original finding).
+- Decision: `ACCEPTED` — resolved; the original acceptance condition is met.
+- Visible evidence: `EmergencyFundRunwayApiIntegrationTest` now exercises
+  reserve 1000, expenses 400, income 500 with HTTP 200, `NO_SHORTFALL`, zero
+  shortfall and both named month fields asserted with `value(nullValue())`.
+  Equality and all-zero tests assert both null fields too. The domain
+  surplus-income test also asserts zero shortfall.
+- Acceptance condition verified: All three no-shortfall cases have the
+  required HTTP output assertions, the missing domain assertion is present,
+  and the updated brief records a passing full verification run.
+
+### Whole-feature acceptance assessment
+
+1. Satisfied: Exact cent-based division and matching domain/HTTP tests produce
+   shortfall 300.00, runway 3.33, full months 3 and `FINITE` for 1000/400/100.
+2. Satisfied: Both suites cover zero reserve with positive shortfall and
+   equality, surplus income and all-zero inputs with the prescribed statuses
+   and null month values (R2 resolved).
+3. Satisfied: Both suites distinguish 1000/600 as 1.66 rather than 1.67.
+   Inspection shows full months computed directly by integer division of
+   reserve cents by shortfall cents, independently of runway hundredths.
+   The boundary test's explanatory comment alone would not establish this;
+   the calculation itself does.
+4. Satisfied: The documented POST route, request and response DTOs echo the
+   required inputs and currency, expose defined statuses and model notes,
+   and use deterministic BigDecimal/BigInteger arithmetic without a clock.
+   Repeated-request equality is tested; R1 restores deterministic currency
+   normalization. BigInteger output accommodates derived values beyond long.
+5. Satisfied: Domain and HTTP suites cover required inputs, malformed currency,
+   uppercase normalization, negative amounts, integer bounds, excessive scale,
+   success and defined edge cases. Domain validation independently checks
+   each required amount; currency regressions satisfy R1. HTTP tests also
+   assert structured validation and malformed-JSON errors.
+6. Satisfied: The complete additive call path is controller → dependency-free
+   calculator → response mapper. There is no persistence, household lookup,
+   identifier, logging, entity change or migration. This inspected dependency
+   path establishes statelessness; repeated identical results alone would not.
+7. Satisfied: All PR changes are within the exclusive runway production/test
+   packages and feature product directory. Error handling is controller-local;
+   shared startup, configuration, error handling and sibling packages are untouched.
+8. Satisfied: No sibling imports or dependencies are introduced. The brief
+   records the synthetic primary API flow against disposable infrastructure,
+   local `./verify.sh` with 245 tests and no failures, and successful repeat
+   verification after merging main. Independently checked the required
+   GitHub `verify` result: SUCCESS for the reviewed head, completed
+   2026-09-05T15:06:12Z, with
+   [CI evidence](https://github.com/codelinguist/waypoint/actions/runs/33973715627/job/101326626881).
+
+Verification limits: This review inspected the full PR diff and independently
+checked CI status; it did not rerun the full suite or the manual API flow.
+Those execution details are the implementer's recorded evidence, corroborated
+by the reviewed head's successful required check. A green required check on
+the final branch head remains mandatory before the orchestrator merges.
+
+No new BLOCKING, RECOMMENDED or OPTIONAL findings were identified. R1 and R2
+are closed; no unresolved blocking findings or unmet acceptance criteria remain.
+Feature status is `ACCEPTED`. This authorizes automatic merge through the
+orchestrator once the final head's required `verify` check is green.
+
+System evolution: No shared rule or template change is needed for these fixes;
+existing invariant and edge-case requirements already specify the correct
+behavior, and the added regressions now protect it. Existing separately framed
+follow-up opportunities remain outside this acceptance.
