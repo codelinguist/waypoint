@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 class FinancialSnapshotServiceTest {
 
@@ -159,5 +160,149 @@ class FinancialSnapshotServiceTest {
                 .thenReturn(List.of());
 
         assertThat(financialSnapshotService.listSnapshots(householdId)).isEmpty();
+    }
+
+    @Test
+    void throwsNotFoundWhenComparingSnapshotsForUnknownHousehold() {
+        UUID householdId = UUID.randomUUID();
+        when(householdRepository.existsById(householdId)).thenReturn(false);
+
+        assertThatThrownBy(() -> financialSnapshotService.compareSnapshots(
+                householdId, UUID.randomUUID(), UUID.randomUUID()))
+                .isInstanceOf(HouseholdNotFoundException.class);
+    }
+
+    @Test
+    void rejectsComparingASnapshotAgainstItself() {
+        UUID householdId = UUID.randomUUID();
+        UUID snapshotId = UUID.randomUUID();
+        when(householdRepository.existsById(householdId)).thenReturn(true);
+
+        assertThatThrownBy(() -> financialSnapshotService.compareSnapshots(householdId, snapshotId, snapshotId))
+                .isInstanceOf(IdenticalSnapshotComparisonException.class);
+    }
+
+    @Test
+    void throwsNotFoundWhenEarlierSnapshotDoesNotBelongToHousehold() {
+        UUID householdId = UUID.randomUUID();
+        UUID earlierSnapshotId = UUID.randomUUID();
+        UUID laterSnapshotId = UUID.randomUUID();
+        when(householdRepository.existsById(householdId)).thenReturn(true);
+        when(financialSnapshotRepository.findByIdAndHousehold_Id(earlierSnapshotId, householdId))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> financialSnapshotService.compareSnapshots(
+                householdId, earlierSnapshotId, laterSnapshotId))
+                .isInstanceOf(FinancialSnapshotNotFoundException.class);
+    }
+
+    @Test
+    void throwsNotFoundWhenLaterSnapshotDoesNotBelongToHousehold() {
+        UUID householdId = UUID.randomUUID();
+        UUID earlierSnapshotId = UUID.randomUUID();
+        UUID laterSnapshotId = UUID.randomUUID();
+        Household household = new Household("Ralph Household", "PHP");
+        FinancialSnapshot earlierSnapshot = new FinancialSnapshot(household, LocalDate.now().minusDays(1));
+        when(householdRepository.existsById(householdId)).thenReturn(true);
+        when(financialSnapshotRepository.findByIdAndHousehold_Id(earlierSnapshotId, householdId))
+                .thenReturn(Optional.of(earlierSnapshot));
+        when(financialSnapshotRepository.findByIdAndHousehold_Id(laterSnapshotId, householdId))
+                .thenReturn(Optional.empty());
+        when(snapshotAssetLineItemRepository.findBySnapshot_IdOrderByCreatedAtAscIdAsc(any())).thenReturn(List.of());
+        when(snapshotLiabilityLineItemRepository.findBySnapshot_IdOrderByCreatedAtAscIdAsc(any()))
+                .thenReturn(List.of());
+
+        assertThatThrownBy(() -> financialSnapshotService.compareSnapshots(
+                householdId, earlierSnapshotId, laterSnapshotId))
+                .isInstanceOf(FinancialSnapshotNotFoundException.class);
+    }
+
+    @Test
+    void computesSignedLaterMinusEarlierDeltasPerCurrency() {
+        UUID householdId = UUID.randomUUID();
+        UUID earlierSnapshotId = UUID.randomUUID();
+        UUID laterSnapshotId = UUID.randomUUID();
+        Household household = new Household("Ralph Household", "PHP");
+        FinancialSnapshot earlierSnapshot = new FinancialSnapshot(household, LocalDate.now().minusMonths(1));
+        FinancialSnapshot laterSnapshot = new FinancialSnapshot(household, LocalDate.now());
+        ReflectionTestUtils.setField(earlierSnapshot, "id", UUID.randomUUID());
+        ReflectionTestUtils.setField(laterSnapshot, "id", UUID.randomUUID());
+
+        SnapshotAssetLineItem earlierPhpAsset = new SnapshotAssetLineItem(earlierSnapshot, UUID.randomUUID(), "Cash",
+                AssetType.CASH, "PHP", earlierSnapshot.getAsOfDate(), new BigDecimal("100.00"));
+        SnapshotLiabilityLineItem earlierPhpLiability = new SnapshotLiabilityLineItem(earlierSnapshot,
+                UUID.randomUUID(), "Loan", LiabilityType.PERSONAL_LOAN, "PHP", earlierSnapshot.getAsOfDate(),
+                new BigDecimal("30.00"));
+
+        SnapshotAssetLineItem laterPhpAsset = new SnapshotAssetLineItem(laterSnapshot, UUID.randomUUID(), "Cash",
+                AssetType.CASH, "PHP", laterSnapshot.getAsOfDate(), new BigDecimal("80.00"));
+        SnapshotAssetLineItem laterUsdAsset = new SnapshotAssetLineItem(laterSnapshot, UUID.randomUUID(),
+                "USD Cash", AssetType.CASH, "USD", laterSnapshot.getAsOfDate(), new BigDecimal("20.00"));
+        SnapshotLiabilityLineItem laterPhpLiability = new SnapshotLiabilityLineItem(laterSnapshot, UUID.randomUUID(),
+                "Loan", LiabilityType.PERSONAL_LOAN, "PHP", laterSnapshot.getAsOfDate(), new BigDecimal("30.00"));
+
+        when(householdRepository.existsById(householdId)).thenReturn(true);
+        when(financialSnapshotRepository.findByIdAndHousehold_Id(earlierSnapshotId, householdId))
+                .thenReturn(Optional.of(earlierSnapshot));
+        when(financialSnapshotRepository.findByIdAndHousehold_Id(laterSnapshotId, householdId))
+                .thenReturn(Optional.of(laterSnapshot));
+        when(snapshotAssetLineItemRepository.findBySnapshot_IdOrderByCreatedAtAscIdAsc(earlierSnapshot.getId()))
+                .thenReturn(List.of(earlierPhpAsset));
+        when(snapshotLiabilityLineItemRepository.findBySnapshot_IdOrderByCreatedAtAscIdAsc(earlierSnapshot.getId()))
+                .thenReturn(List.of(earlierPhpLiability));
+        when(snapshotAssetLineItemRepository.findBySnapshot_IdOrderByCreatedAtAscIdAsc(laterSnapshot.getId()))
+                .thenReturn(List.of(laterPhpAsset, laterUsdAsset));
+        when(snapshotLiabilityLineItemRepository.findBySnapshot_IdOrderByCreatedAtAscIdAsc(laterSnapshot.getId()))
+                .thenReturn(List.of(laterPhpLiability));
+
+        FinancialSnapshotComparison comparison = financialSnapshotService.compareSnapshots(
+                householdId, earlierSnapshotId, laterSnapshotId);
+
+        assertThat(comparison.earlierSnapshot()).isSameAs(earlierSnapshot);
+        assertThat(comparison.laterSnapshot()).isSameAs(laterSnapshot);
+        assertThat(comparison.currencyDeltas()).hasSize(2);
+
+        CurrencyTotalsDelta php = comparison.currencyDeltas().stream()
+                .filter(delta -> delta.currency().equals("PHP")).findFirst().orElseThrow();
+        assertThat(php.assetTotalDelta()).isEqualByComparingTo("-20.00");
+        assertThat(php.liabilityTotalDelta()).isEqualByComparingTo("0.00");
+        assertThat(php.netWorthDelta()).isEqualByComparingTo("-20.00");
+
+        CurrencyTotalsDelta usd = comparison.currencyDeltas().stream()
+                .filter(delta -> delta.currency().equals("USD")).findFirst().orElseThrow();
+        assertThat(usd.assetTotalDelta()).isEqualByComparingTo("20.00");
+        assertThat(usd.liabilityTotalDelta()).isEqualByComparingTo("0");
+        assertThat(usd.netWorthDelta()).isEqualByComparingTo("20.00");
+    }
+
+    @Test
+    void returnsZeroDeltasForIdenticalSnapshotContents() {
+        UUID householdId = UUID.randomUUID();
+        UUID earlierSnapshotId = UUID.randomUUID();
+        UUID laterSnapshotId = UUID.randomUUID();
+        Household household = new Household("Ralph Household", "PHP");
+        FinancialSnapshot earlierSnapshot = new FinancialSnapshot(household, LocalDate.now().minusMonths(1));
+        FinancialSnapshot laterSnapshot = new FinancialSnapshot(household, LocalDate.now());
+        SnapshotAssetLineItem asset = new SnapshotAssetLineItem(earlierSnapshot, UUID.randomUUID(), "Cash",
+                AssetType.CASH, "PHP", earlierSnapshot.getAsOfDate(), new BigDecimal("100.00"));
+
+        when(householdRepository.existsById(householdId)).thenReturn(true);
+        when(financialSnapshotRepository.findByIdAndHousehold_Id(earlierSnapshotId, householdId))
+                .thenReturn(Optional.of(earlierSnapshot));
+        when(financialSnapshotRepository.findByIdAndHousehold_Id(laterSnapshotId, householdId))
+                .thenReturn(Optional.of(laterSnapshot));
+        when(snapshotAssetLineItemRepository.findBySnapshot_IdOrderByCreatedAtAscIdAsc(any()))
+                .thenReturn(List.of(asset));
+        when(snapshotLiabilityLineItemRepository.findBySnapshot_IdOrderByCreatedAtAscIdAsc(any()))
+                .thenReturn(List.of());
+
+        FinancialSnapshotComparison comparison = financialSnapshotService.compareSnapshots(
+                householdId, earlierSnapshotId, laterSnapshotId);
+
+        assertThat(comparison.currencyDeltas()).hasSize(1);
+        CurrencyTotalsDelta php = comparison.currencyDeltas().get(0);
+        assertThat(php.assetTotalDelta()).isEqualByComparingTo("0.00");
+        assertThat(php.liabilityTotalDelta()).isEqualByComparingTo("0");
+        assertThat(php.netWorthDelta()).isEqualByComparingTo("0.00");
     }
 }
