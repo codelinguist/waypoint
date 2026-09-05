@@ -1,12 +1,12 @@
 ---
-status: QUEUED
+status: IN_PROGRESS
 task_number: 006
 feature_slug: snapshot-comparison
-branch:
-worktree:
+branch: task/006-snapshot-comparison
+worktree: /Users/rj/Documents/projects/waypoint-orchestrator/worktrees/task-006-snapshot-comparison
 session:
 pr:
-claimed_at:
+claimed_at: 2026-09-05T10:05:57Z
 fix_rounds: 0
 ---
 
