@@ -33,6 +33,7 @@ LOG_DIR="$AUTOMATION_DIR/logs"
 LOG_FILE="$LOG_DIR/orchestrator.log"
 LOCK_DIR="$STATE_DIR/.orchestrator.lock"
 GH_TOKEN_CACHE="$STATE_DIR/gh-token"
+GH_TOKEN_OVERRIDE_FILE="$STATE_DIR/gh-token.scoped"
 
 MAX_PARALLEL="${WAYPOINT_MAX_PARALLEL:-3}"
 # Kept as two independent budgets, each with its own frontmatter field
@@ -78,19 +79,56 @@ ensure_gh_token() {
   # this failed *silently* -- `gh pr list` returning nothing read as "no
   # open task/* PRs" for 45+ minutes while PRs 13-15 sat open with green
   # `verify` checks, completely unreviewed, with no error anywhere in the
-  # log. `gh auth token`'s own failure is the one call in this function
-  # that's logged explicitly, specifically so this class of failure is
-  # visible next time instead of masquerading as "nothing to do."
+  # log.
   #
-  # Fix, mirroring ensure_authenticated_remote()'s approach: whenever `gh
-  # auth token` *does* succeed (this script run from, or shortly after, an
-  # unlocked interactive session), cache it to a local file outside the
-  # keychain. Whenever it doesn't, fall back to that cached copy. Either
-  # way, export it as GH_TOKEN, which every `gh` subcommand honors ahead of
-  # its own keychain-backed lookup -- so once a token has been cached once,
-  # every `gh` call in this script keeps working under cron regardless of
-  # Keychain session state, until the token is revoked/rotated (at which
-  # point the next successful interactive run refreshes the cache).
+  # Every path below either exports a validated, working GH_TOKEN and
+  # returns 0, or leaves it unset and returns 1. main() treats a nonzero
+  # return as fatal for the whole run -- not "log and hope downstream
+  # gh/git commands happen to fail safely on their own," since that safety
+  # would otherwise be incidental (cron's current inability to reach
+  # Keychain), not something this design actually controls. An interactive
+  # run, a future macOS change, or a credential-helper reconfiguration
+  # could otherwise silently let a broader ambient credential through.
+  unset GH_TOKEN
+
+  if [[ -e "$GH_TOKEN_OVERRIDE_FILE" ]]; then
+    # A deliberately provisioned, narrower (ideally repository-scoped)
+    # credential exists -- see agent/automation/README.md for how to
+    # create one. Treat it as authoritative: validate strictly and either
+    # use it or fail -- never silently fall through to the broader
+    # gh-auth-token/cache path below, which would defeat the entire point
+    # of scoping down.
+    if [[ -L "$GH_TOKEN_OVERRIDE_FILE" || ! -f "$GH_TOKEN_OVERRIDE_FILE" ]]; then
+      log "ensure_gh_token: $GH_TOKEN_OVERRIDE_FILE is not a regular file (symlink or other); refusing to use it."
+      return 1
+    fi
+    local perm
+    perm="$(stat -f '%OLp' "$GH_TOKEN_OVERRIDE_FILE" 2>/dev/null || echo unknown)"
+    if [[ "$perm" != "600" && "$perm" != "400" ]]; then
+      log "ensure_gh_token: $GH_TOKEN_OVERRIDE_FILE has permissions $perm (expected 600); refusing a group/world-accessible credential file. Run: chmod 600 $GH_TOKEN_OVERRIDE_FILE"
+      return 1
+    fi
+    local override_token
+    override_token="$(tr -d '[:space:]' < "$GH_TOKEN_OVERRIDE_FILE")"
+    if [[ -z "$override_token" ]]; then
+      log "ensure_gh_token: $GH_TOKEN_OVERRIDE_FILE is empty after trimming whitespace; refusing to use it."
+      return 1
+    fi
+    if ! GH_TOKEN="$override_token" gh auth status >/dev/null 2>&1; then
+      log "ensure_gh_token: the scoped token in $GH_TOKEN_OVERRIDE_FILE failed validation (revoked/expired/malformed); refusing to fall back to the broader account token. Replace or remove $GH_TOKEN_OVERRIDE_FILE."
+      return 1
+    fi
+    export GH_TOKEN="$override_token"
+    return 0
+  fi
+
+  # No override provisioned: fall back to the broad, account-wide token,
+  # mirroring ensure_authenticated_remote()'s original approach. Whenever
+  # `gh auth token` *does* succeed (this script run from, or shortly
+  # after, an unlocked interactive session), cache it to a local file
+  # outside the keychain. Whenever it doesn't, fall back to that cached
+  # copy, until the token is revoked/rotated (at which point the next
+  # successful interactive run refreshes the cache).
   local token
   token="$(gh auth token 2>/dev/null || true)"
   if [[ -n "$token" ]]; then
@@ -99,38 +137,50 @@ ensure_gh_token() {
     token="$(cat "$GH_TOKEN_CACHE")"
     log "ensure_gh_token: 'gh auth token' returned nothing (cron/Keychain-session gap); using the cached token from $GH_TOKEN_CACHE instead."
   else
-    log "ensure_gh_token: 'gh auth token' returned nothing and no cached token exists yet at $GH_TOKEN_CACHE; gh commands will likely fail this run. Run this script once interactively (or just 'gh auth token' once) to seed the cache."
+    log "ensure_gh_token: 'gh auth token' returned nothing and no cached token exists yet at $GH_TOKEN_CACHE; no usable credential this run. Run this script once interactively (or just 'gh auth token' once) to seed the cache."
   fi
-  # `[[ -n "$token" ]] && export ...` as the function's last statement would
-  # make the function itself return nonzero whenever no token is available
-  # at all (no live token, no cache -- the very first run, or a revoked
-  # token) -- and under this script's `set -e`, main() calling this as a
-  # bare statement would then abort the entire orchestrator run right here
-  # instead of degrading to "gh commands fail this tick, logged above,
-  # retried next tick". No token being available is an expected, already-
-  # logged condition, not a fatal one; always return success explicitly.
-  if [[ -n "$token" ]]; then
-    export GH_TOKEN="$token"
+
+  if [[ -z "$token" ]]; then
+    return 1
   fi
+  # A non-empty cached value may have been revoked since it was written.
+  # Validate both fresh and cached broad tokens before allowing main() past
+  # its authentication gate; otherwise later `gh` failures can masquerade
+  # as an empty PR list again.
+  if ! GH_TOKEN="$token" gh auth status >/dev/null 2>&1; then
+    log "ensure_gh_token: the live/cached account token failed validation; no usable credential this run. Re-authenticate with gh, then run the orchestrator interactively once to refresh the cache."
+    return 1
+  fi
+  export GH_TOKEN="$token"
   return 0
 }
 
-ensure_authenticated_remote() {
-  # Reuses the token ensure_gh_token() already resolved (fresh from `gh
-  # auth token`, or the cron-session fallback from GH_TOKEN_CACHE) rather
-  # than calling `gh auth token` a second time here. Embedding it directly
-  # in this clone's remote URL sidesteps git's own osxkeychain credential
-  # helper the same way GH_TOKEN sidesteps gh's -- it's a plain value in a
-  # local, uncommitted .git/config, not looked up via the keychain at
-  # request time. Re-applied every run (cheap, idempotent) so a rotated
-  # token is always picked up.
-  local https_url host_and_path
-  https_url="$(git -C "$REPO_ROOT" remote get-url origin)"
+authenticated_url_for() {
+  # Pure string helper shared by ensure_authenticated_remote() and
+  # sync_control_clone()'s initial clone (below), so both embed GH_TOKEN
+  # identically and the construction itself is unit-testable without
+  # mocking git. Never logs its output -- callers must not either.
+  local base_url="$1"
   if [[ -n "${GH_TOKEN:-}" ]]; then
-    host_and_path="${https_url#https://}"
-    git -C "$CONTROL_DIR" remote set-url origin "https://x-access-token:${GH_TOKEN}@${host_and_path}"
+    echo "https://x-access-token:${GH_TOKEN}@${base_url#https://}"
   else
-    log "ensure_authenticated_remote: no GH_TOKEN available (see ensure_gh_token's own log line above); leaving existing remote URL as-is."
+    echo "$base_url"
+  fi
+}
+
+ensure_authenticated_remote() {
+  # By the time main() ever reaches this (after the ensure_gh_token abort
+  # gate below), GH_TOKEN is always non-empty, so the reset branch here is
+  # dead code in a normal run. Kept for defense-in-depth in case this is
+  # ever called from a different path (e.g. a test) where that's not true:
+  # actively resetting to a clean URL rather than leaving a *previous*
+  # run's embedded token in place matters exactly because a stale
+  # credential silently continuing to work would defeat the whole point.
+  local https_url
+  https_url="$(git -C "$REPO_ROOT" remote get-url origin)"
+  git -C "$CONTROL_DIR" remote set-url origin "$(authenticated_url_for "$https_url")"
+  if [[ -z "${GH_TOKEN:-}" ]]; then
+    log "ensure_authenticated_remote: no GH_TOKEN available; reset control clone's origin to an unauthenticated URL so git operations fail visibly instead of reusing a stale embedded token."
   fi
 }
 
@@ -139,7 +189,14 @@ sync_control_clone() {
     local origin_url
     origin_url="$(git -C "$REPO_ROOT" remote get-url origin)"
     log "Cloning control clone from $origin_url into $CONTROL_DIR"
-    git clone --quiet "$origin_url" "$CONTROL_DIR"
+    # The very first clone ever (or after $CONTROL_DIR is deleted/moved)
+    # previously used the bare, unauthenticated $origin_url -- it runs
+    # before ensure_authenticated_remote() ever touches this clone's
+    # remote, so against a private repo under cron it had no way to
+    # authenticate at all. Use the same authenticated_url_for() helper
+    # here too. The log line above still references the clean $origin_url,
+    # never the authenticated form, so the token never reaches the log.
+    git clone --quiet "$(authenticated_url_for "$origin_url")" "$CONTROL_DIR"
   fi
   ensure_authenticated_remote
   git -C "$CONTROL_DIR" fetch origin main --quiet
@@ -402,7 +459,17 @@ run_review() {
   git -C "$CONTROL_DIR" checkout -B "review-${pr_number}" "origin/${branch}" --quiet
 
   codex_status=0
-  (cd "$CONTROL_DIR" && codex exec --dangerously-bypass-approvals-and-sandbox \
+  # `-s workspace-write` alone leaves network access OFF by default --
+  # confirmed empirically (not from documentation, which doesn't say
+  # either way): a plain `-s workspace-write` run failed `git ls-remote`
+  # and `gh pr diff` with connection errors, identical to a real failure
+  # seen reviewing PR #16. `-c sandbox_workspace_write.network_access=true`
+  # turns network on (the sandbox banner then reports "network access
+  # enabled") while keeping filesystem/process writes confined to the
+  # workspace -- a real, verified downgrade from full bypass, not the
+  # blanket host access `--dangerously-bypass-approvals-and-sandbox` grants.
+  (cd "$CONTROL_DIR" && codex exec -s workspace-write \
+    -c 'sandbox_workspace_write.network_access=true' \
     --output-last-message "$msg_file" "$prompt") >> "$LOG_FILE" 2>&1 || codex_status=$?
 
   # review-prompt.md already tells Codex to push its own findings commit;
@@ -627,7 +694,10 @@ review_and_merge_phase() {
 main() {
   require_tools
   acquire_lock
-  ensure_gh_token
+  if ! ensure_gh_token; then
+    log "No usable automation credential this run; aborting before any git/gh operation."
+    return 0
+  fi
   sync_control_clone
   review_and_merge_phase
   dispatch_phase

@@ -333,35 +333,82 @@ test_review_error_branch_continues_before_persisting_state() {
     "the REVIEW_ERROR branch must not persist state to the PR state file"
 }
 
-# ---- gh-token cron fallback -----------------------------------------------
+test_run_review_uses_sandboxed_codex_invocation() {
+  # Source-shape regression for the hardening change: run_review() must
+  # invoke codex exec under its documented, verified sandbox
+  # (-s workspace-write plus the network_access override -- confirmed
+  # empirically that workspace-write alone leaves network off) and must
+  # never again use the full --dangerously-bypass-approvals-and-sandbox
+  # escape hatch.
+  # Strip comment-only lines first -- the explanatory comment above the
+  # invocation legitimately names the old flag by way of contrast, which
+  # would otherwise make a plain substring check on the whole function
+  # body false-positive (the same class of mistake caught earlier in this
+  # file for a "last_reviewed_sha" comment).
+  local body
+  body="$(awk '/^run_review\(\) \{/,/^\}/' "$ORCHESTRATOR" | grep -v '^[[:space:]]*#')"
+  assert_contains "$body" '-s workspace-write' \
+    "run_review should invoke codex exec with -s workspace-write"
+  assert_contains "$body" 'sandbox_workspace_write.network_access=true' \
+    "run_review should explicitly enable network access under the sandbox (off by default under workspace-write)"
+  assert_not_contains "$body" '--dangerously-bypass-approvals-and-sandbox' \
+    "run_review must not use the full bypass any more"
+}
 
-test_ensure_gh_token_caches_and_falls_back() {
-  # Stubs `gh` in PATH with a fake that only understands `auth token`, so
-  # this never touches the real gh CLI or real credentials. Simulates the
-  # exact cron scenario: `gh auth token` succeeds once (an interactive-ish
-  # run), caching the token; a later call where it fails (the cron/Keychain
-  # gap) must fall back to that cache instead of leaving GH_TOKEN unset.
-  local fake_bin="$TEST_TMP/fake-gh-bin"
+# ---- gh-token cron fallback -----------------------------------------------
+#
+# Shared fake `gh` for every test below: never touches the real gh CLI or
+# real credentials. Behavior is controlled entirely via env vars read at
+# invocation time:
+#   GH_AUTH_STATUS_EXIT   - exit code for `gh auth status` (default 0)
+#   GH_FAKE_TOKEN         - value `gh auth token` prints and succeeds with;
+#                           unset/empty makes `gh auth token` fail
+#   GH_AUTH_TOKEN_MARKER  - if set, a marker file written whenever
+#                           `gh auth token` is invoked at all, letting a
+#                           test prove that call path was never reached
+setup_fake_gh() {
+  local fake_bin="$1"
   mkdir -p "$fake_bin"
   cat > "$fake_bin/gh" <<'EOS'
 #!/usr/bin/env bash
-if [[ "$1 $2" == "auth token" ]]; then
-  if [[ -n "${GH_FAKE_TOKEN:-}" ]]; then
-    printf '%s' "$GH_FAKE_TOKEN"
-    exit 0
-  fi
-  exit 1
-fi
+case "$1 $2" in
+  "auth status")
+    exit "${GH_AUTH_STATUS_EXIT:-0}"
+    ;;
+  "auth token")
+    [[ -n "${GH_AUTH_TOKEN_MARKER:-}" ]] && printf 'called' > "$GH_AUTH_TOKEN_MARKER"
+    if [[ -n "${GH_FAKE_TOKEN:-}" ]]; then
+      printf '%s' "$GH_FAKE_TOKEN"
+      exit 0
+    fi
+    exit 1
+    ;;
+esac
 exit 1
 EOS
   chmod +x "$fake_bin/gh"
+}
 
-  local saved_path="$PATH" saved_cache="$GH_TOKEN_CACHE"
+test_ensure_gh_token_caches_and_falls_back() {
+  # Simulates the exact cron scenario: `gh auth token` succeeds once (an
+  # interactive-ish run), caching the token; a later call where it fails
+  # (the cron/Keychain gap) must fall back to that cache instead of
+  # leaving GH_TOKEN unset. No override file involved -- pointed at a
+  # path that provably doesn't exist, rather than relying on the real
+  # machine happening not to have one.
+  local fake_bin="$TEST_TMP/fake-gh-bin"
+  setup_fake_gh "$fake_bin"
+
+  local saved_path="$PATH" saved_cache="$GH_TOKEN_CACHE" saved_override="$GH_TOKEN_OVERRIDE_FILE"
   GH_TOKEN_CACHE="$TEST_TMP/gh-token-cache"
   rm -f "$GH_TOKEN_CACHE"
+  GH_TOKEN_OVERRIDE_FILE="$TEST_TMP/gh-token.scoped.absent-for-this-test"
+  rm -f "$GH_TOKEN_OVERRIDE_FILE"
   PATH="$fake_bin:$PATH"
 
-  GH_FAKE_TOKEN="tok-fresh" ensure_gh_token
+  local rc=0
+  GH_FAKE_TOKEN="tok-fresh" ensure_gh_token || rc=$?
+  assert_equals "0" "$rc" "ensure_gh_token should return 0 on a fresh live token"
   assert_equals "tok-fresh" "${GH_TOKEN:-}" \
     "ensure_gh_token should export a freshly obtained token"
   assert_equals "tok-fresh" "$(cat "$GH_TOKEN_CACHE" 2>/dev/null || true)" \
@@ -369,37 +416,316 @@ EOS
 
   # cron scenario: gh auth token now fails, but the earlier cache exists.
   unset GH_TOKEN
-  GH_FAKE_TOKEN="" ensure_gh_token
+  rc=0
+  GH_FAKE_TOKEN="" ensure_gh_token || rc=$?
+  assert_equals "0" "$rc" "ensure_gh_token should return 0 when falling back to a valid cache"
   assert_equals "tok-fresh" "${GH_TOKEN:-}" \
     "ensure_gh_token should fall back to the cached token when gh auth token fails"
 
   PATH="$saved_path"
   GH_TOKEN_CACHE="$saved_cache"
+  GH_TOKEN_OVERRIDE_FILE="$saved_override"
   unset GH_TOKEN
 }
 
 test_ensure_gh_token_no_cache_no_token_leaves_gh_token_unset() {
   local fake_bin="$TEST_TMP/fake-gh-bin-empty"
-  mkdir -p "$fake_bin"
-  cat > "$fake_bin/gh" <<'EOS'
-#!/usr/bin/env bash
-exit 1
-EOS
-  chmod +x "$fake_bin/gh"
+  setup_fake_gh "$fake_bin"
 
-  local saved_path="$PATH" saved_cache="$GH_TOKEN_CACHE"
+  local saved_path="$PATH" saved_cache="$GH_TOKEN_CACHE" saved_override="$GH_TOKEN_OVERRIDE_FILE"
   GH_TOKEN_CACHE="$TEST_TMP/gh-token-cache-missing"
   rm -f "$GH_TOKEN_CACHE"
+  GH_TOKEN_OVERRIDE_FILE="$TEST_TMP/gh-token.scoped.does-not-exist"
+  rm -f "$GH_TOKEN_OVERRIDE_FILE"
   PATH="$fake_bin:$PATH"
 
-  unset GH_TOKEN
-  ensure_gh_token
+  # A stale/inherited GH_TOKEN (a leftover export from earlier in this
+  # shell, or something the invoking environment set) must not survive
+  # this call just because no better credential was found.
+  GH_TOKEN="stale-inherited-token"
+  local rc=0
+  GH_FAKE_TOKEN="" ensure_gh_token || rc=$?
+
+  assert_equals "1" "$rc" \
+    "with no live token, no cache, and no override, ensure_gh_token should return 1"
   assert_equals "" "${GH_TOKEN:-}" \
-    "with no live token and no cache, ensure_gh_token must not export a bogus GH_TOKEN"
+    "with no usable credential, ensure_gh_token must leave GH_TOKEN unset -- including clearing an inherited value"
 
   PATH="$saved_path"
   GH_TOKEN_CACHE="$saved_cache"
+  GH_TOKEN_OVERRIDE_FILE="$saved_override"
   unset GH_TOKEN
+}
+
+test_ensure_gh_token_rejects_invalid_cached_broad_token() {
+  local fake_bin="$TEST_TMP/fake-gh-invalid-cache"
+  setup_fake_gh "$fake_bin"
+  local saved_path="$PATH" saved_override="$GH_TOKEN_OVERRIDE_FILE" saved_cache="$GH_TOKEN_CACHE"
+  PATH="$fake_bin:$PATH"
+  GH_TOKEN_OVERRIDE_FILE="$TEST_TMP/gh-token.scoped.absent-invalid-cache"
+  rm -f "$GH_TOKEN_OVERRIDE_FILE"
+  GH_TOKEN_CACHE="$TEST_TMP/gh-token-cache-invalid"
+  printf 'revoked-broad-token' > "$GH_TOKEN_CACHE"
+
+  GH_TOKEN="stale-inherited-token"
+  local rc=0
+  GH_FAKE_TOKEN="" GH_AUTH_STATUS_EXIT=1 ensure_gh_token || rc=$?
+
+  assert_equals "1" "$rc" "a cached broad token that fails validation should return 1"
+  assert_equals "" "${GH_TOKEN:-}" "an invalid cached broad token must leave GH_TOKEN unset"
+
+  PATH="$saved_path"
+  GH_TOKEN_OVERRIDE_FILE="$saved_override"
+  GH_TOKEN_CACHE="$saved_cache"
+  unset GH_TOKEN
+}
+
+test_ensure_gh_token_valid_override_short_circuits_broad_path() {
+  local fake_bin="$TEST_TMP/fake-gh-override-valid"
+  setup_fake_gh "$fake_bin"
+  local saved_path="$PATH" saved_override="$GH_TOKEN_OVERRIDE_FILE" saved_cache="$GH_TOKEN_CACHE"
+  PATH="$fake_bin:$PATH"
+
+  GH_TOKEN_OVERRIDE_FILE="$TEST_TMP/gh-token.scoped.valid"
+  printf 'scoped-token-value\n' > "$GH_TOKEN_OVERRIDE_FILE"
+  chmod 600 "$GH_TOKEN_OVERRIDE_FILE"
+  GH_TOKEN_CACHE="$TEST_TMP/gh-token-cache-unused-by-override"
+  rm -f "$GH_TOKEN_CACHE"
+
+  local marker="$TEST_TMP/gh-auth-token-called.valid-override"
+  rm -f "$marker"
+  unset GH_TOKEN
+  local rc=0
+  GH_AUTH_TOKEN_MARKER="$marker" ensure_gh_token || rc=$?
+
+  assert_equals "0" "$rc" "a valid override should make ensure_gh_token return 0"
+  assert_equals "scoped-token-value" "${GH_TOKEN:-}" \
+    "ensure_gh_token should export the override file's (trimmed) content"
+  [[ ! -e "$marker" ]] && pass || fail "a valid override must never invoke 'gh auth token' (the broad-scope path), even though it legitimately calls 'gh auth status' to validate itself"
+
+  PATH="$saved_path"
+  GH_TOKEN_OVERRIDE_FILE="$saved_override"
+  GH_TOKEN_CACHE="$saved_cache"
+  unset GH_TOKEN
+}
+
+test_ensure_gh_token_override_symlink_rejected() {
+  local fake_bin="$TEST_TMP/fake-gh-override-symlink"
+  setup_fake_gh "$fake_bin"
+  local saved_path="$PATH" saved_override="$GH_TOKEN_OVERRIDE_FILE" saved_cache="$GH_TOKEN_CACHE"
+  PATH="$fake_bin:$PATH"
+
+  local real_file="$TEST_TMP/gh-token.scoped.real-target"
+  printf 'sneaky-token' > "$real_file"
+  chmod 600 "$real_file"
+  GH_TOKEN_OVERRIDE_FILE="$TEST_TMP/gh-token.scoped.symlink"
+  ln -sf "$real_file" "$GH_TOKEN_OVERRIDE_FILE"
+  GH_TOKEN_CACHE="$TEST_TMP/gh-token-cache-unused.symlink"
+  rm -f "$GH_TOKEN_CACHE"
+
+  local marker="$TEST_TMP/gh-auth-token-called.symlink"
+  rm -f "$marker"
+  GH_TOKEN="stale-inherited-token"
+  local rc=0
+  GH_AUTH_TOKEN_MARKER="$marker" ensure_gh_token || rc=$?
+
+  assert_equals "1" "$rc" "a symlinked override file should be rejected (return 1)"
+  assert_equals "" "${GH_TOKEN:-}" "a rejected symlink override must leave GH_TOKEN unset, including clearing an inherited value"
+  [[ ! -e "$marker" ]] && pass || fail "a rejected symlink override must never invoke 'gh auth token'"
+
+  PATH="$saved_path"
+  GH_TOKEN_OVERRIDE_FILE="$saved_override"
+  GH_TOKEN_CACHE="$saved_cache"
+  unset GH_TOKEN
+}
+
+test_ensure_gh_token_override_bad_permissions_rejected() {
+  local fake_bin="$TEST_TMP/fake-gh-override-badperm"
+  setup_fake_gh "$fake_bin"
+  local saved_path="$PATH" saved_override="$GH_TOKEN_OVERRIDE_FILE" saved_cache="$GH_TOKEN_CACHE"
+  PATH="$fake_bin:$PATH"
+
+  GH_TOKEN_OVERRIDE_FILE="$TEST_TMP/gh-token.scoped.badperm"
+  printf 'some-token' > "$GH_TOKEN_OVERRIDE_FILE"
+  chmod 644 "$GH_TOKEN_OVERRIDE_FILE"
+  GH_TOKEN_CACHE="$TEST_TMP/gh-token-cache-unused.badperm"
+  rm -f "$GH_TOKEN_CACHE"
+
+  local marker="$TEST_TMP/gh-auth-token-called.badperm"
+  rm -f "$marker"
+  GH_TOKEN="stale-inherited-token"
+  local rc=0
+  GH_AUTH_TOKEN_MARKER="$marker" ensure_gh_token || rc=$?
+
+  assert_equals "1" "$rc" "a group/world-readable override file should be rejected (return 1)"
+  assert_equals "" "${GH_TOKEN:-}" "a rejected bad-permission override must leave GH_TOKEN unset"
+  [[ ! -e "$marker" ]] && pass || fail "a rejected bad-permission override must never invoke 'gh auth token'"
+
+  PATH="$saved_path"
+  GH_TOKEN_OVERRIDE_FILE="$saved_override"
+  GH_TOKEN_CACHE="$saved_cache"
+  unset GH_TOKEN
+}
+
+test_ensure_gh_token_override_empty_rejected() {
+  local fake_bin="$TEST_TMP/fake-gh-override-empty"
+  setup_fake_gh "$fake_bin"
+  local saved_path="$PATH" saved_override="$GH_TOKEN_OVERRIDE_FILE" saved_cache="$GH_TOKEN_CACHE"
+  PATH="$fake_bin:$PATH"
+
+  GH_TOKEN_OVERRIDE_FILE="$TEST_TMP/gh-token.scoped.empty"
+  printf '   \n\n' > "$GH_TOKEN_OVERRIDE_FILE"
+  chmod 600 "$GH_TOKEN_OVERRIDE_FILE"
+  GH_TOKEN_CACHE="$TEST_TMP/gh-token-cache-unused.empty"
+  rm -f "$GH_TOKEN_CACHE"
+
+  local marker="$TEST_TMP/gh-auth-token-called.empty"
+  rm -f "$marker"
+  GH_TOKEN="stale-inherited-token"
+  local rc=0
+  GH_AUTH_TOKEN_MARKER="$marker" ensure_gh_token || rc=$?
+
+  assert_equals "1" "$rc" "a whitespace-only override file should be rejected (return 1)"
+  assert_equals "" "${GH_TOKEN:-}" "a rejected empty override must leave GH_TOKEN unset"
+  [[ ! -e "$marker" ]] && pass || fail "a rejected empty override must never invoke 'gh auth token'"
+
+  PATH="$saved_path"
+  GH_TOKEN_OVERRIDE_FILE="$saved_override"
+  GH_TOKEN_CACHE="$saved_cache"
+  unset GH_TOKEN
+}
+
+test_ensure_gh_token_override_failed_validation_rejected_without_cache_fallback() {
+  # The specific "fail visibly, don't silently widen scope" case: even
+  # with a valid cached broad token sitting right there, a scoped override
+  # that fails gh auth status validation (revoked/expired/malformed) must
+  # not fall back to it.
+  local fake_bin="$TEST_TMP/fake-gh-override-invalid-status"
+  setup_fake_gh "$fake_bin"
+  local saved_path="$PATH" saved_override="$GH_TOKEN_OVERRIDE_FILE" saved_cache="$GH_TOKEN_CACHE"
+  PATH="$fake_bin:$PATH"
+
+  GH_TOKEN_OVERRIDE_FILE="$TEST_TMP/gh-token.scoped.badstatus"
+  printf 'revoked-token' > "$GH_TOKEN_OVERRIDE_FILE"
+  chmod 600 "$GH_TOKEN_OVERRIDE_FILE"
+  GH_TOKEN_CACHE="$TEST_TMP/gh-token-cache-present.badstatus"
+  printf 'broad-cached-token' > "$GH_TOKEN_CACHE"
+
+  local marker="$TEST_TMP/gh-auth-token-called.badstatus"
+  rm -f "$marker"
+  GH_TOKEN="stale-inherited-token"
+  local rc=0
+  GH_AUTH_STATUS_EXIT=1 GH_AUTH_TOKEN_MARKER="$marker" ensure_gh_token || rc=$?
+
+  assert_equals "1" "$rc" "an override that fails gh auth status validation should return 1"
+  assert_equals "" "${GH_TOKEN:-}" \
+    "a failed-validation override must leave GH_TOKEN unset, not silently fall back to the cached broad token"
+  [[ ! -e "$marker" ]] && pass || fail "a failed-validation override must never invoke 'gh auth token' (the broad-scope fallback)"
+
+  PATH="$saved_path"
+  GH_TOKEN_OVERRIDE_FILE="$saved_override"
+  GH_TOKEN_CACHE="$saved_cache"
+  unset GH_TOKEN
+}
+
+test_authenticated_url_for_with_and_without_token() {
+  local saved_token="${GH_TOKEN:-}"
+
+  GH_TOKEN="tok-abc"
+  assert_equals "https://x-access-token:tok-abc@github.com/x/y.git" \
+    "$(authenticated_url_for "https://github.com/x/y.git")" \
+    "authenticated_url_for should embed GH_TOKEN when set"
+
+  unset GH_TOKEN
+  assert_equals "https://github.com/x/y.git" \
+    "$(authenticated_url_for "https://github.com/x/y.git")" \
+    "authenticated_url_for should pass the URL through unchanged when GH_TOKEN is unset"
+
+  if [[ -n "$saved_token" ]]; then GH_TOKEN="$saved_token"; else unset GH_TOKEN; fi
+}
+
+test_sync_control_clone_authenticates_the_first_clone() {
+  # Executing this path requires a real private remote, so protect its key
+  # ordering property with a source-shape regression instead.
+  local body
+  body="$(awk '/^sync_control_clone\(\) \{/,/^\}/' "$ORCHESTRATOR" | grep -v '^[[:space:]]*#')"
+  assert_contains "$body" 'git clone --quiet "$(authenticated_url_for "$origin_url")" "$CONTROL_DIR"' \
+    "sync_control_clone should authenticate the first-ever private-repository clone"
+}
+
+test_ensure_authenticated_remote_scrubs_stale_token() {
+  # Real (but disposable, local, unreachable) git repos standing in for
+  # $REPO_ROOT and $CONTROL_DIR -- no network needed, `remote add`/
+  # `get-url`/`set-url` are all purely local operations.
+  local repo_root_stub="$TEST_TMP/repo-root-stub"
+  local control_stub="$TEST_TMP/control-stub"
+  mkdir -p "$repo_root_stub" "$control_stub"
+  git -C "$repo_root_stub" init --quiet
+  git -C "$repo_root_stub" remote add origin "https://github.com/codelinguist/waypoint.git"
+  git -C "$control_stub" init --quiet
+  git -C "$control_stub" remote add origin "https://x-access-token:OLD-STALE-TOKEN@github.com/codelinguist/waypoint.git"
+
+  local saved_repo_root="$REPO_ROOT" saved_control_dir="$CONTROL_DIR"
+  REPO_ROOT="$repo_root_stub"
+  CONTROL_DIR="$control_stub"
+
+  unset GH_TOKEN
+  ensure_authenticated_remote
+
+  local resulting_url
+  resulting_url="$(git -C "$control_stub" remote get-url origin)"
+  assert_equals "https://github.com/codelinguist/waypoint.git" "$resulting_url" \
+    "ensure_authenticated_remote must scrub a previously-embedded token when GH_TOKEN is unset, not leave a prior run's credential in place"
+
+  REPO_ROOT="$saved_repo_root"
+  CONTROL_DIR="$saved_control_dir"
+}
+
+test_main_aborts_when_no_usable_credential() {
+  # The central new guarantee: when ensure_gh_token fails, main() must
+  # stop before sync_control_clone/review_and_merge_phase/dispatch_phase
+  # are ever called -- not just hope individual git/gh calls inside them
+  # fail safely on their own. Stubs everything main() calls other than
+  # ensure_gh_token itself (bash allows redefining sourced functions at
+  # runtime), so this exercises main()'s actual control flow with no real
+  # locking, cloning, or GitHub/Codex/Claude calls.
+  local marker_dir="$TEST_TMP/main-abort-markers"
+  mkdir -p "$marker_dir"
+
+  require_tools() { :; }
+  acquire_lock() { :; }
+  sync_control_clone() { touch "$marker_dir/sync_control_clone"; }
+  review_and_merge_phase() { touch "$marker_dir/review_and_merge_phase"; }
+  dispatch_phase() { touch "$marker_dir/dispatch_phase"; }
+
+  local saved_override="$GH_TOKEN_OVERRIDE_FILE" saved_cache="$GH_TOKEN_CACHE"
+  GH_TOKEN_OVERRIDE_FILE="$TEST_TMP/gh-token.scoped.for-main-abort"
+  printf 'irrelevant' > "$GH_TOKEN_OVERRIDE_FILE"
+  chmod 644 "$GH_TOKEN_OVERRIDE_FILE"   # wrong permissions -> ensure_gh_token rejects it
+  GH_TOKEN_CACHE="$TEST_TMP/gh-token-cache-for-main-abort"
+  rm -f "$GH_TOKEN_CACHE"
+
+  unset GH_TOKEN
+  local exit_status=0
+  main || exit_status=$?
+
+  assert_equals "0" "$exit_status" \
+    "main() should exit 0 (a handled no-op tick), not crash, when no credential is available"
+  assert_equals "" "${GH_TOKEN:-}" "GH_TOKEN must remain unset after main() aborts"
+  [[ ! -e "$marker_dir/sync_control_clone" ]] && pass || fail "main() must not call sync_control_clone when ensure_gh_token fails"
+  [[ ! -e "$marker_dir/review_and_merge_phase" ]] && pass || fail "main() must not call review_and_merge_phase when ensure_gh_token fails"
+  [[ ! -e "$marker_dir/dispatch_phase" ]] && pass || fail "main() must not call dispatch_phase when ensure_gh_token fails"
+
+  GH_TOKEN_OVERRIDE_FILE="$saved_override"
+  GH_TOKEN_CACHE="$saved_cache"
+  unset GH_TOKEN
+
+  # Restore the real function definitions (re-sourcing also resets
+  # top-level vars to their production values, so re-apply this file's
+  # log/state redirection immediately after).
+  source "$ORCHESTRATOR"
+  LOG_FILE="$TEST_TMP/test-orchestrator.log"
+  STATE_DIR="$TEST_TMP/state"
 }
 
 # ---- try_merge's verify-check classification (jq filter only) -------------
