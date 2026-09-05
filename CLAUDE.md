@@ -12,12 +12,14 @@ templates in `agent/templates/` and write durable handoff artifacts under
 
 Claude Code is the default implementation and integration owner. Codex acts as
 the Product Owner Agent in a separate planning session and hands off work
-through `agent/current-task.md` and the linked product brief — do not rely on
-any other channel for that context.
+through the relevant file in `agent/tasks/` and the linked product brief — do
+not rely on any other channel for that context. Most of this handoff now
+happens unattended, via `agent/automation/orchestrator.sh` — see
+`agent/collaboration-workflow.md` -> "Automated pipeline".
 
 For repository-wide and backend work, Claude Code:
 
-- reads the approved product brief and `agent/current-task.md`
+- reads the approved product brief and its `agent/tasks/` file
 - implements the smallest complete vertical increment
 - keeps domain logic separate from transport/UI concerns per `AGENTS.md`
 - runs relevant unit, integration, type, and lint checks

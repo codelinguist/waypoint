@@ -25,14 +25,16 @@ before coding:
 6. `docs/architecture/architecture.md`
 7. `docs/decisions/decisions.md`
 8. `docs/product/roadmap.md`
-9. `agent/current-task.md`
+9. Your assigned file in `agent/tasks/` (see `agent/tasks/README.md`; if you
+   weren't pointed at a specific one, list `agent/tasks/*.md` and ask which
+   task this session is for)
 
 ### 2. Read collaboration mechanics
 
 Read `AGENTS.md` and `agent/collaboration-workflow.md` if this session
-hasn't already — specifically the Plan/Implement/Validate phase definitions,
-and work out which phase `agent/current-task.md` implies this session is
-starting in.
+hasn't already — specifically the Plan/Implement/Validate phase definitions
+and the "Automated pipeline" section, and work out which phase the task file
+implies this session is starting in.
 
 If the current task names a feature slug, also read
 `agent/product/<feature-slug>/product-brief.md` and, if it exists,
@@ -61,7 +63,7 @@ present — it is the only verification command, local or CI.
 Report back concisely — headers and short bullets, not prose paragraphs:
 
 ### Current task
-- Task number, feature slug, and one-line goal from `agent/current-task.md`.
+- Task number, feature slug, and one-line goal from your `agent/tasks/` file.
 - Which Plan/Implement/Validate phase this session is starting in.
 
 ### Product context

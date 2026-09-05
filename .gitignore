@@ -12,3 +12,7 @@ backend/target/
 
 # Environment
 .env
+
+# Automated pipeline run state (agent/automation/orchestrator.sh)
+agent/automation/state/
+agent/automation/logs/

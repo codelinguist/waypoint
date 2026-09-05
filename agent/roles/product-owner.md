@@ -2,8 +2,9 @@
 
 This role runs as Codex, in a planning session kept separate from the
 implementation agent (Claude Code), so feature acceptance stays independent of
-the agent that built the feature. Hand off through `agent/current-task.md` and
-the linked product brief — do not rely on either agent's chat history.
+the agent that built the feature. Hand off through the relevant file in
+`agent/tasks/` and the linked product brief — do not rely on either agent's
+chat history.
 
 ## Mission
 
@@ -15,8 +16,8 @@ product manager.
 ## Required context
 
 Before making a product decision, read the documents listed in `AGENTS.md`, the
-relevant product brief, `agent/current-task.md`, and available implementation or
-review evidence.
+relevant product brief, your task's file in `agent/tasks/`, and available
+implementation or review evidence.
 
 ## Responsibilities
 
@@ -77,9 +78,15 @@ For each material feature, maintain:
 agent/product/<feature-slug>/product-brief.md
 ```
 
-Create the brief from `agent/templates/product-brief.md`. Keep
-`agent/current-task.md` focused on the active, implementation-ready increment and
-link it back to the product brief.
+Create the brief from `agent/templates/product-brief.md`. Write the matching
+`agent/tasks/<NNN>-<feature-slug>.md` focused on the active, implementation-
+ready increment (see `agent/tasks/README.md` for the format) and link it back
+to the product brief.
+
+Acceptance recorded here (`ACCEPTED` in the brief, with a green required
+check) authorizes `agent/automation/orchestrator.sh` to merge the PR
+immediately and automatically, with no further human step — see `agent/
+collaboration-workflow.md` -> "Automated pipeline".
 
 For UI features, also participate in the artifacts defined by
 `agent/collaboration-workflow.md`.

@@ -30,7 +30,7 @@ Read these documents in order:
 7. `docs/architecture/architecture.md`
 8. `docs/decisions/decisions.md`
 9. `docs/product/roadmap.md`
-10. `agent/current-task.md`
+10. The relevant file in [`agent/tasks/`](agent/tasks/README.md)
 
 ## Agent collaboration workflow
 
@@ -45,7 +45,7 @@ The short version is:
 1. The user presents a problem, context, correction, or feedback.
 2. Codex, acting as the Product Owner Agent in its own session, defines the
    outcome, priority, scope, and acceptance criteria in a durable product
-   brief, then points `agent/current-task.md` at it.
+   brief, then queues a task in `agent/tasks/`.
 3. Claude Code explores UI directions and writes a design brief (UI tasks only).
 4. Codex selects a direction based on the product brief and asks the user
    only when a material preference cannot be inferred safely (UI tasks only).
@@ -55,10 +55,22 @@ The short version is:
    implementation, and triages findings.
 7. Claude Code applies accepted changes and re-verifies.
 8. Codex accepts the completed feature against evidence, authorizing the
-   merge; the user (or Claude Code, if explicitly asked) merges it.
+   merge.
+
+Steps 4 through 8 normally run unattended:
+[`agent/automation/orchestrator.sh`](agent/automation/README.md), on a
+schedule, dispatches up to 3 tasks in parallel (each in its own git
+worktree), triggers Codex's review as soon as a PR is up, applies a bounded
+number of automatic fix rounds, and merges as soon as Codex accepts and the
+required check is green — see
+[`agent/collaboration-workflow.md`](agent/collaboration-workflow.md) ->
+"Automated pipeline" for what that changes about this project's safety
+posture and why. A task can still be driven by hand end-to-end instead; in
+that case step 8's merge is performed by the user, or by Claude Code only
+when explicitly asked.
 
 The design-brief and visual-review stages (steps 3–4 and the review evidence
-in step 6) apply only when `agent/current-task.md` includes UI work.
+in step 6) apply only when the task in `agent/tasks/` includes UI work.
 
 ## Backend
 
