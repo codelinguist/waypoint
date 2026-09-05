@@ -104,6 +104,54 @@ public class FinancialSnapshotService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public FinancialSnapshotComparison compareSnapshots(
+            UUID householdId, UUID earlierSnapshotId, UUID laterSnapshotId
+    ) {
+        if (!householdRepository.existsById(householdId)) {
+            throw new HouseholdNotFoundException(householdId);
+        }
+        if (earlierSnapshotId.equals(laterSnapshotId)) {
+            throw new IdenticalSnapshotComparisonException(earlierSnapshotId);
+        }
+        FinancialSnapshot earlierSnapshot = financialSnapshotRepository
+                .findByIdAndHousehold_Id(earlierSnapshotId, householdId)
+                .orElseThrow(() -> new FinancialSnapshotNotFoundException(earlierSnapshotId));
+        FinancialSnapshot laterSnapshot = financialSnapshotRepository
+                .findByIdAndHousehold_Id(laterSnapshotId, householdId)
+                .orElseThrow(() -> new FinancialSnapshotNotFoundException(laterSnapshotId));
+
+        List<CurrencyTotals> earlierTotals = toDetail(earlierSnapshot).totalsByCurrency();
+        List<CurrencyTotals> laterTotals = toDetail(laterSnapshot).totalsByCurrency();
+        return new FinancialSnapshotComparison(
+                earlierSnapshot, laterSnapshot, computeDeltas(earlierTotals, laterTotals));
+    }
+
+    private List<CurrencyTotalsDelta> computeDeltas(
+            List<CurrencyTotals> earlierTotals, List<CurrencyTotals> laterTotals
+    ) {
+        Map<String, CurrencyTotals> earlierByCurrency = new TreeMap<>();
+        earlierTotals.forEach(totals -> earlierByCurrency.put(totals.currency(), totals));
+        Map<String, CurrencyTotals> laterByCurrency = new TreeMap<>();
+        laterTotals.forEach(totals -> laterByCurrency.put(totals.currency(), totals));
+
+        TreeSet<String> currencies = new TreeSet<>();
+        currencies.addAll(earlierByCurrency.keySet());
+        currencies.addAll(laterByCurrency.keySet());
+
+        List<CurrencyTotalsDelta> deltas = new ArrayList<>();
+        for (String currency : currencies) {
+            CurrencyTotals earlier = earlierByCurrency.getOrDefault(currency, zeroTotals(currency));
+            CurrencyTotals later = laterByCurrency.getOrDefault(currency, zeroTotals(currency));
+            deltas.add(CurrencyTotalsDelta.of(currency, earlier, later));
+        }
+        return deltas;
+    }
+
+    private CurrencyTotals zeroTotals(String currency) {
+        return new CurrencyTotals(currency, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+    }
+
     private FinancialSnapshotDetail toDetail(FinancialSnapshot snapshot) {
         List<SnapshotAssetLineItem> assetLineItems =
                 snapshotAssetLineItemRepository.findBySnapshot_IdOrderByCreatedAtAscIdAsc(snapshot.getId());

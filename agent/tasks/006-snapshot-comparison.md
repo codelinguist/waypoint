@@ -1,11 +1,11 @@
 ---
-status: IN_PROGRESS
+status: MERGED
 task_number: 006
 feature_slug: snapshot-comparison
 branch: task/006-snapshot-comparison
 worktree: /Users/rj/Documents/projects/waypoint-orchestrator/worktrees/task-006-snapshot-comparison
-session: unknown
-pr:
+session: c866f364
+pr: 7
 claimed_at: 2026-09-05T10:05:57Z
 fix_rounds: 0
 ---

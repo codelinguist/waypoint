@@ -94,6 +94,187 @@
   frontmatter parsing) so the next bug is caught before a live task branch
   finds it.
 
+### 2026-09-05 — Task 006: Financial Snapshot Comparison
+
+**Changed**
+
+- Added `FinancialSnapshotService.compareSnapshots(householdId, earlierSnapshotId, laterSnapshotId)`
+  (`backend/src/main/java/com/waypoint/household/FinancialSnapshotService.java`):
+  validates the household exists, rejects `earlierSnapshotId.equals(laterSnapshotId)`
+  before touching either snapshot, then loads both snapshots scoped to the
+  household (reusing `findByIdAndHousehold_Id`, so a snapshot belonging to
+  another household 404s exactly like the existing single-snapshot `GET`).
+  Reuses the existing `toDetail`/`computeTotals` path to get each snapshot's
+  `totalsByCurrency`, then unions the two currency sets (a currency present
+  in only one snapshot is compared against a zero `CurrencyTotals` rather
+  than omitted) and computes later-minus-earlier deltas per currency.
+- Added `CurrencyTotalsDelta` (currency, `assetTotalDelta`,
+  `liabilityTotalDelta`, `netWorthDelta`) and `FinancialSnapshotComparison`
+  (earlier snapshot, later snapshot, `List<CurrencyTotalsDelta>`) as plain
+  domain records, and `IdenticalSnapshotComparisonException`.
+- Added `GET /api/households/{householdId}/financial-snapshots/comparison?
+  earlierSnapshotId=...&laterSnapshotId=...` to `FinancialSnapshotController`.
+  It is a literal-path sibling of the existing `GET /{snapshotId}`; Spring's
+  path-pattern specificity ranking (a literal segment beats a `{variable}`
+  segment) resolves the two unambiguously, so `/comparison` never gets
+  swallowed by the `{snapshotId}` route — confirmed empirically via the
+  manual smoke test below, not just assumed.
+- Added `FinancialSnapshotSummaryResponse` (id, `asOfDate`, `capturedAt` —
+  deliberately omits line items and totals, since the brief asks the
+  comparison to identify the two source snapshots, not repeat their full
+  detail), `CurrencyTotalsDeltaResponse`, and
+  `FinancialSnapshotComparisonResponse` DTOs under
+  `com.waypoint.household.web.dto`.
+- Wired `IdenticalSnapshotComparisonException` into `ApiExceptionHandler` as
+  `VALIDATION_FAILED` (400, matching `InvalidScheduleException`'s
+  precedent for a request-shape rule rather than a not-found case). Also
+  added a `MissingServletRequestParameterException` handler (also
+  `VALIDATION_FAILED` 400) — the two new query parameters are the first
+  required `@RequestParam`s anywhere in this codebase, and without this
+  handler a missing one would fall through to Spring's default
+  unstructured error body instead of the repository's established
+  structured shape.
+- No Flyway migration: this feature persists nothing (PD-002), so there was
+  no schema change and no migration-version-collision risk with the other
+  concurrently `IN_PROGRESS` tasks.
+
+**Tests**
+
+- `FinancialSnapshotServiceTest` (7 new Mockito unit tests): household-not-
+  found; rejecting a snapshot compared against itself; not-found when
+  either snapshot doesn't belong to the household (checked independently
+  for earlier and later); signed later-minus-earlier deltas across a
+  three-line-item, two-currency scenario (including a currency —
+  USD — present only in the later snapshot, asserting it still surfaces
+  with the earlier side treated as zero rather than being dropped); and
+  all-zero deltas when both snapshots' totals are equal. Entities built
+  directly (not through the repository) needed `id` set via
+  `ReflectionTestUtils.setField` — `@GeneratedValue` only assigns an id on
+  actual persistence, and two unpersisted `FinancialSnapshot`s with `null`
+  ids collided as the same mocked-repository key, which the first test run
+  caught (deltas came back zero because both sides silently read the later
+  snapshot's line items).
+- `FinancialSnapshotApiIntegrationTest` (11 new
+  `@SpringBootTest`/Testcontainers integration tests): valid comparison
+  with mixed asset/liability changes; a negative net-worth delta when a
+  later snapshot is smaller (checked from two different earlier points);
+  a currency present in only one snapshot; zero deltas for two snapshots
+  with identical contents; no persistence/mutation (comparing twice, then
+  independently confirming the snapshot list count and the earlier
+  snapshot's own line items are unchanged); self-comparison rejected;
+  unknown household; missing earlier snapshot; missing later snapshot;
+  cross-household comparison rejected without disclosing the other
+  household's snapshot; and missing required query parameters.
+- Full suite: `./verify.sh` — 154 tests (18 new: 7 unit + 11 integration),
+  0 failures. Docker Desktop was not running at the start of this session
+  (required for the Testcontainers-backed integration tests); started it
+  (`open -a Docker`) and confirmed `docker info` succeeded before running
+  `./verify.sh`.
+- Exercised the primary flow manually against `docker compose up --build`.
+  Deliberately did **not** reuse the project's shared named Postgres volume
+  (`waypoint-postgres-data`, hardcoded in `docker-compose.yml` and shared
+  across every worktree/compose invocation on this machine regardless of
+  Compose project name) for this smoke test, since this is a real household
+  financial application and that volume may hold genuine Ralph/wife data
+  from prior manual sessions — writing scratch test households into it
+  would be indistinguishable from real records once mixed in. Instead ran
+  `docker compose -p waypoint-task006 -f docker-compose.yml -f
+  <scratch-override>.yml up -d` with an override that points `postgres` at
+  a throwaway named volume, then tore both the stack and that scratch
+  volume down afterward (`down -v`, safe because the override volume is
+  exclusive to this smoke test). Created a household, a PHP asset dated
+  2026-08-01, and an earlier snapshot as of 2026-08-05 (net worth 1000.00);
+  added a second PHP asset (250.00) and a PHP liability (100.00), then a
+  later snapshot as of 2026-09-05; confirmed the comparison returned
+  `assetTotalDelta: 250.00`, `liabilityTotalDelta: 100.00`,
+  `netWorthDelta: 150.00` for PHP, both snapshots' ids/dates, and 400/404
+  for self-comparison, a missing snapshot, a missing household, and missing
+  query parameters.
+
+**Decisions**
+
+- Chose `GET .../financial-snapshots/comparison?earlierSnapshotId=&
+  laterSnapshotId=` over a new top-level resource (e.g.
+  `financial-snapshot-comparisons`) or a `POST` with a body: it's a
+  read-only computed view over two already-identified snapshots, so `GET`
+  with explicit query parameters fits the operation and keeps it visibly
+  scoped under the snapshot collection it reads from, consistent with
+  PD-002 (never persisted, so it's not really its own resource).
+- Named the query parameters `earlierSnapshotId`/`laterSnapshotId` (not,
+  say, `fromId`/`toId`) to match PD-001's explicit-direction language
+  verbatim in the API surface, so the direction is unambiguous to a caller
+  reading the request alone.
+- Returned only `id`/`asOfDate`/`capturedAt` for each source snapshot
+  (`FinancialSnapshotSummaryResponse`), not the full `FinancialSnapshotResponse`
+  with line items and absolute totals: the brief asks for "both source
+  snapshot dates/identifiers," and the deltas already carry the
+  meaningful change; repeating both full snapshots would restate
+  already-available `GET /{snapshotId}` data and risks the response being
+  mistaken for a merged/aggregate record.
+- Validated identical-snapshot-id before hitting the database for either
+  snapshot: it's a pure request-shape check independent of what exists,
+  so it can reject cheaply and consistently regardless of whether the
+  (single) id happens to exist.
+- Reused `FinancialSnapshotService` rather than adding a new service class:
+  the comparison is built entirely from the same `toDetail`/`computeTotals`
+  logic this service already owns, and PD-002 keeps it a pure on-demand
+  read with no new persistence dependencies to justify a separate service.
+
+**Assumptions**
+
+- "Every supported snapshot financial measure" (per the brief's acceptance
+  criteria) means the same per-currency `assetTotal`/`liabilityTotal`/
+  `netWorth` triple `FinancialSnapshotResponse` already exposes as
+  `totalsByCurrency` — there is no other snapshot-level measure in the
+  current domain model to compare.
+- A currency present in only one of the two snapshots is compared against
+  zero (surfaced as a full-magnitude delta) rather than omitted from the
+  response; omitting it would silently hide a real change (e.g. a household
+  opening its first USD account between snapshots).
+- `GET` with required query parameters, rather than a request body, is an
+  acceptable shape for a read-only two-identifier lookup in this API,
+  consistent with how the rest of the API already uses `GET` for reads and
+  reserves bodies for `POST`/create.
+
+**Open questions**
+
+- `docker-compose.yml`'s Postgres volume is declared with a fixed
+  top-level `name: waypoint-postgres-data`, so it is shared by every
+  Compose invocation on this machine regardless of `-p`/project name —
+  including the orchestrator's future parallel worker sessions once they
+  start exercising the app manually, not just this one. Worth a small,
+  explicit follow-up (flagged here per `agent/collaboration-workflow.md`'s
+  "System evolution", not silently fixed as part of this task): either
+  parameterize the volume name per Compose project, or add a documented
+  convention (e.g. in `README.md` or `AGENTS.md`) for agents to use an
+  isolated scratch volume/override for manual smoke testing instead of the
+  default named volume, the way this task's manual verification did.
+- Same open items as the product brief: whether a future presentation
+  layer needs percentage changes or richer measures, and whether
+  plan-versus-actual analysis should reuse this response shape, remain
+  deferred.
+- `agent/tasks/README.md` ("Who writes what") states
+  `agent/automation/orchestrator.sh` "owns every other status transition
+  ... nothing else should edit [`status`, `worktree`, `session`, `pr`,
+  `claimed_at`, `fix_rounds`] directly," but `orchestrator.sh` itself never
+  sets a task file's `status` to `IN_REVIEW` (grepped for it; the only hit
+  is in `agent/automation/worker-prompt.md`'s own instruction to the
+  worker). This worker followed `worker-prompt.md`/its task instructions
+  and set `status: IN_REVIEW` directly, since otherwise the task would
+  never leave `IN_PROGRESS` and the orchestrator would never pick it up for
+  review. Flagging rather than silently resolving: either
+  `orchestrator.sh` should perform that transition itself after detecting
+  a pushed PR (matching README's stated ownership), or README.md's "who
+  writes what" table should be corrected to say the worker sets `status:
+  IN_REVIEW` as part of its handoff, with the orchestrator owning the
+  remaining fields.
+
+**Recommended next task**
+
+- Goals domain (target metrics, target dates, progress) or plan-versus-
+  actual analysis, per the product brief's follow-up opportunities — both
+  now have financial snapshots and this comparison to build on.
+
 ### 2026-09-05 — Parallel task queue and automated Plan/Implement/Validate pipeline
 
 **Changed**

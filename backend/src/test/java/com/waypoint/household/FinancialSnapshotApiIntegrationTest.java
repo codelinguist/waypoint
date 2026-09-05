@@ -245,6 +245,169 @@ class FinancialSnapshotApiIntegrationTest {
     }
 
     @Test
+    void comparesTwoSnapshotsWithSignedLaterMinusEarlierDeltas() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+        createAsset(householdId, "Cash", "CASH", "100.00", "PHP", LocalDate.now().minusMonths(1).toString(),
+                "LIQUID");
+        String earlierSnapshotId = snapshotId(createSnapshot(householdId, LocalDate.now().minusMonths(1).toString())
+                .andExpect(status().isCreated()));
+
+        createAsset(householdId, "More Cash", "CASH", "50.00", "PHP", LocalDate.now().toString(), "LIQUID");
+        String laterSnapshotId = snapshotId(createSnapshot(householdId, LocalDate.now().toString())
+                .andExpect(status().isCreated()));
+
+        compareSnapshots(householdId, earlierSnapshotId, laterSnapshotId)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.earlierSnapshot.id").value(earlierSnapshotId))
+                .andExpect(jsonPath("$.laterSnapshot.id").value(laterSnapshotId))
+                .andExpect(jsonPath("$.currencyDeltas.length()").value(1))
+                .andExpect(jsonPath("$.currencyDeltas[0].currency").value("PHP"))
+                .andExpect(jsonPath("$.currencyDeltas[0].assetTotalDelta").value(50.00))
+                .andExpect(jsonPath("$.currencyDeltas[0].liabilityTotalDelta").value(0))
+                .andExpect(jsonPath("$.currencyDeltas[0].netWorthDelta").value(50.00));
+    }
+
+    @Test
+    void comparisonReportsNegativeDeltaWhenLaterSnapshotIsSmaller() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+        createAsset(householdId, "Cash", "CASH", "100.00", "PHP", LocalDate.now().minusMonths(1).toString(),
+                "LIQUID");
+        String earlierSnapshotId = snapshotId(createSnapshot(householdId, LocalDate.now().minusMonths(1).toString())
+                .andExpect(status().isCreated()));
+        String laterSnapshotId = snapshotId(createSnapshot(householdId, LocalDate.now().toString())
+                .andExpect(status().isCreated()));
+
+        createLiability(householdId, "New Loan", "PERSONAL_LOAN", "40.00", "PHP", LocalDate.now().toString());
+        String muchLaterSnapshotId = snapshotId(createSnapshot(householdId, LocalDate.now().toString())
+                .andExpect(status().isCreated()));
+
+        compareSnapshots(householdId, earlierSnapshotId, muchLaterSnapshotId)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currencyDeltas[0].liabilityTotalDelta").value(40.00))
+                .andExpect(jsonPath("$.currencyDeltas[0].netWorthDelta").value(-40.00));
+
+        compareSnapshots(householdId, laterSnapshotId, muchLaterSnapshotId)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currencyDeltas[0].netWorthDelta").value(-40.00));
+    }
+
+    @Test
+    void comparisonIncludesACurrencyPresentInOnlyOneSnapshot() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+        String earlierSnapshotId = snapshotId(createSnapshot(householdId, LocalDate.now().minusMonths(1).toString())
+                .andExpect(status().isCreated()));
+
+        createAsset(householdId, "USD Cash", "CASH", "25.00", "USD", LocalDate.now().toString(), "LIQUID");
+        String laterSnapshotId = snapshotId(createSnapshot(householdId, LocalDate.now().toString())
+                .andExpect(status().isCreated()));
+
+        compareSnapshots(householdId, earlierSnapshotId, laterSnapshotId)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currencyDeltas.length()").value(1))
+                .andExpect(jsonPath("$.currencyDeltas[0].currency").value("USD"))
+                .andExpect(jsonPath("$.currencyDeltas[0].assetTotalDelta").value(25.00));
+    }
+
+    @Test
+    void comparisonReturnsZeroDeltasForOtherwiseIdenticalSnapshots() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+        createAsset(householdId, "Cash", "CASH", "100.00", "PHP", LocalDate.now().toString(), "LIQUID");
+        String firstSnapshotId = snapshotId(createSnapshot(householdId, LocalDate.now().toString())
+                .andExpect(status().isCreated()));
+        String secondSnapshotId = snapshotId(createSnapshot(householdId, LocalDate.now().toString())
+                .andExpect(status().isCreated()));
+
+        compareSnapshots(householdId, firstSnapshotId, secondSnapshotId)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currencyDeltas[0].assetTotalDelta").value(0))
+                .andExpect(jsonPath("$.currencyDeltas[0].liabilityTotalDelta").value(0))
+                .andExpect(jsonPath("$.currencyDeltas[0].netWorthDelta").value(0));
+    }
+
+    @Test
+    void comparisonPerformsNoPersistenceOrMutation() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+        createAsset(householdId, "Cash", "CASH", "100.00", "PHP", LocalDate.now().minusMonths(1).toString(),
+                "LIQUID");
+        String earlierSnapshotId = snapshotId(createSnapshot(householdId, LocalDate.now().minusMonths(1).toString())
+                .andExpect(status().isCreated()));
+        String laterSnapshotId = snapshotId(createSnapshot(householdId, LocalDate.now().toString())
+                .andExpect(status().isCreated()));
+
+        compareSnapshots(householdId, earlierSnapshotId, laterSnapshotId).andExpect(status().isOk());
+        compareSnapshots(householdId, earlierSnapshotId, laterSnapshotId).andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/households/{h}/financial-snapshots", householdId))
+                .andExpect(jsonPath("$.length()").value(2));
+        mockMvc.perform(get("/api/households/{h}/financial-snapshots/{s}", householdId, earlierSnapshotId))
+                .andExpect(jsonPath("$.assetLineItems.length()").value(1))
+                .andExpect(jsonPath("$.assetLineItems[0].value").value(100.00));
+    }
+
+    @Test
+    void rejectsComparingASnapshotAgainstItself() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+        String snapshotId = snapshotId(createSnapshot(householdId, LocalDate.now().toString())
+                .andExpect(status().isCreated()));
+
+        compareSnapshots(householdId, snapshotId, snapshotId)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_FAILED"));
+    }
+
+    @Test
+    void rejectsComparisonForUnknownHousehold() throws Exception {
+        compareSnapshots(UUID.randomUUID().toString(), UUID.randomUUID().toString(), UUID.randomUUID().toString())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("HOUSEHOLD_NOT_FOUND"));
+    }
+
+    @Test
+    void rejectsComparisonWithMissingEarlierSnapshot() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+        String laterSnapshotId = snapshotId(createSnapshot(householdId, LocalDate.now().toString())
+                .andExpect(status().isCreated()));
+
+        compareSnapshots(householdId, UUID.randomUUID().toString(), laterSnapshotId)
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("FINANCIAL_SNAPSHOT_NOT_FOUND"));
+    }
+
+    @Test
+    void rejectsComparisonWithMissingLaterSnapshot() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+        String earlierSnapshotId = snapshotId(createSnapshot(householdId, LocalDate.now().toString())
+                .andExpect(status().isCreated()));
+
+        compareSnapshots(householdId, earlierSnapshotId, UUID.randomUUID().toString())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("FINANCIAL_SNAPSHOT_NOT_FOUND"));
+    }
+
+    @Test
+    void rejectsComparisonAcrossHouseholds() throws Exception {
+        String householdOneId = createHouseholdId("Household One", "PHP");
+        String householdTwoId = createHouseholdId("Household Two", "PHP");
+        String snapshotOneId = snapshotId(createSnapshot(householdOneId, LocalDate.now().toString())
+                .andExpect(status().isCreated()));
+        String snapshotTwoId = snapshotId(createSnapshot(householdTwoId, LocalDate.now().toString())
+                .andExpect(status().isCreated()));
+
+        compareSnapshots(householdOneId, snapshotOneId, snapshotTwoId)
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("FINANCIAL_SNAPSHOT_NOT_FOUND"));
+    }
+
+    @Test
+    void rejectsComparisonMissingRequiredQueryParameters() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+
+        mockMvc.perform(get("/api/households/{h}/financial-snapshots/comparison", householdId))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_FAILED"));
+    }
+
+    @Test
     void keepsSnapshotsIsolatedBetweenHouseholds() throws Exception {
         String householdOneId = createHouseholdId("Household One", "PHP");
         String householdTwoId = createHouseholdId("Household Two", "PHP");
@@ -318,5 +481,18 @@ class FinancialSnapshotApiIntegrationTest {
         return mockMvc.perform(post("/api/households/{h}/financial-snapshots", householdId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body));
+    }
+
+    private String snapshotId(ResultActions createResult) throws Exception {
+        String body = createResult.andReturn().getResponse().getContentAsString();
+        return objectMapper.readTree(body).get("id").asText();
+    }
+
+    private ResultActions compareSnapshots(
+            String householdId, String earlierSnapshotId, String laterSnapshotId
+    ) throws Exception {
+        return mockMvc.perform(get("/api/households/{h}/financial-snapshots/comparison", householdId)
+                .param("earlierSnapshotId", earlierSnapshotId)
+                .param("laterSnapshotId", laterSnapshotId));
     }
 }

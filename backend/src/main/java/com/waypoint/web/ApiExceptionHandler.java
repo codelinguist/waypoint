@@ -3,6 +3,7 @@ package com.waypoint.web;
 import com.waypoint.household.AssetNotFoundException;
 import com.waypoint.household.FinancialSnapshotNotFoundException;
 import com.waypoint.household.HouseholdNotFoundException;
+import com.waypoint.household.IdenticalSnapshotComparisonException;
 import com.waypoint.household.IncomeStreamNotFoundException;
 import com.waypoint.household.InvalidAssetValueException;
 import com.waypoint.household.InvalidScheduleException;
@@ -13,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -39,6 +41,12 @@ public class ApiExceptionHandler {
     public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse("MALFORMED_REQUEST", "Request parameter is malformed", List.of()));
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingParameter(MissingServletRequestParameterException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse("VALIDATION_FAILED", ex.getMessage(), List.of()));
     }
 
     @ExceptionHandler(HouseholdNotFoundException.class)
@@ -87,5 +95,11 @@ public class ApiExceptionHandler {
     public ResponseEntity<ErrorResponse> handleFinancialSnapshotNotFound(FinancialSnapshotNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ErrorResponse("FINANCIAL_SNAPSHOT_NOT_FOUND", ex.getMessage(), List.of()));
+    }
+
+    @ExceptionHandler(IdenticalSnapshotComparisonException.class)
+    public ResponseEntity<ErrorResponse> handleIdenticalSnapshotComparison(IdenticalSnapshotComparisonException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse("VALIDATION_FAILED", ex.getMessage(), List.of()));
     }
 }
