@@ -24,7 +24,7 @@ class DebtAmortizationCalculatorTest {
     }
 
     @Test
-    void halfCentRoundingMatchesWorkedExample() {
+    void payoffWithInterestMatchesSecondWorkedExample() {
         DebtAmortizationResult result = DebtAmortizationCalculator.calculate(
                 new BigDecimal("100.00"), new BigDecimal("0.01"), new BigDecimal("60.00"), "USD");
 
@@ -43,6 +43,28 @@ class DebtAmortizationCalculatorTest {
 
         assertThat(result.totalInterest()).isEqualByComparingTo("1.41");
         assertThat(result.totalPaid()).isEqualByComparingTo("101.41");
+        assertReconciles(result);
+    }
+
+    @Test
+    void halfCentRoundingRoundsHalfUpNotDownOrEven() {
+        // 1.00 * 0.005 = 0.005, an actual half-cent: HALF_UP rounds to 0.01, while
+        // HALF_DOWN and HALF_EVEN would both round to 0.00.
+        DebtAmortizationResult result = DebtAmortizationCalculator.calculate(
+                new BigDecimal("1.00"), new BigDecimal("0.005"), new BigDecimal("2.00"), "USD");
+
+        assertThat(result.status()).isEqualTo(DebtAmortizationStatus.PAID_OFF);
+        assertThat(result.payoffMonths()).isEqualTo(1);
+        assertThat(result.schedule()).hasSize(1);
+
+        DebtAmortizationRow row = result.schedule().get(0);
+        assertThat(row.interest()).isEqualByComparingTo("0.01");
+        assertThat(row.payment()).isEqualByComparingTo("1.01");
+        assertThat(row.principalRepaid()).isEqualByComparingTo("1.00");
+        assertThat(row.closingBalance()).isEqualByComparingTo("0.00");
+
+        assertThat(result.totalInterest()).isEqualByComparingTo("0.01");
+        assertThat(result.totalPaid()).isEqualByComparingTo("1.01");
         assertReconciles(result);
     }
 
@@ -209,6 +231,20 @@ class DebtAmortizationCalculatorTest {
     void rejectsPrincipalWithExcessiveIntegerDigits() {
         assertThatThrownBy(() -> DebtAmortizationCalculator.calculate(
                 new BigDecimal("123456789012345678.00"), new BigDecimal("0.01"), new BigDecimal("10.00"), "USD"))
+                .isInstanceOf(InvalidDebtAmortizationInputException.class);
+    }
+
+    @Test
+    void rejectsMonthlyPaymentWithExcessiveFractionalScale() {
+        assertThatThrownBy(() -> DebtAmortizationCalculator.calculate(
+                new BigDecimal("1000.00"), new BigDecimal("0.01"), new BigDecimal("10.005"), "USD"))
+                .isInstanceOf(InvalidDebtAmortizationInputException.class);
+    }
+
+    @Test
+    void rejectsMonthlyPaymentWithExcessiveIntegerDigits() {
+        assertThatThrownBy(() -> DebtAmortizationCalculator.calculate(
+                new BigDecimal("1000.00"), new BigDecimal("0.01"), new BigDecimal("123456789012345678.00"), "USD"))
                 .isInstanceOf(InvalidDebtAmortizationInputException.class);
     }
 

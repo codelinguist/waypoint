@@ -137,12 +137,29 @@
 ## Feature acceptance
 
 - Acceptance status: `PENDING`
-- Acceptance evidence: See "Review evidence" above; awaiting independent Product Owner Agent review against the PR diff.
-- Unmet criteria: Acceptance criteria 3 and 6 remain unmet; see the 2026-09-05 review findings below.
-- Returned work: Add the missing rounding and boundary coverage, correct overstated evidence, rerun ./verify.sh, and return for review.
+- Acceptance evidence: See "Review evidence" above and "Fix round 1 — 2026-09-05" below; awaiting independent Product Owner Agent re-review against the updated PR diff.
+- Unmet criteria: Acceptance criteria 3 and 6 were unmet per the 2026-09-05 review; both R1 and R2 have now been addressed — see "Fix round 1" below for the specific new/renamed tests and rerun evidence.
+- Returned work: R1 and R2 applied. Awaiting Product Owner Agent re-review to confirm criteria 3 and 6 are now met.
 - Follow-up opportunities: Stored-state integration only with a separately framed provenance/approval contract; richer models only when concrete household needs justify them; shared-document consolidation after this batch.
 - Accepted or returned by Product Owner Agent: Codex (returned; acceptance remains PENDING).
 - Accepted or returned at: 2026-09-05
+
+## Fix round 1 — 2026-09-05
+
+Applied both `ACCEPTED` findings from the 2026-09-05 review of PR #14 (R1, R2). No `REJECTED` or `DEFERRED` findings were recorded in that review, so no fixes were skipped.
+
+- R1 (half-cent rounding coverage): Renamed the exact-cent worked example test (`100.00`/`0.01`/`60.00`) from `halfCentRoundingMatchesWorkedExample` to `payoffWithInterestMatchesSecondWorkedExample` since neither 1.00 nor 0.41 is an actual half-cent value. Added a genuine half-cent regression, `halfCentRoundingRoundsHalfUpNotDownOrEven` (`backend/src/test/java/com/waypoint/planning/debtamortization/DebtAmortizationCalculatorTest.java`): principal 1.00, rate 0.005, payment 2.00 — `1.00 * 0.005 = 0.005` is an actual half-cent, so interest must round to 0.01 under HALF_UP (0.00 under HALF_DOWN or HALF_EVEN, since 0.00 is even). Asserts interest 0.01, final payment/total paid 1.01, principal repaid 1.00, closing balance 0.00, payoffMonths 1, and full reconciliation — matching the acceptance condition exactly. Corrected `agent/product/debt-amortization/api.md`: relabeled the exact-cent example "Paid off with interest" and added a new "Half-cent rounding (HALF_UP)" section with the same 1.00/0.005/2.00 example and its response.
+- R2 (HTTP edge-case and validation coverage): Added to `DebtAmortizationApiTest.java` — `returnsHorizonLimitWithReconciledPartialTotalsWhenStillPositiveAtHorizon` (1200 rows, positive `remainingBalance`, null `payoffMonths`, `totalPaid`/`totalInterest` asserted against the domain calculator's own result for the same inputs, i.e., reconciled partial totals), `returnsPaidOffExactlyAtHorizon` (principal 1200.00, rate 0, payment 1.00 → `PAID_OFF` at month 1200, 1200 rows), `returnsNonAmortizingStatusWhenPaymentIsBelowFirstInterest` (payment strictly below first interest, not just equal), `rejectsNegativeRate`, `rejectsMonthlyPaymentWithExcessiveFractionalScale`, `rejectsMonthlyPaymentWithExcessiveIntegerDigits`. Replaced the single `rejectsMissingPrincipal` test with two parameterized tests, `rejectsMissingRequiredField` and `rejectsExplicitNullRequiredField` (`@ValueSource` over all four required fields: `principal`, `monthlyInterestRate`, `monthlyPayment`, `currency`), covering both omission and explicit JSON `null` for every field, not principal alone. Added matching domain-level tests `rejectsMonthlyPaymentWithExcessiveFractionalScale` and `rejectsMonthlyPaymentWithExcessiveIntegerDigits` to `DebtAmortizationCalculatorTest.java` (money-digit bounds were previously exercised for `principal` only). Updated this brief's delivery-handoff wording (above) to stop claiming coverage that wasn't yet present; the counts below are the actual current test counts.
+- Commands/results: `./verify.sh` from repo root — `BUILD SUCCESS`, `Tests run: 263, Failures: 0, Errors: 0, Skipped: 0` (full suite; `DebtAmortizationCalculatorTest`: 26 tests, `DebtAmortizationApiTest`: 29 tests — up from 23 and 16 respectively before this fix round; sibling suites unaffected).
+- Manual API evidence: Ran the full Spring Boot app locally (`./mvnw spring-boot:run`) against a throwaway `postgres:16-alpine` Docker container (Flyway migrated cleanly, app started on port 8080) and exercised the specific cases these fixes cover with `curl`:
+  - Half-cent example (`principal=1.00`, `rate=0.005`, `payment=2.00`) → `PAID_OFF`, `payoffMonths: 1`, `interest: 0.01`, `payment: 1.01`, `totalInterest: 0.01`, `totalPaid: 1.01`, `remainingBalance: 0.00` — matches `api.md`'s new "Half-cent rounding (HALF_UP)" example and the new domain test exactly.
+  - `HORIZON_LIMIT` (`principal=1000000.00`, `rate=0.001`, `payment=1005.00`) → `status: "HORIZON_LIMIT"`, `payoffMonths: null`, 1200 schedule rows, `remainingBalance: 988409.00`, `totalPaid: 1206000.00`, `totalInterest: 1194409.00` (all positive, partial).
+  - Payoff exactly at month 1200 (`principal=1200.00`, `rate=0`, `payment=1.00`) → `PAID_OFF`, `payoffMonths: 1200`, 1200 schedule rows.
+  - Negative rate (`monthlyInterestRate=-0.01`) → `400 VALIDATION_FAILED`.
+  - Explicit `principal: null` → `400 VALIDATION_FAILED`, `"principal: principal must not be null"`.
+  - Throwaway app process and Postgres container were stopped and removed after verification; no state persists.
+- Deviations/known limitations: None. No REJECTED or DEFERRED findings existed to reconcile; no scope change was introduced — both fixes are additional test coverage and corrected documentation/evidence wording within the approved acceptance criteria, not new behavior.
+- System-evolution candidates: None beyond what the original review already noted (no shared rule/template gap; the brief already required this coverage explicitly).
 
 ## Review findings — 2026-09-05
 

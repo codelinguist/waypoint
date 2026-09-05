@@ -79,7 +79,7 @@ Response (`200 OK`):
 }
 ```
 
-### Paid off with rounding (half-cent HALF_UP example)
+### Paid off with interest
 
 Request: `principal=100.00`, `monthlyInterestRate=0.01`, `monthlyPayment=60.00`, `currency=USD`.
 
@@ -97,6 +97,29 @@ Request: `principal=100.00`, `monthlyInterestRate=0.01`, `monthlyPayment=60.00`,
   "schedule": [
     { "month": 1, "openingBalance": 100.00, "interest": 1.00, "payment": 60.00, "principalRepaid": 59.00, "closingBalance": 41.00 },
     { "month": 2, "openingBalance": 41.00,  "interest": 0.41, "payment": 41.41, "principalRepaid": 41.00, "closingBalance": 0.00 }
+  ]
+}
+```
+
+### Half-cent rounding (HALF_UP)
+
+Request: `principal=1.00`, `monthlyInterestRate=0.005`, `monthlyPayment=2.00`, `currency=USD`. Interest of
+`1.00 * 0.005 = 0.005` is an actual half-cent; HALF_UP rounds it to `0.01` (HALF_DOWN or HALF_EVEN would
+both round to `0.00`).
+
+```json
+{
+  "principal": 1.00,
+  "monthlyInterestRate": 0.005,
+  "monthlyPayment": 2.00,
+  "currency": "USD",
+  "status": "PAID_OFF",
+  "payoffMonths": 1,
+  "totalPaid": 1.01,
+  "totalInterest": 0.01,
+  "remainingBalance": 0.00,
+  "schedule": [
+    { "month": 1, "openingBalance": 1.00, "interest": 0.01, "payment": 1.01, "principalRepaid": 1.00, "closingBalance": 0.00 }
   ]
 }
 ```
