@@ -130,12 +130,34 @@
   on `/comparison` vs. `/{snapshotId}`, and a flagged follow-up about that
   shared volume default.
 
+## Review findings
+
+### 2026-09-05 — PR #7 review
+
+- Findings: None. The PR diff was reviewed against the approved scope,
+  acceptance criteria, and the collaboration-workflow review criteria. No
+  `BLOCKING`, `RECOMMENDED`, or `OPTIONAL` defect had visible evidence and a
+  concrete acceptance condition. No finding statuses were applicable.
+- Verification evidence: `./verify.sh` passed with 154 tests, 0 failures.
+  GitHub Actions required `verify` check passed:
+  https://github.com/codelinguist/waypoint/actions/runs/33960540694/job/101291550591
+- Review scope note: No `agent/ui/snapshot-comparison/visual-review.md`
+  exists; this is a backend-only task with no UI review artifact required.
+
 ## Feature acceptance
 
-- Acceptance status: `PENDING`
-- Acceptance evidence:
-- Unmet criteria:
-- Returned work:
+- Acceptance status: `ACCEPTED`
+- Acceptance evidence: PR #7 adds the documented household-scoped,
+  read-only comparison endpoint with explicit earlier/later snapshot IDs;
+  deterministic later-minus-earlier per-currency asset, liability, and net
+  worth deltas; source snapshot identifiers and dates; structured validation
+  and not-found behavior for missing, identical, and cross-household inputs;
+  and no persistence or mutation. Unit and integration tests cover arithmetic,
+  ordering as explicitly requested, error behavior, household isolation, and
+  no mutation. `./verify.sh` passes with 154 tests and GitHub Actions required
+  `verify` is green.
+- Unmet criteria: None.
+- Returned work: None.
 - Follow-up opportunities: Goals domain and plan-versus-actual analysis remain candidates after this Phase 4 completion.
-- Accepted or returned by Product Owner Agent:
-- Accepted or returned at:
+- Accepted or returned by Product Owner Agent: Accepted by Codex.
+- Accepted or returned at: 2026-09-05
