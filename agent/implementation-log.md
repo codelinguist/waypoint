@@ -35,9 +35,11 @@
   (retried next run, never `ACCEPTED`, never silently coerced to
   `BLOCKING` either).
 - Added three regression tests to `orchestrator_test.sh`: conflicting lines
-  with `BLOCKING` last, conflicting lines with `ACCEPTED` last (the actual
-  bug Codex found — old code returned `ACCEPTED` here), and a single
-  verdict line that isn't the message's terminal line.
+  in both orders (`BLOCKING` last and `ACCEPTED` last — old code returned
+  the wrong `ACCEPTED` verdict for *both*, since its `grep -q ACCEPTED`
+  check matched the line's mere presence anywhere in the message,
+  independent of order or position), and a single verdict line that isn't
+  the message's terminal line.
 
 **Tests**
 
@@ -66,8 +68,19 @@
 
 **Recommended next task**
 
-- Re-run or wait for a Codex review that can actually reach `gh pr diff 16`
-  to confirm the fixed branch is accepted, then merge PR #16.
+- Merge PR #16: a second Codex review against commit `93dd201` (fallback to
+  cached local diff after `gh pr diff`/`git fetch` both hit the same
+  network error again, but confirmed via `gh pr view`'s live base/head SHAs
+  that the cached diff matched the real PR) confirmed the fix resolves the
+  reproduction, found no unresolved `BLOCKING`/`RECOMMENDED` findings, noted
+  the required `verify` check is green, and recorded `REVIEW_VERDICT:
+  ACCEPTED`. One `OPTIONAL` finding (a test-comment/log wording inaccuracy
+  claiming only one of the two conflicting-order cases was buggy under the
+  old code, when both were) was corrected directly rather than deferred, at
+  the same low cost as writing it down as a follow-up. Codex could not post
+  either review as a PR comment itself (same `gh`/network error both times);
+  the first was relayed manually as a PR comment, the second is recorded
+  here since it changed nothing further to relay.
 
 ### 2026-09-05 — Orchestrator safety audit: review-error handling, retry-budget separation, isolation-claim correction, and tests
 

@@ -271,12 +271,13 @@ test_determine_review_verdict_missing_file_is_review_error() {
 }
 
 test_determine_review_verdict_rejects_conflicting_lines_blocking_last() {
-  # Regression for the exact defect Codex's own review of this PR found:
-  # an ACCEPTED line earlier in the message with the real BLOCKING decision
-  # last used to fall through the old order-independent grep correctly by
-  # luck (BLOCKING was checked second and matched first via elif)... but
-  # the mirror case below did not. Both orders must be REVIEW_ERROR now,
-  # not resolved by "whichever grep matched" or "whichever line is last".
+  # Regression for the exact defect Codex's own review of this PR found.
+  # The old code (`grep -q ACCEPTED` checked, and returned, before ever
+  # looking for BLOCKING) matched ACCEPTED's mere *presence* anywhere in
+  # the message, independent of position -- so this ordering was every bit
+  # as wrong under the old logic as the mirror case below: both returned
+  # the wrong ACCEPTED verdict despite BLOCKING being the real final
+  # decision. Neither order may authorize a merge now.
   local mf="$TEST_TMP/msg-conflict-blocking-last.txt"
   printf 'Earlier example:\nREVIEW_VERDICT: ACCEPTED\nFinal decision:\nREVIEW_VERDICT: BLOCKING\n' > "$mf"
   assert_equals "REVIEW_ERROR" "$(determine_review_verdict 1 0 "$mf")" \
@@ -284,10 +285,9 @@ test_determine_review_verdict_rejects_conflicting_lines_blocking_last() {
 }
 
 test_determine_review_verdict_rejects_conflicting_lines_accepted_last() {
-  # This is the actual bug: with the old grep -q ACCEPTED-checked-first
-  # logic, a message with BLOCKING earlier and a stray ACCEPTED-looking
-  # line last (or anywhere) could be misclassified as ACCEPTED, silently
-  # authorizing a merge Codex had actually rejected.
+  # The mirror ordering of the same defect above -- also wrongly ACCEPTED
+  # under the old presence-based `grep -q ACCEPTED` check, for the same
+  # reason (it never even looked at position or reached the BLOCKING elif).
   local mf="$TEST_TMP/msg-conflict-accepted-last.txt"
   printf 'REVIEW_VERDICT: BLOCKING\nOn reflection:\nREVIEW_VERDICT: ACCEPTED\n' > "$mf"
   assert_equals "REVIEW_ERROR" "$(determine_review_verdict 1 0 "$mf")" \
