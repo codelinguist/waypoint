@@ -32,6 +32,7 @@ STATE_DIR="$AUTOMATION_DIR/state"
 LOG_DIR="$AUTOMATION_DIR/logs"
 LOG_FILE="$LOG_DIR/orchestrator.log"
 LOCK_DIR="$STATE_DIR/.orchestrator.lock"
+GH_TOKEN_CACHE="$STATE_DIR/gh-token"
 
 MAX_PARALLEL="${WAYPOINT_MAX_PARALLEL:-3}"
 # Kept as two independent budgets, each with its own frontmatter field
@@ -64,27 +65,72 @@ require_tools() {
   done
 }
 
+ensure_gh_token() {
+  # The same cron-vs-interactive-session gap that made ensure_authenticated_
+  # remote() necessary for git also hits `gh` itself: `gh auth status`
+  # reports its storage backend as "(keyring)" -- macOS Keychain -- which is
+  # scoped to the interactive login session, not visible to a cron-launched
+  # process running in its own separate macOS security session. Confirmed
+  # live: `gh auth token` started returning empty on every cron tick from
+  # 2026-09-05T13:45Z onward, and because every `gh` call site in this
+  # script swallows its own errors (`2>/dev/null || true`, matching how the
+  # rest of the script treats "no results" and "gh is broken" identically),
+  # this failed *silently* -- `gh pr list` returning nothing read as "no
+  # open task/* PRs" for 45+ minutes while PRs 13-15 sat open with green
+  # `verify` checks, completely unreviewed, with no error anywhere in the
+  # log. `gh auth token`'s own failure is the one call in this function
+  # that's logged explicitly, specifically so this class of failure is
+  # visible next time instead of masquerading as "nothing to do."
+  #
+  # Fix, mirroring ensure_authenticated_remote()'s approach: whenever `gh
+  # auth token` *does* succeed (this script run from, or shortly after, an
+  # unlocked interactive session), cache it to a local file outside the
+  # keychain. Whenever it doesn't, fall back to that cached copy. Either
+  # way, export it as GH_TOKEN, which every `gh` subcommand honors ahead of
+  # its own keychain-backed lookup -- so once a token has been cached once,
+  # every `gh` call in this script keeps working under cron regardless of
+  # Keychain session state, until the token is revoked/rotated (at which
+  # point the next successful interactive run refreshes the cache).
+  local token
+  token="$(gh auth token 2>/dev/null || true)"
+  if [[ -n "$token" ]]; then
+    ( umask 077 && printf '%s' "$token" > "$GH_TOKEN_CACHE" )
+  elif [[ -s "$GH_TOKEN_CACHE" ]]; then
+    token="$(cat "$GH_TOKEN_CACHE")"
+    log "ensure_gh_token: 'gh auth token' returned nothing (cron/Keychain-session gap); using the cached token from $GH_TOKEN_CACHE instead."
+  else
+    log "ensure_gh_token: 'gh auth token' returned nothing and no cached token exists yet at $GH_TOKEN_CACHE; gh commands will likely fail this run. Run this script once interactively (or just 'gh auth token' once) to seed the cache."
+  fi
+  # `[[ -n "$token" ]] && export ...` as the function's last statement would
+  # make the function itself return nonzero whenever no token is available
+  # at all (no live token, no cache -- the very first run, or a revoked
+  # token) -- and under this script's `set -e`, main() calling this as a
+  # bare statement would then abort the entire orchestrator run right here
+  # instead of degrading to "gh commands fail this tick, logged above,
+  # retried next tick". No token being available is an expected, already-
+  # logged condition, not a fatal one; always return success explicitly.
+  if [[ -n "$token" ]]; then
+    export GH_TOKEN="$token"
+  fi
+  return 0
+}
+
 ensure_authenticated_remote() {
-  # cron runs in a different macOS security session than an interactive
-  # login shell. The osxkeychain git credential helper depends on
-  # session identity for some keychain items, not just environment
-  # variables -- confirmed live: cron's git push/fetch failed with
-  # "could not read Username ... Device not configured" (git falling
-  # through to an interactive prompt with no TTY to prompt on) even
-  # though PATH and Full Disk Access were both already fixed. Embedding
-  # gh's token directly in this clone's remote URL sidesteps the
-  # keychain/session dependency entirely -- it's a plain value in a
+  # Reuses the token ensure_gh_token() already resolved (fresh from `gh
+  # auth token`, or the cron-session fallback from GH_TOKEN_CACHE) rather
+  # than calling `gh auth token` a second time here. Embedding it directly
+  # in this clone's remote URL sidesteps git's own osxkeychain credential
+  # helper the same way GH_TOKEN sidesteps gh's -- it's a plain value in a
   # local, uncommitted .git/config, not looked up via the keychain at
   # request time. Re-applied every run (cheap, idempotent) so a rotated
   # token is always picked up.
-  local https_url token host_and_path
+  local https_url host_and_path
   https_url="$(git -C "$REPO_ROOT" remote get-url origin)"
-  token="$(gh auth token 2>/dev/null || true)"
-  if [[ -n "$token" ]]; then
+  if [[ -n "${GH_TOKEN:-}" ]]; then
     host_and_path="${https_url#https://}"
-    git -C "$CONTROL_DIR" remote set-url origin "https://x-access-token:${token}@${host_and_path}"
+    git -C "$CONTROL_DIR" remote set-url origin "https://x-access-token:${GH_TOKEN}@${host_and_path}"
   else
-    log "ensure_authenticated_remote: 'gh auth token' returned nothing; leaving existing remote URL as-is."
+    log "ensure_authenticated_remote: no GH_TOKEN available (see ensure_gh_token's own log line above); leaving existing remote URL as-is."
   fi
 }
 
@@ -581,6 +627,7 @@ review_and_merge_phase() {
 main() {
   require_tools
   acquire_lock
+  ensure_gh_token
   sync_control_clone
   review_and_merge_phase
   dispatch_phase
