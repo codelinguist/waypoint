@@ -39,7 +39,7 @@ Read:
 6. `docs/architecture/architecture.md`
 7. `docs/decisions/decisions.md`
 8. `docs/product/roadmap.md`
-9. `agent/current-task.md`
+9. Your assigned file in `agent/tasks/` (see `agent/tasks/README.md`)
 
 Also read `agent/collaboration-workflow.md` for the branching and pull-request
 mechanics that apply to every task. UI work additionally follows its design
@@ -89,10 +89,11 @@ Update `agent/implementation-log.md` with:
 - any rule, template, or doc that should change because of what this task
   revealed (see `agent/collaboration-workflow.md` -> "System evolution")
 
-`agent/current-task.md` holds only the active task; the Product Owner Agent
-overwrites it entirely when the next task starts. Do not treat it as a log —
+`agent/tasks/<NNN>-<feature-slug>.md` holds your one active task; do not
+overwrite another task's file, and do not treat any of them as a log —
 `agent/implementation-log.md`, the linked product brief, and git history are
-the record of past tasks.
+the record of past tasks. See `agent/tasks/README.md` for the status
+lifecycle the orchestrator drives these files through.
 
 If a new long-lived architectural or product decision is made, add it to `docs/decisions/decisions.md`.
 
@@ -105,20 +106,31 @@ If a new long-lived architectural or product decision is made, add it to `docs/d
 - Ralph and his wife are users and household authorities. They provide problems,
   context, corrections, preferences, and feedback; they are not expected to act
   as product managers.
-- Only one agent should edit a feature at a time unless the work is isolated in
-  separate Git worktrees with explicit ownership.
+- Up to 3 tasks may be implemented at once, each strictly isolated in its own
+  Git worktree and branch — see `agent/tasks/README.md`. Outside that
+  automated pipeline, only one agent should edit a feature at a time unless
+  the work is isolated in separate worktrees with explicit ownership.
 - Codex acts as the Product Owner Agent. It frames problems, writes product
-  briefs, sets `agent/current-task.md`, approves design direction, and accepts
-  or returns completed work against evidence. Claude Code invokes it
-  non-interactively through the local `codex` CLI (`codex exec` for framing,
-  brief-writing, design approval, and acceptance; `codex review` /
-  `codex exec review` for PR review) rather than the user running a separate
-  manual Codex session — see `agent/collaboration-workflow.md` ->
-  "Invoking the Product Owner Agent" for the mechanics. Each invocation reads
-  only checked-in artifacts (the product brief, `agent/current-task.md`, the
-  PR diff); it is never given Claude Code's planning or implementation
-  conversation, preserving the same independent-review boundary a separate
-  session would.
+  briefs, writes new `QUEUED` files in `agent/tasks/`, approves design
+  direction, and accepts or returns completed work against evidence. Claude
+  Code invokes it non-interactively through the local `codex` CLI (`codex
+  exec` for framing, brief-writing, design approval, and acceptance; plain
+  `codex exec` with a diff-yourself prompt for PR review — `codex review` /
+  `codex exec review` cannot combine `--base`/`--commit` with a custom prompt
+  on the installed codex-cli version, see `agent/automation/review-prompt.md`)
+  rather than the user running a separate manual Codex session — see
+  `agent/collaboration-workflow.md` -> "Invoking the Product Owner Agent" for
+  the mechanics. Each invocation reads only checked-in artifacts (the product
+  brief, the relevant `agent/tasks/` file, the PR diff); it is never given
+  Claude Code's planning or implementation conversation, preserving the same
+  independent-review boundary a separate session would.
+- `agent/automation/orchestrator.sh`, run on a schedule, is what makes this
+  automatic in practice: it claims `QUEUED` tasks and dispatches unattended
+  Claude Code workers in dedicated worktrees, and separately reviews and
+  merges open PRs via Codex. See `agent/collaboration-workflow.md` ->
+  "Automated pipeline" for what that changes about this project's safety
+  posture (bypassed permissions/sandbox and automatic merge, both scoped to
+  that pipeline only) and why.
 - Claude Code is the default implementation and integration owner for
   repository-wide work, deterministic behavior, and tests. For UI features it
   also explores directions and writes the design brief before implementing.
@@ -136,23 +148,28 @@ If a new long-lived architectural or product decision is made, add it to `docs/d
   brief or design brief is approved, Claude Code starts a fresh conversation
   for implementation, loaded with the approved brief and the documents this
   file lists — not the exploration conversation that produced the brief. See
-  `agent/collaboration-workflow.md` -> "Workflow" for where this applies.
+  `agent/collaboration-workflow.md` -> "Workflow" for where this applies. An
+  orchestrator-dispatched worker satisfies this by construction: it always
+  starts cold in its own worktree.
 - Every task ships on its own branch (`task/<NNN>-<feature-slug>`) via a pull
   request, never a direct commit to `main`. The user has standing-authorized
   Claude Code to push the branch and open the PR itself as part of completing
   a task, without asking each time.
 - Every pull request targeting `main` must pass the required `verify` GitHub
   Actions check, which runs the same root-level `./verify.sh` command Claude
-  Code runs locally before opening or updating a PR. Neither agent may merge,
-  nor routinely bypass via administrator override, a PR whose required check
-  is failing, pending, or missing.
+  Code runs locally before opening or updating a PR. Neither agent, nor the
+  orchestrator, may merge, or routinely bypass via administrator override, a
+  PR whose required check is failing, pending, or missing.
 - The Product Owner Agent (Codex) has standing authorization to commit and
   push its completed review findings and acceptance record directly to the
   task branch, without asking each time.
 - Merging requires both the Product Owner Agent's acceptance (`ACCEPTED` in
-  the product brief) and a green required check. Once both hold, merging is
-  performed by the user, by Codex, or by Claude Code only when the user
-  explicitly asks — never automatically.
+  the product brief) and a green required check. Once both hold, the
+  orchestrator merges automatically — no further human step. The user, Codex,
+  or Claude Code (if explicitly asked) may still merge by hand for a task run
+  outside the automated pipeline. See `agent/collaboration-workflow.md` ->
+  "Automated pipeline" for the reasoning behind removing the manual
+  checkpoint here specifically.
 - Claude Code and Codex currently authenticate to GitHub as the same account,
   so GitHub cannot provide an independent formal approving review. The
   product brief's recorded findings and acceptance — not a same-account

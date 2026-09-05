@@ -16,7 +16,7 @@ own.
 
 - Product brief: `agent/product/<feature-slug>/product-brief.md`
 - Design brief, if applicable: `agent/ui/<feature-slug>/design-brief.md`
-- Current task: `agent/current-task.md`
+- Current task: `agent/tasks/<NNN>-<feature-slug>.md`
 
 ## Codebase patterns to follow
 

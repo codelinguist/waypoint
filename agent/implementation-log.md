@@ -1,5 +1,126 @@
 # Implementation Log
 
+### 2026-09-05 — Parallel task queue and automated Plan/Implement/Validate pipeline
+
+**Changed**
+
+- Replaced the single `agent/current-task.md` (one active task at a time)
+  with `agent/tasks/<NNN>-<feature-slug>.md`, a small backlog format with a
+  `status` lifecycle (`QUEUED` -> `IN_PROGRESS` -> `IN_REVIEW` -> `STALLED`
+  or `ACCEPTED` -> `MERGED`) — see `agent/tasks/README.md`.
+- Added `agent/automation/orchestrator.sh`: run repeatedly on a schedule
+  (local cron, not itself a loop), it claims up to 3 `QUEUED` tasks at once,
+  dispatches an unattended `claude -p ... --permission-mode
+  bypassPermissions --bg` worker into a dedicated git worktree for each, then
+  separately reviews open `task/*` PRs with an unattended `codex exec
+  --dangerously-bypass-approvals-and-sandbox` invocation and merges
+  automatically once Codex records acceptance and the required `verify`
+  check is green. A `BLOCKING` review dispatches a bounded number of
+  automatic fix rounds (default 2) before marking the task `STALLED` for a
+  human. All of the orchestrator's own git operations run in a dedicated
+  clone under `../waypoint-orchestrator/`, never in a human's interactive
+  checkout. See `agent/automation/README.md` and `agent/automation/
+  worker-prompt.md` / `review-prompt.md`.
+- Added a migration-version-collision check before merge (compares a
+  branch's new Flyway migration version numbers against `main`'s), since
+  parallel tasks can independently add a colliding `V<n>` migration that git
+  itself would merge cleanly (different filenames) but Flyway would then
+  reject at runtime; a collision stalls the task instead of merging.
+- Rewrote `AGENTS.md`, `agent/collaboration-workflow.md` (new "Automated
+  pipeline" section), `agent/roles/product-owner.md`, `.claude/commands/
+  codex.md`, `.claude/commands/prime.md`, `README.md`, `.github/
+  pull_request_template.md`, and `agent/templates/implementation-plan.md` to
+  point at `agent/tasks/` instead of `agent/current-task.md`, and to
+  document the pipeline's two deliberate departures from the previous
+  workflow: orchestrator-spawned sessions bypass permissions/sandboxing
+  (nobody is present to approve a prompt in an unattended run — scoped
+  strictly to sessions the orchestrator itself spawns, never to an
+  interactive session), and merging is now fully automatic once Codex
+  accepts and the required check is green (previously always required a
+  human, Codex, or an explicit Claude Code ask). Left the historical
+  `agent/current-task.md` references inside `agent/implementation-log.md`
+  and existing `agent/product/*/product-brief.md` files untouched — they are
+  accurate history of the workflow as it existed at the time, not live
+  documentation.
+- Fixed `.claude/commands/codex.md`'s `review` mode example, which
+  documented `codex review --base main "<prompt>"` /
+  `codex exec review --base main "<prompt>"`; both actually fail on the
+  installed codex-cli (0.152.1) with `error: the argument '--base <BRANCH>'
+  cannot be used with '[PROMPT]'` — a custom prompt can't be combined with
+  `--base`/`--commit` on this version. Replaced the example with the
+  working diff-yourself workaround (`codex exec` plus `gh pr diff`, which
+  `agent/automation/review-prompt.md` also uses) and noted the CLI
+  limitation inline so it isn't rediscovered silently again.
+
+**Tests**
+
+- `bash -n agent/automation/orchestrator.sh` — syntax check only; no
+  `./verify.sh` run, since this task touched no application code.
+- Did not run the orchestrator end-to-end against a real queued task: doing
+  so has real side effects (worktrees, pushes, PRs, a merge to `main`), and
+  no task is queued yet since the user hasn't chatted with Codex about one.
+  `agent/automation/README.md` explicitly recommends one supervised manual
+  run before installing the cron entry, specifically to confirm the
+  `claude --bg` session-id parsing in `dispatch_worker()` matches what the
+  installed `claude` version actually prints — the one piece this pass
+  couldn't verify without a real task to dispatch.
+
+**Decisions**
+
+- Kept the orchestrator's own git state (a full clone plus per-task
+  worktrees under `../waypoint-orchestrator/`) entirely separate from the
+  user's interactive checkout, so a cron-triggered run can never mutate
+  whatever branch a human happens to have checked out.
+- Used a plain `mkdir`-based lock (`agent/automation/state/
+  .orchestrator.lock`) rather than `flock`, since `flock` isn't shipped on
+  macOS/BSD by default and this needed to work without an extra dependency.
+- Bounded concurrency to 3 and automatic fix rounds to 2, and added the
+  migration-collision check, specifically so "parallel" and "automatic"
+  don't quietly trade away correctness — these are the concrete safety nets
+  called for in `agent/collaboration-workflow.md` -> "Automated pipeline".
+- Did not attempt to make Codex reviewable in GitHub Actions instead of
+  locally: this machine's `codex` CLI authenticates via a ChatGPT
+  subscription, not an API key, so the orchestrator has to run somewhere
+  that auth already lives — a local cron job — not in CI.
+
+**Assumptions**
+
+- `claude --bg ... --permission-mode bypassPermissions` and `codex exec
+  --dangerously-bypass-approvals-and-sandbox`, run only inside the
+  orchestrator's own spawned sessions (each confined to one task's
+  worktree/branch), is an acceptable, explicitly-authorized loosening of
+  this repo's normal never-bypass-sandbox rule for this pipeline
+  specifically — confirmed with the user directly, not inferred.
+- Fully automatic merge (no human checkpoint at all once Codex accepts and
+  `verify` is green) is what the user asked for, specifically to see a
+  mature, highly-parallel pipeline in practice — confirmed with the user
+  directly given this removes the workflow's previous single human
+  safety gate.
+- A local cron job (vs. a persistent `/loop` session) is an acceptable
+  reliability tradeoff: the pipeline only runs while this machine is on and
+  this user's cron/launchd context is active — confirmed with the user
+  directly.
+
+**Open questions**
+
+- Whether the `claude --bg` output actually parses the way
+  `dispatch_worker()` assumes is unverified until a real task runs through
+  it.
+- Whether GitHub's branch protection should require the orchestrator's own
+  commits (task-file claims, review findings) to also pass `verify`, or
+  whether direct-to-`main` process bookkeeping commits should stay exempt
+  as they always have been for `agent/current-task.md`-era Codex commits.
+- Whether 3 concurrent tasks and 2 fix rounds are the right defaults once
+  this has run against real tasks, versus tuned from observed throughput
+  and stall rate.
+
+**Recommended next task**
+
+- Have the user and Codex frame a first real task into `agent/tasks/` as
+  `QUEUED`, run `agent/automation/orchestrator.sh` once by hand to watch it
+  dispatch and verify the session-id parsing, then install the cron entry
+  from `agent/automation/README.md` once that looks right.
+
 ### 2026-09-04 — Task 005 product acceptance
 
 **Changed**
