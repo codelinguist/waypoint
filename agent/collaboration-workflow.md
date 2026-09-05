@@ -103,26 +103,22 @@ treated as fixed, made because the user asked to see what a mature,
 highly-parallel version of this workflow looks like, independent of this
 being a single-developer household project:
 
-- **Bypassed permissions and sandboxing.** Nobody is present to answer a
-  permission prompt in an unattended run, so orchestrator-spawned sessions
-  use `claude --permission-mode bypassPermissions` and
-  `codex exec --dangerously-bypass-approvals-and-sandbox` — flags this
-  document and `AGENTS.md` otherwise forbid using casually. This bypass is
-  scoped to sessions the orchestrator itself spawns, each assigned its own
-  git worktree and branch — but a worktree only isolates which Git branch a
-  session works on. It does **not** restrict filesystem, network, process,
-  or credential access: a bypassed session can read or write anything the
-  invoking OS user can reach, make outbound network calls, and use whatever
-  credentials that user's environment exposes — including the GitHub token
-  `orchestrator.sh`'s `ensure_authenticated_remote()` embeds directly into
-  the control clone's `.git/config` (see `agent/automation/orchestrator.sh`).
-  Every interactive session (a human running `claude` or `codex` directly)
-  keeps the normal sandboxed, approval-gated behavior. This gap is currently
-  accepted, not mitigated: running unattended agents inside a real
-  sandbox/container or a restricted OS account with narrowly scoped
-  credentials would close it, and should be treated as the next hardening
-  step before this pipeline is trusted with anything more sensitive than
-  this single household's private repository.
+- **Asymmetric sandboxing.** Nobody is present to answer a permission prompt
+  in an unattended run. Claude workers still use
+  `--permission-mode bypassPermissions`: Claude's `--restricted` mode removes
+  Bash, which these workers require for Git, Maven, and `./verify.sh`, and its
+  background-session state is tied to the invoking macOS user. A worktree only
+  isolates their Git branch; it does not restrict filesystem, network, process,
+  or credential access. Codex review now runs with
+  `-s workspace-write -c sandbox_workspace_write.network_access=true`, which
+  confines filesystem/process writes to its workspace while retaining the
+  network access needed for `gh pr diff` and `git push`. Network access has no
+  host allowlist, and Codex still receives `GH_TOKEN`. A manually provisioned,
+  repository-scoped token at `agent/automation/state/gh-token.scoped` reduces
+  that credential's blast radius; setup and fail-closed behavior are documented
+  in `agent/automation/README.md`. Containerized workers or a restricted OS
+  account remain the next hardening step before this pipeline is trusted with
+  anything more sensitive than this private repository.
 - **Automatic merge.** Merging previously required a human, Codex, or
   Claude-Code-only-when-asked to act after acceptance; the orchestrator now
   merges the moment both gates are satisfied, with no further human step.

@@ -2,14 +2,15 @@
 
 `orchestrator.sh` is the machine that makes `agent/tasks/` self-driving. See
 `agent/collaboration-workflow.md` -> "Automated pipeline" for why this exists
-and what it changes about the workflow's safety posture (bypassed
-permissions/sandbox, automatic merge — both deliberate, both scoped to this
-pipeline only).
+and what it changes about the workflow's safety posture (an unsandboxed Claude
+worker, a sandboxed but network-enabled Codex reviewer, and automatic merge —
+all deliberate and scoped to this pipeline only).
 
 ## What it does, once per run
 
 1. **Review + merge** any open `task/*` PR: runs an unattended Codex review
-   (`review-prompt.md`) against PRs with new commits, merges automatically
+   (`review-prompt.md`) against PRs with new commits under
+   `-s workspace-write -c sandbox_workspace_write.network_access=true`, merges automatically
    once Codex records acceptance and the required `verify` check is green,
    or dispatches a bounded automatic fix round (`worker-prompt.md`, with a
    fix-round note, budget tracked in the task file's `fix_rounds`) when
@@ -55,8 +56,37 @@ security session from an interactive login shell, without that session's
 Keychain access — see `ensure_gh_token()` and the 2026-09-05 "Cron's `gh`
 auth hits the same Keychain-session gap git did" implementation-log entry).
 Never committed; if it's ever missing and `gh auth token` fails under cron,
-every `gh` call that tick fails and is logged, but nothing crashes — run
-the script once interactively (or just `gh auth token` once) to reseed it.
+the run stops before any Git or GitHub operation. Run the script once
+interactively after authenticating `gh` to reseed it.
+
+### Optional repository-scoped GitHub token
+
+For a smaller credential blast radius, create a fine-grained personal access
+token in GitHub's web UI and limit repository access to this repository. Grant
+only Metadata read (mandatory), Contents read/write, Pull requests read/write,
+and Checks read. Store it at:
+
+```text
+agent/automation/state/gh-token.scoped
+```
+
+Then restrict its permissions:
+
+```sh
+chmod 600 agent/automation/state/gh-token.scoped
+```
+
+The override is authoritative whenever it exists. A symlink, empty file,
+permissions other than `600` or `400`, or a token that fails `gh auth status`
+aborts the run; the orchestrator deliberately does not fall back to its broader
+account token or cache. Rotate it by replacing its contents and restoring mode
+`600`. Delete it to return to the normal `gh auth token`/cache path. The state
+directory is gitignored, but the token remains plaintext on this host.
+
+The Codex sandbox restricts filesystem/process writes to its workspace, but
+network access is enabled without a host allowlist and the reviewer receives
+`GH_TOKEN`. The scoped token mitigates that credential exposure; it does not
+remove it.
 
 `agent/automation/logs/orchestrator.log` (gitignored) has one line per
 significant action — claims, dispatches, review verdicts, merges, stalls.

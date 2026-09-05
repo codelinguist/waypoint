@@ -1,5 +1,73 @@
 # Implementation Log
 
+### 2026-09-06 — Sandbox automated review and scope automation credentials
+
+**Changed**
+
+- Replaced the automated Codex review's full sandbox bypass with
+  `workspace-write` plus explicit network access. Scratch probes established
+  that network is disabled without the configuration override; the existing
+  `REVIEW_ERROR` path keeps sandbox or review failures from authorizing a merge
+  or consuming a code-fix round.
+- Added an authoritative `gh-token.scoped` override with regular-file,
+  permission, nonempty-content, and live-token validation. Invalid overrides
+  fail closed without consulting the broader account-token cache.
+- Made credential resolution explicit: inherited `GH_TOKEN` values are
+  cleared, live and cached broad tokens are validated, and the orchestrator
+  stops before Git/GitHub work when no usable credential exists.
+- Reused one authenticated-URL helper for existing control clones and the
+  first-ever private-repository clone. A tokenless defensive call resets a
+  stale credentialized remote to the clean repository URL.
+- Documented scoped-token provisioning and the remaining asymmetric risk:
+  Codex review is filesystem/process sandboxed but network-enabled, while
+  unattended Claude workers still run with host-level permissions.
+
+**Tests**
+
+- Expanded `agent/automation/tests/orchestrator_test.sh` with sandbox-invocation,
+  scoped-token validation and precedence, stale/inherited credential,
+  authentication-gate, remote-scrubbing, authenticated-first-clone, and
+  invalid-cache regression coverage.
+- `bash -n agent/automation/orchestrator.sh` passed;
+  `agent/automation/tests/orchestrator_test.sh` passed with 74 tests; and
+  `git diff --check` passed. No Java application code changed.
+- Disposable PR #18 (`test/sandbox-review-smoke`) exercised the exact rendered
+  review prompt with `codex exec -s workspace-write -c
+  sandbox_workspace_write.network_access=true`. Codex successfully ran
+  `gh pr diff`, updated the product brief, created commits `26701cf` and
+  `666e3ff`, pushed both to the test branch, and returned the required final
+  `REVIEW_VERDICT: ACCEPTED`. The PR was then closed without merge and its
+  remote branch deleted; none of its fixture files reached `main`.
+
+**Decisions**
+
+- A configured scoped override is authoritative and fails closed. It never
+  silently widens back to the cached account credential.
+- Network remains enabled for review because GitHub diff and push operations
+  require it; repository-scoped credentials mitigate, but do not eliminate,
+  that exposure.
+- Containerizing Claude or provisioning a restricted macOS account is deferred:
+  neither is a drop-in change compatible with the current background-session,
+  Bash, and TCC requirements.
+
+**Assumptions**
+
+- The automation remains macOS-specific; token-file permission validation uses
+  BSD `stat`.
+- The repository's origin is HTTPS, as required by the authenticated URL helper
+  and confirmed in the current checkout.
+
+**Open questions**
+
+- The live smoke test proved the exact sandboxed command and review prompt can
+  inspect, edit, commit, and push. Continued cron monitoring should still catch
+  environment-specific authentication or macOS sandbox regressions.
+
+**Recommended next task**
+
+- Provision `gh-token.scoped`, then evaluate a stronger isolation boundary for
+  Claude workers before expanding this automation beyond the private project.
+
 ### 2026-09-05 — Cron's `gh` auth hits the same Keychain-session gap git did
 
 **Changed**
