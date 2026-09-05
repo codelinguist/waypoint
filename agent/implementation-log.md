@@ -1,5 +1,159 @@
 # Implementation Log
 
+### 2026-09-05 — Orchestrator safety audit: review-error handling, retry-budget separation, isolation-claim correction, and tests
+
+**Changed**
+
+Addressed a six-item audit Codex (product-owner role, reviewing the
+orchestrator infrastructure itself rather than a feature) handed the user
+directly, outside the normal task-queue flow. Treated as infra/tooling work
+like the earlier `fix/orchestrator-*` branches, not a queued feature — no
+product brief, implemented and PR'd directly.
+
+1. **Duplicated task path.** `agent/automation/review-prompt.md` referenced
+   `agent/tasks/{{TASK_FILE}}`, but `orchestrator.sh` already renders
+   `{{TASK_FILE}}` as `agent/tasks/<filename>` — the rendered prompt told
+   Codex to read `agent/tasks/agent/tasks/<filename>`, a path that never
+   exists. Fixed by dropping the hardcoded prefix; `{{TASK_FILE}}` already
+   carries it (matching how `worker-prompt.md` already used it correctly).
+2. **Review-infrastructure failures were miscoded as `BLOCKING`.** A crashed
+   or empty `codex exec` invocation, or a response missing the
+   `REVIEW_VERDICT:` line, previously fell into the same `else` branch as a
+   genuine `BLOCKING` review finding — burning a `fix_rounds` attempt and
+   dispatching a worker to "fix" findings that were never actually
+   recorded, on every single infrastructure hiccup. Added a
+   `REVIEW_ERROR` outcome: `determine_review_verdict()` (a new pure
+   function, extracted from `run_review()` so it's unit-testable) returns
+   it whenever `codex exec` exits nonzero, produces no output, or returns
+   unparseable content; `review_and_merge_phase()` logs it, skips writing
+   the per-PR state file entirely (so the next tick's `head_sha != last_sha`
+   check naturally retries the review from scratch), and `continue`s before
+   the `ACCEPTED`/`BLOCKING` case statement — no fix round, no `fix_rounds`
+   increment, no merge.
+3. **Isolation-claim correction.** `agent/collaboration-workflow.md` ->
+   "Automated pipeline" claimed bypassed sessions were "confined to one
+   task's worktree/branch." A git worktree only isolates which branch a
+   session works on — it does not restrict filesystem, network, process, or
+   credential access. Rewrote the paragraph to say so plainly, name the
+   concrete instance (the GitHub token `ensure_authenticated_remote()`
+   embeds in the control clone's `.git/config`), and note that a real
+   sandbox/container or a restricted OS account with narrowly scoped
+   credentials is the actual next hardening step, not yet done.
+4. **Stale invocation docs.** `agent/automation/README.md` said the worker
+   session is `claude -p`; the actual, and only working, invocation is
+   `claude --bg "<prompt>"` (positional prompt — `-p`/`--print` conflicts
+   with `--bg` on the installed CLI). Fixed there and in `worker-prompt.md`'s
+   own header comment, which had the same stale claim.
+5. **Shared retry budget for two unrelated failure classes.** `fix_rounds`
+   was being incremented both by `handle_blocking()` (a genuine Codex
+   `BLOCKING` product-review finding) and `handle_conflict()` (a PR gone
+   merge-conflicted because a sibling task merged first) — so either kind of
+   trouble could exhaust the budget the other needed. Split into two
+   independent frontmatter fields and counters: `fix_rounds` /
+   `MAX_FIX_ROUNDS` stay `handle_blocking()`-only; a new `conflict_rounds` /
+   `MAX_CONFLICT_ROUNDS` (`WAYPOINT_MAX_CONFLICT_ROUNDS`, default 2, same as
+   before) is now `handle_conflict()`-only. Added `conflict_rounds: 0` to
+   the task-file template (`agent/tasks/README.md`) and to the three
+   currently `IN_PROGRESS` files (009, 010, 011) so the field exists before
+   any conflict round is ever dispatched against them.
+6. **`set_frontmatter_field()` couldn't add a field, only rewrite one.**
+   Discovered while wiring up (5): the existing `sed` implementation
+   silently no-ops when the field has no line yet in a file's frontmatter —
+   which would have made `conflict_rounds` permanently invisible to
+   `frontmatter_field()` for any task file authored before this field
+   existed (an older `STALLED` file picked up by hand, or a future `QUEUED`
+   file Codex writes from a stale cached template), and the `(( conflict_rounds
+   >= MAX_CONFLICT_ROUNDS ))` check would then never fire. Hardened it to
+   insert the field just above the closing `---` when no existing line
+   matches, instead of doing nothing.
+7. **Added `agent/automation/tests/orchestrator_test.sh`.** A local,
+   dependency-light regression suite (no `gh`/`codex`/`claude` calls) that
+   sources `orchestrator.sh` (guarded so its `main "$@"` no longer fires on
+   `source`, only on direct execution) and exercises: frontmatter
+   read/write including status transitions and the field-insertion fix
+   above; that `fix_rounds` and `conflict_rounds` are stored and updated
+   independently (plus a source-shape check that `handle_blocking`/
+   `handle_conflict` never reference each other's field); rendered
+   worker/review prompt paths, explicitly asserting no doubled
+   `agent/tasks/agent/tasks/...`; `determine_review_verdict()` against
+   valid `ACCEPTED`/`BLOCKING`, a missing message file, unparseable
+   content, and a nonzero `codex exec` exit status (each must be
+   `REVIEW_ERROR`, never `BLOCKING`); a source-shape check that
+   `review_and_merge_phase()`'s `REVIEW_ERROR` branch `continue`s before
+   ever writing the PR state file; the exact `jq` filter `try_merge` uses
+   for the `verify` check against canned `MISSING`/`PENDING`/`SUCCESS`
+   JSON; and Flyway migration-collision detection against disposable local
+   git fixtures (a clean new version, two branches independently claiming
+   the same version, and a single branch claiming one version twice).
+   Deliberately does not attempt a full mock of `gh`/`codex`/`claude` end
+   to end (dispatch_worker, the real `codex exec` call, `gh pr
+   checks`/`gh pr merge`) — noted explicitly in the file's header as a
+   scope boundary, not an oversight. Not part of `./verify.sh` (reserved
+   for the Java Maven suite per D014); run directly.
+
+**Tests**
+
+- `agent/automation/tests/orchestrator_test.sh`: 35 passed, 0 failed.
+- `bash -n agent/automation/orchestrator.sh` and `bash -n
+  agent/automation/tests/orchestrator_test.sh`.
+- No `./verify.sh` run: no Java application code touched.
+- Confirmed no drift against `origin/main` before and after editing the
+  live `IN_PROGRESS` task files 009-011 (cron runs every 5 minutes and
+  writes to these same files), to avoid clobbering an in-flight
+  orchestrator write.
+
+**Decisions**
+
+- Treated this as direct infra/tooling work (branch `fix/orchestrator-
+  review-safety`, no product brief, no `agent/tasks/` entry), matching how
+  the prior `fix/orchestrator-first-run-bugs`,
+  `fix/orchestrator-conflict-self-healing`, and
+  `fix/orchestrator-cron-git-auth` branches were handled — the task-queue
+  Plan/Implement/Validate cycle is for household-facing features, not for
+  fixing the machine that runs it.
+- Gave `MAX_CONFLICT_ROUNDS` its own env var (`WAYPOINT_MAX_CONFLICT_ROUNDS`)
+  rather than reusing `WAYPOINT_MAX_FIX_ROUNDS` for both budgets, even
+  though they currently default to the same value (2) — the whole point of
+  item 5 was that these are conceptually different failure classes, so
+  their bounds should be independently tunable even if nobody has needed to
+  tune them differently yet.
+- Scoped the isolation-language fix to `agent/collaboration-workflow.md` only
+  (per the feedback), not `AGENTS.md`'s separate mention of worktree
+  isolation there — that passage is about the concurrency mechanism
+  (parallel tasks not clobbering each other's code), not a security-boundary
+  claim, so it wasn't inaccurate in the same way.
+
+**Assumptions**
+
+- Assumed the audit's "priority order" (fix 1-2 before the next unattended
+  run) meant "implement all six before this lands," not "ship 1-2 alone
+  first" — cron runs every 5 minutes regardless, so there was no practical
+  way to land only a subset before the next tick anyway; all six shipped
+  together on one branch.
+
+**Open questions**
+
+- Real sandboxing/containment for unattended sessions (item 3's "next
+  hardening step") is still not implemented — this pass only corrected the
+  documentation to stop overstating what worktree isolation provides. Left
+  as a follow-up, not attempted here, since it's a meaningfully larger
+  change (a container or restricted OS account, credential scoping) than a
+  documentation fix.
+- The new test suite cannot exercise `dispatch_worker`, `run_review`'s
+  actual `codex exec` call, or `try_merge`'s `gh pr checks`/`gh pr merge`
+  end-to-end without a real or thoroughly mocked GitHub/Codex/Claude
+  surface. If a bug is ever suspected specifically in that boundary (not
+  the decision logic around it, which is covered), it will need a live or
+  much heavier test run to catch.
+
+**Recommended next task**
+
+- Let Tasks 009-011 continue through review and merge, now covered by
+  `REVIEW_ERROR` handling and the split retry budgets, and watch
+  `agent/automation/logs/orchestrator.log` for the first real
+  `REVIEW_ERROR` or `conflict_rounds` occurrence to confirm the new paths
+  behave as designed under a live run, not just the local test suite.
+
 ### 2026-09-05 — Cron's git auth, a self-authored commit bug, and Tasks 009-011
 
 **Changed**

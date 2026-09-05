@@ -8,6 +8,7 @@ session: f312039b
 pr:
 claimed_at: 2026-09-05T13:43:59Z
 fix_rounds: 0
+conflict_rounds: 0
 ---
 
 # Task 010: Fixed-Payment Debt Amortization

@@ -1,8 +1,10 @@
 # Worker prompt template
 
 `agent/automation/orchestrator.sh` fills in `{{TASK_FILE}}`, `{{BRANCH}}`, and
-`{{FIX_ROUND_NOTE}}` and passes the result as the `-p` prompt to an unattended
-`claude` session running inside that task's dedicated git worktree. Nothing
+`{{FIX_ROUND_NOTE}}` and passes the result as the positional prompt to an
+unattended `claude --bg` session running inside that task's dedicated git
+worktree (`-p`/`--print` conflicts with `--bg` on the installed CLI version).
+Nothing
 here should reference this conversation or any other session's history — the
 worker starts cold, exactly like a fresh implementation session per
 `agent/collaboration-workflow.md` -> "Workflow".
