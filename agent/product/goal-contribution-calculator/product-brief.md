@@ -2,7 +2,7 @@
 
 ## Status
 
-`READY`
+`ACCEPTED`
 
 ## Ownership
 
@@ -119,12 +119,12 @@
 
 ## Feature acceptance
 
-- Acceptance status: `PENDING`
-- Acceptance evidence: Independent review of PR #15 at d81e70cdec26d1d0b4c5c24f55ebf0773d40a1dc completed on 2026-09-05. Acceptance withheld for unresolved R1 and R2 below; passing CI does not cover these cases.
-- Unmet criteria: Criterion 4 (reject out-of-range month counts) and criterion 6 (direct domain validation of amount bounds) remain unmet; see R1 and R2. Earlier implementation verification claims above are qualified by this review.
-- Returned work: Resolve R1 and R2 with regression tests, rerun ./verify.sh, and update feature-local evidence for independent re-review.
+- Acceptance status: `ACCEPTED`
+- Acceptance evidence: Independent re-review of PR #15 at `adbf3f1586bfe02054241262b610d1e8ae40bedb` on 2026-09-05 confirms all nine criteria; see the dated fix-round review below. R1, R2 and R3 are resolved. Required GitHub `verify` is SUCCESS for this implementation head.
+- Unmet criteria: None.
+- Returned work: None. Acceptance authorizes automatic merge once the required check is green on the final PR head.
 - Follow-up opportunities: Stored-state integration only with a separately framed provenance/approval contract; richer models only when concrete household needs justify them; shared-document consolidation after this batch.
-- Accepted or returned by Product Owner Agent: Codex — returned for fixes.
+- Accepted or returned by Product Owner Agent: Codex — accepted after fix-round review.
 - Accepted or returned at: 2026-09-05
 
 ## Review findings — 2026-09-05
@@ -203,3 +203,90 @@ file exists; UI criteria do not apply to this backend-only feature.
   no shared rule change is necessary. Add feature-local regression coverage
   for representation boundaries in the fix round and record it in this
   feature's implementation log, preserving the shared-prose exception.
+
+
+## Review findings — 2026-09-05 — Fix round 1 re-review
+
+Reviewed the actual `gh pr diff 15` against `main`, implementation head
+`adbf3f1586bfe02054241262b610d1e8ae40bedb`. Read only the four requested
+context files and the PR diff; no other conversation history was used.
+The following dispositions supersede the earlier open/unresolved states,
+which remain above as historical evidence. No visual-review file exists;
+this feature is backend-only and UI review gates do not apply.
+
+### R1 — BLOCKING — ACCEPTED — Resolved
+
+- Evidence: `WholeNumberDeserializer.deserialize` now checks
+  `node.canConvertToInt()` before `node.intValue()`. HTTP regression tests
+  reject `4294967299`, `-4294967293` and an integer beyond the long range;
+  fractional rejection remains covered and 1/1200 both remain valid.
+- Acceptance condition satisfied: reject unrepresentable month counts before
+  narrowing, preserving valid bounds. The diff's fix-round manual evidence
+  records structured `400 MALFORMED_REQUEST` for all three overflow cases;
+  the automated regressions assert HTTP 400.
+
+### R2 — BLOCKING — ACCEPTED — Resolved
+
+- Evidence: `GoalContributionCalculator.validateAmount` now counts integer
+  digits using `Math.max(value.precision() - value.scale(), 0)` before
+  scale normalization. Direct-domain regressions reject `1E+17` for either
+  amount and accept `1E+16`.
+- Acceptance condition satisfied: negative-scale boundary representations
+  enforce the amount limit. Derived amounts use unrestricted BigDecimal
+  addition/multiplication and no input-limit revalidation or narrowing, so
+  derived results can exceed the input digit limit without truncation.
+
+### R3 — RECOMMENDED — ACCEPTED — Resolved
+
+- Evidence: currency normalization now uses `Locale.ROOT`; the new domain
+  regression sets Turkish default locale and verifies `inr` becomes `INR`.
+  Before/after hooks capture and restore the original locale.
+- Acceptance condition satisfied: normalized currency is independent of the
+  host's default locale and the regression restores global state.
+
+### Whole-feature acceptance and verification
+
+No new findings or unresolved BLOCKING findings. All nine criteria are
+satisfied by the reviewed implementation and evidence:
+
+1. Exact division: domain and HTTP tests assert the specified 1000/100/3
+   result and all six calculated amounts.
+2. Round-up: decimal CEILING division and domain/HTTP tests establish
+   33.34 monthly, 100.02 total, and 0.02 excess for 100/0/3.
+3. Funded and one-month cases: domain tests cover equality, existing surplus
+   and the entire positive gap in one contribution; HTTP covers surplus.
+4. Month validation and reconciliation: range/fraction/missing tests plus
+   R1 regressions enforce valid counts; the arbitrary-gap domain test
+   reconciles projected amount with current amount plus contributions.
+5. Endpoint contract and determinism: controller and response mapping echo
+   inputs and expose all results/statuses; the repeated-request HTTP test
+   checks identical responses. No clock-dependent fields are introduced.
+6. Domain/HTTP validation: reviewed amount, currency and required-field
+   validation and both test classes cover the stated categories and modeled
+   edge cases; R2 and R3 regressions close the previously identified gaps.
+7. Household boundary: no persistence calls, entities, migrations, household
+   identifiers or request logging in the added implementation. Documentation
+   labels inputs temporary and discloses zero growth, fees and withdrawals.
+8. Ownership: all changed paths fall within the feature's exclusive package,
+   tests, product directory and orchestrator-owned task lifecycle file;
+   shared infrastructure and sibling packages are untouched.
+9. Independent delivery and verification: diff evidence records pre-batch
+   baseline verification (244 tests), synthetic primary API exercises, and
+   fix-round `./verify.sh` success (251 tests; 43 feature tests), with manual
+   boundary re-verification. Required CI `verify` independently confirmed
+   SUCCESS for the reviewed head:
+   https://github.com/codelinguist/waypoint/actions/runs/33973212432/job/101325282572.
+
+Verification limits: local suite and manual HTTP results above are the
+implementer's checked-in evidence reviewed in the diff, not new reviewer
+runs. CI status was independently queried. No application code was edited.
+The earlier criterion-9 note that CI was pending is superseded by this check.
+
+Feature acceptance: `ACCEPTED`. The disposable private API satisfies the
+approved outcome without new household assumptions or persistence. The
+orchestrator may merge when the required check is green on the final head;
+no separate human merge step is required.
+
+System evolution: the existing invariant and deterministic-calculation rules
+already cover these defects. The added representation and locale regressions
+address recurrence; no shared rule/template change is needed for this task.
