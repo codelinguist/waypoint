@@ -146,6 +146,194 @@
   here in case a second occurrence suggests one (e.g. a lightweight
   brief-linting pass in Codex's framing step).
 
+### 2026-09-05 — Task 008: Plan-versus-Actual Snapshot Analysis
+
+**Changed**
+
+- Added a new, additive module rather than extending
+  `FinancialSnapshotService`/`FinancialSnapshotController`, to keep this
+  task's diff isolated from Task 006/007 files per the task file's
+  independence constraint:
+  - Domain (`backend/src/main/java/com/waypoint/household/`):
+    `PlannedCurrencyTotals` (currency, `assetTotal`, `liabilityTotal`,
+    `netWorth` — the caller's disposable plan input, never persisted),
+    `VarianceDirection` (`ABOVE_PLAN`/`BELOW_PLAN`/`ON_PLAN`, deliberately
+    neutral per PD-002), `PlanVersusActualVariance` (planned, actual,
+    signed `actual - planned` variance, direction), `CurrencyPlanVersusActual`
+    (currency + one `PlanVersusActualVariance` per measure), and
+    `PlanVersusActualAnalysis` (the source `FinancialSnapshot` entity +
+    `List<CurrencyPlanVersusActual>`).
+  - `PlanVersusActualService`: a new `@Transactional(readOnly = true)`
+    service that depends only on the existing `FinancialSnapshotService`
+    (reused for household/snapshot lookup, ownership enforcement, and
+    `totalsByCurrency`, so no new repository dependency was needed). It
+    normalizes each planned currency (`trim().toUpperCase()`, matching
+    `AssetService`/`ObligationService`'s existing normalization
+    convention) before validating and diffing against actuals, so a plan
+    currency casing (e.g. `"php"`) still matches the snapshot's stored
+    `"PHP"` totals. A planned currency absent from the snapshot is
+    compared against zero actuals rather than rejected or omitted.
+  - Validation lives in the service, not bean validation, for the two
+    cross-field/cross-record rules that field-level annotations can't
+    express: duplicate currencies across the planned list, and planned
+    `netWorth` not equal to `assetTotal - liabilityTotal`. Non-negative
+    `assetTotal`/`liabilityTotal` and required/format checks (3-letter
+    currency, non-null, `Digits(17,2)`) are enforced at the DTO layer via
+    Bean Validation, matching `CreateAssetRequest`/`CreateObligationRequest`.
+    All are surfaced through one new `InvalidPlanException`, wired into
+    `ApiExceptionHandler` as `VALIDATION_FAILED` (400) alongside the
+    existing `InvalidAssetValueException`/`InvalidScheduleException`
+    precedent.
+  - `PlanVersusActualController`: `POST
+    /api/households/{householdId}/financial-snapshots/{snapshotId}/plan-comparison`,
+    returning `200 OK` (not `201`, since nothing is created). `POST` was
+    chosen over `GET` because the planned-measures list has no natural
+    query-string encoding at this size/shape (unlike Task 006's two-UUID
+    `GET .../comparison`), while still being read-only.
+  - DTOs under `com.waypoint.household.web.dto`:
+    `PlannedCurrencyTotalsRequest`, `PlanVersusActualRequest`
+    (`@NotEmpty @Valid List<PlannedCurrencyTotalsRequest> plannedMeasures`),
+    `VarianceResponse`, `CurrencyPlanVersusActualResponse`,
+    `PlanVersusActualResponse` (reuses the existing
+    `FinancialSnapshotSummaryResponse` for the source snapshot, consistent
+    with Task 006's comparison response).
+  - No Flyway migration and no new repository: this feature persists
+    nothing (matches PD-001), so there is no schema change and no
+    migration-version-collision risk with the other concurrently
+    `IN_PROGRESS` tasks.
+
+**Tests**
+
+- `PlanVersusActualServiceTest` (11 new Mockito unit tests, mocking only
+  `FinancialSnapshotService`): household-not-found and snapshot-not-found
+  both propagate unchanged from the snapshot lookup; duplicate planned
+  currency (case-insensitive: `"PHP"` + `"php"`) rejected before the
+  snapshot is even read; negative planned `assetTotal`/`liabilityTotal`
+  rejected; inconsistent planned `netWorth` rejected; `ABOVE_PLAN`,
+  `BELOW_PLAN`, and `ON_PLAN` directions computed correctly per measure;
+  a planned currency absent from the snapshot compared against zero
+  actual; currency-case normalization when matching a planned entry to
+  the snapshot's actual totals; and identical repeated calls producing an
+  equal result while only ever invoking `getSnapshot` (no other
+  interaction with the mocked collaborator, confirming no incidental
+  persistence path exists).
+- `PlanVersusActualApiIntegrationTest` (10 new
+  `@SpringBootTest`/Testcontainers integration tests): above/below-plan
+  variances across two currencies including one absent from the snapshot;
+  identical repeated requests producing byte-identical responses, then
+  independently re-reading the snapshot to confirm its line items are
+  unchanged; unknown household; unknown snapshot; cross-household
+  snapshot ownership rejected (404, not disclosing the other household's
+  snapshot); empty `plannedMeasures`; duplicate planned currencies;
+  negative planned totals; inconsistent planned net worth; and missing
+  required fields on a planned measure.
+- Full suite: `./verify.sh` — 175 tests (21 new: 11 unit + 10 integration),
+  0 failures.
+- Exercised the primary flow manually. Did **not** reuse the project's
+  shared named Postgres volume (`waypoint-postgres-data`) for this: `docker
+  compose -p waypoint-task008 up --build` briefly attached to that exact
+  volume before I noticed the "volume already exists but was created for
+  project 'waypoint'" warning in the compose output — the volume predates
+  this session (created 2026-09-02) and may hold genuine household data
+  from prior manual use, so I stopped and removed the containers
+  (`docker compose ... stop` then `down`, no `-v`) before any request
+  reached the app; nothing was read from or written to that volume. Reran
+  the smoke test instead against a fully throwaway, anonymously-named
+  `docker run postgres:16-alpine` container plus `./mvnw spring-boot:run`
+  on the host against it, then removed that container afterward. Created
+  a household, a PHP asset (120.00) and liability (30.00), and a snapshot;
+  posted a plan with `PHP` (planned 100.00/30.00/70.00) and `USD` (planned
+  50.00/0/50.00, absent from the snapshot); confirmed `PHP` returned
+  `ABOVE_PLAN` variances (+20.00 asset, +20.00 net worth) and `ON_PLAN`
+  liability, `USD` returned `BELOW_PLAN` (actual 0, variance -50.00);
+  confirmed inconsistent planned net worth returned 400; and re-read the
+  snapshot afterward to confirm its line items and totals were unchanged.
+
+**Decisions**
+
+- Kept this feature in new files rather than extending
+  `FinancialSnapshotService`/`FinancialSnapshotController`/their tests,
+  even though Task 006's comparison feature is the closer precedent and
+  reuse would have been technically simpler. The task file's independence
+  constraint is scoped to Task 007 (Goals), not Task 006, but new files
+  minimize the diff's overlap surface with any concurrently `IN_PROGRESS`
+  task touching snapshot files, at the cost of one extra service/controller
+  pair. `ApiExceptionHandler` was still edited (unavoidable — it is the
+  one shared cross-cutting registry for every domain exception), but that
+  edit is a pure addition (one import, one handler method) with low
+  collision risk.
+- Represented planned input as a full `CurrencyTotals`-shaped triple
+  (`assetTotal`, `liabilityTotal`, `netWorth`) rather than just
+  `assetTotal`/`liabilityTotal` with `netWorth` derived server-side: the
+  brief's acceptance criteria explicitly calls for validating "internally
+  consistent planned net worth," which only makes sense if the caller
+  states it explicitly and the server checks it, rather than the server
+  computing it and there being nothing to validate.
+- `netWorth` has no `@DecimalMin("0")` (unlike `assetTotal`/
+  `liabilityTotal`): a household's planned net worth can legitimately be
+  negative if planned liabilities exceed planned assets, so only the
+  *inputs* to that subtraction are constrained to be non-negative, per the
+  brief's "non-negative planned totals" language (plural — the two totals,
+  not net worth).
+- `VarianceDirection` has three states, not two: `ON_PLAN` avoids forcing
+  an exact-zero variance into an arbitrary `ABOVE_PLAN`/`BELOW_PLAN` bucket,
+  and keeps the enum a pure function of `variance.signum()`.
+
+**Assumptions**
+
+- A plan need not cover every currency present in the snapshot, and the
+  snapshot need not contain every currency in the plan — the response is
+  scoped to exactly the currencies the caller supplied (matching the
+  acceptance criterion "for every supplied currency"), with a currency
+  present in the plan but not the snapshot compared against zero actuals
+  (mirroring Task 006's precedent for a currency present in only one of
+  two compared snapshots).
+- "Complete measures" (brief, Scope > In scope) means each planned
+  currency entry must supply all three measures (`assetTotal`,
+  `liabilityTotal`, `netWorth`) — enforced via `@NotNull` per field —
+  rather than requiring the plan to cover every currency the snapshot
+  itself has.
+- Currency codes in the request are normalized (`trim().toUpperCase()`)
+  before duplicate-detection and before matching against the snapshot's
+  stored (already-uppercase) currencies, consistent with how
+  `AssetService`/`LiabilityService`/`ObligationService` normalize currency
+  on write. Duplicate detection therefore treats `"PHP"` and `"php"` as
+  the same planned currency.
+
+**Open questions**
+
+- Same shared-volume issue Task 006 already flagged under "System
+  evolution" (`agent/implementation-log.md`, 2026-09-05, Task 006) recurred
+  here, almost silently, in a second worker session: `docker-compose.yml`
+  hardcodes `volumes.waypoint-postgres-data.name: waypoint-postgres-data`,
+  so it is not scoped per Compose project and every `docker compose ...
+  up` on this machine attaches to the same physical volume regardless of
+  `-p`. This is no longer a hypothetical risk — it has now caused two
+  independent worker sessions to nearly run manual smoke-test data against
+  what may be genuine household data. Recommend this become its own small,
+  explicit follow-up task (not folded into either feature): either
+  parameterize the volume name per Compose project/environment variable,
+  or add an explicit, documented scratch-volume convention (e.g. in
+  `AGENTS.md` or `README.md`) that every future manual-verification step
+  is required to follow. Flagging again here rather than fixing it
+  unilaterally, since it is repository-wide infrastructure outside this
+  task's scope and both Task 006 and this task independently deferred it
+  to a human/Product-Owner decision.
+- Same deferred items as the product brief: whether future plans should
+  gain persistence, effective dates, provenance, or approval state; which
+  measures beyond asset/liability/net-worth totals should be plannable;
+  and whether any measure should get a household-approved
+  favorable/unfavorable rule.
+
+**Recommended next task**
+
+- A small, standalone follow-up to fix or document the shared
+  `waypoint-postgres-data` Compose volume (see "Open questions" above),
+  since it has now surfaced independently in two consecutive tasks.
+- Otherwise, per the product brief's follow-up opportunities: persisted/
+  versioned plans, or goal-aware plan-versus-actual once Task 007's Goals
+  domain lands.
+
 ### 2026-09-05 — First live run of the automated pipeline (Task 006), three bugs found and fixed
 
 **Changed**
