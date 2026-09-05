@@ -1,5 +1,5 @@
 ---
-status: IN_REVIEW
+status: MERGED
 task_number: 007
 feature_slug: goals
 branch: task/007-goals
