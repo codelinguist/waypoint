@@ -1,11 +1,11 @@
 ---
-status: IN_REVIEW
+status: MERGED
 task_number: 008
 feature_slug: plan-versus-actual
 branch: task/008-plan-versus-actual
 worktree: /Users/rj/Documents/projects/waypoint-orchestrator/worktrees/task-008-plan-versus-actual
 session: caa97e54
-pr:
+pr: 10
 claimed_at: 2026-09-05T11:08:33Z
 fix_rounds: 0
 ---
