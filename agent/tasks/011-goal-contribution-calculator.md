@@ -1,12 +1,12 @@
 ---
-status: QUEUED
+status: IN_PROGRESS
 task_number: 011
 feature_slug: goal-contribution-calculator
-branch:
-worktree:
-session:
+branch: task/011-goal-contribution-calculator
+worktree: /Users/rj/Documents/projects/waypoint-orchestrator/worktrees/task-011-goal-contribution-calculator
+session: 4ff51e25
 pr:
-claimed_at:
+claimed_at: 2026-09-05T13:44:05Z
 fix_rounds: 0
 ---
 

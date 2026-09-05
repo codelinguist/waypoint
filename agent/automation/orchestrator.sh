@@ -57,6 +57,30 @@ require_tools() {
   done
 }
 
+ensure_authenticated_remote() {
+  # cron runs in a different macOS security session than an interactive
+  # login shell. The osxkeychain git credential helper depends on
+  # session identity for some keychain items, not just environment
+  # variables -- confirmed live: cron's git push/fetch failed with
+  # "could not read Username ... Device not configured" (git falling
+  # through to an interactive prompt with no TTY to prompt on) even
+  # though PATH and Full Disk Access were both already fixed. Embedding
+  # gh's token directly in this clone's remote URL sidesteps the
+  # keychain/session dependency entirely -- it's a plain value in a
+  # local, uncommitted .git/config, not looked up via the keychain at
+  # request time. Re-applied every run (cheap, idempotent) so a rotated
+  # token is always picked up.
+  local https_url token host_and_path
+  https_url="$(git -C "$REPO_ROOT" remote get-url origin)"
+  token="$(gh auth token 2>/dev/null || true)"
+  if [[ -n "$token" ]]; then
+    host_and_path="${https_url#https://}"
+    git -C "$CONTROL_DIR" remote set-url origin "https://x-access-token:${token}@${host_and_path}"
+  else
+    log "ensure_authenticated_remote: 'gh auth token' returned nothing; leaving existing remote URL as-is."
+  fi
+}
+
 sync_control_clone() {
   if [[ ! -d "$CONTROL_DIR/.git" ]]; then
     local origin_url
@@ -64,6 +88,7 @@ sync_control_clone() {
     log "Cloning control clone from $origin_url into $CONTROL_DIR"
     git clone --quiet "$origin_url" "$CONTROL_DIR"
   fi
+  ensure_authenticated_remote
   git -C "$CONTROL_DIR" fetch origin main --quiet
   git -C "$CONTROL_DIR" checkout main --quiet
   git -C "$CONTROL_DIR" reset --hard origin/main --quiet
