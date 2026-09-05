@@ -1,5 +1,5 @@
 ---
-status: IN_PROGRESS
+status: IN_REVIEW
 task_number: 007
 feature_slug: goals
 branch: task/007-goals

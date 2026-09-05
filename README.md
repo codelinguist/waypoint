@@ -252,6 +252,36 @@ create/read-only (no update or delete), and duplicate `asOfDate` values
 across snapshots are permitted since each capture is a distinct observation.
 Every created snapshot is stamped `sourceType: "MANUAL_ENTRY"` by the server.
 
+Financial goals record a household's monetary targets and their progress:
+
+```bash
+curl -X POST http://localhost:8080/api/households/{householdId}/goals \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "name": "Retirement",
+        "targetAmount": "1000000.00",
+        "currency": "PHP",
+        "targetDate": "2046-01-01",
+        "priority": 1,
+        "currentAmount": "50000.00"
+      }'
+
+curl http://localhost:8080/api/households/{householdId}/goals
+curl http://localhost:8080/api/households/{householdId}/goals/{goalId}
+```
+
+`targetAmount` must be greater than 0; `currentAmount` is caller-supplied and
+must not be negative — the system never infers it from assets, liabilities,
+or snapshots. `targetDate` must not be in the past (today or later).
+`priority` is a positive integer where lower numbers are higher priority;
+list results are ordered by ascending priority. Every response also returns
+computed `remainingAmount` (`targetAmount - currentAmount`, which can go
+negative for an overachieved goal) and `progressPercentage`
+(`currentAmount / targetAmount * 100`, bounded to `[0, 100]`) — both are
+derived on every read from the stored amounts, never stored themselves, so
+they can never drift out of sync. Goals are create/read-only in this
+increment (no update, delete, or contribution history).
+
 ### Stopping and resetting
 
 ```bash
@@ -334,5 +364,6 @@ records), and Phase 3 (Income and Recurring Obligations) are implemented and
 accepted. Task 003 (automated delivery gates: `verify.sh`, the required CI
 check, and branch protection) is implemented and accepted. Phase 4
 (Financial Position Snapshots) is implemented and pending Product Owner
-acceptance. See `agent/implementation-log.md` for the current state and next
-recommended task.
+acceptance. Phase 5 (Household Financial Goals) is implemented and pending
+Product Owner acceptance. See `agent/implementation-log.md` for the current
+state and next recommended task.

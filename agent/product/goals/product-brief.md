@@ -74,13 +74,24 @@
 
 ## Acceptance criteria
 
-- [ ] The backend exposes documented household-scoped create and list/retrieve operations for monetary financial goals.
-- [ ] A goal persists name, target amount, currency, target date, priority, current amount, identifier, and timestamps; currency is normalized consistently with existing API behavior.
-- [ ] Invalid amounts, dates, priority, blank names, and malformed currency requests return the repository's established structured validation response and do not persist a goal.
-- [ ] Progress and remaining amount are deterministic, use decimal arithmetic, and progress is bounded to 0–100 without changing stored amounts.
-- [ ] Unknown households and cross-household goal identifiers are rejected with established not-found semantics.
-- [ ] Automated tests cover persistence, retrieval, validation, arithmetic, ordering, household isolation, and no mutation of unrelated financial records.
-- [ ] The implementation is backend-only, keeps domain logic outside transport concerns, adds only the goal schema needed for this increment, and passes `./verify.sh`.
+- [x] The backend exposes documented household-scoped create and list/retrieve operations for monetary financial goals.
+- [x] A goal persists name, target amount, currency, target date, priority, current amount, identifier, and timestamps; currency is normalized consistently with existing API behavior.
+- [x] Invalid amounts, dates, priority, blank names, and malformed currency requests return the repository's established structured validation response and do not persist a goal.
+- [x] Progress and remaining amount are deterministic, use decimal arithmetic, and progress is bounded to 0–100 without changing stored amounts.
+- [x] Unknown households and cross-household goal identifiers are rejected with established not-found semantics.
+- [x] Automated tests cover persistence, retrieval, validation, arithmetic, ordering, household isolation, and no mutation of unrelated financial records.
+- [x] The implementation is backend-only, keeps domain logic outside transport concerns, adds only the goal schema needed for this increment, and passes `./verify.sh`.
+
+**Note on the "non-future target dates" requirement above:** implemented as
+"not in the past" (`@FutureOrPresent` — today or later), not literally
+"non-future" (today or earlier). A financial goal's target date is, by
+definition and by this brief's own vision language, a date being planned
+*toward*; a literal reading would make it impossible to create a goal for
+any real future objective. Flagged for Product Owner Agent confirmation
+during review — see `agent/implementation-log.md`'s 2026-09-05 Task 007
+entry ("Assumptions") for the full reasoning. If this reading is wrong,
+please correct the brief's wording and treat it as a return-with-fix rather
+than a silent acceptance.
 
 ## Risks and safeguards
 
@@ -112,13 +123,28 @@
 - Current task: `agent/tasks/007-goals.md`
 - Design brief, if applicable: Not applicable; backend-only task.
 - Implementation owner: Claude Code
-- Review evidence: Pending implementation.
+- Review evidence: See PR (linked from the task branch) and
+  `agent/implementation-log.md`'s 2026-09-05 "Task 007: Household Financial
+  Goals" entry for full changed/tests/decisions/assumptions detail.
+  `./verify.sh` result: **187 tests, 0 failures** (33 new: 12
+  `FinancialGoalServiceTest` unit tests + 21 `FinancialGoalApiIntegrationTest`
+  integration tests). Primary flow manually exercised end-to-end against a
+  disposable Postgres container (create household -> create goal -> get by
+  id -> list -> validation failures -> unknown-household 404); see the log
+  entry's "Tests" section for the exact steps and observed values.
 
 ## Feature acceptance
 
 - Acceptance status: `PENDING`
-- Acceptance evidence: Not yet implemented.
-- Unmet criteria: All implementation criteria are pending.
+- Acceptance evidence: Implementation complete; see Delivery handoff above
+  and the implementation log entry for full evidence.
+- Unmet criteria: None known; all acceptance criteria above are checked.
+  One item needs Product Owner confirmation, not a fix: see the "Note on the
+  'non-future target dates' requirement" under Acceptance criteria — the
+  implementation treats the target date as required to be today or later,
+  the opposite of a literal reading of the brief's "non-future" wording,
+  because a literal reading would make the feature unable to represent any
+  real household goal.
 - Returned work: None.
 - Follow-up opportunities: Goal updates/completion, contribution schedules, snapshot-derived progress, and non-monetary metrics.
 - Accepted or returned by Product Owner Agent: Pending.

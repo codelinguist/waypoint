@@ -1,5 +1,151 @@
 # Implementation Log
 
+### 2026-09-05 — Task 007: Household Financial Goals
+
+**Changed**
+
+- Added a `FinancialGoal` JPA entity (`backend/src/main/java/com/waypoint/household/`):
+  household, `name`, `targetAmount`, `currency`, `targetDate`, `priority`,
+  explicit `currentAmount`, plus `id`/`createdAt`/`updatedAt`, following the
+  existing `Asset`/`Liability` field/annotation style. No update or delete
+  path exists, matching the task's out-of-scope list.
+- Added `FinancialGoalRepository` (`findByHousehold_IdOrderByPriorityAscCreatedAtAscIdAsc`,
+  `findByIdAndHousehold_Id`), `FinancialGoalNotFoundException`, and
+  `FinancialGoalService` (household-scoped create/get/list, matching the
+  `AssetService` not-found and normalization pattern: trims `name`,
+  uppercases `currency`). Progress arithmetic
+  (`FinancialGoalService.remainingAmount`/`progressPercentage`) is exposed as
+  static, DB-independent methods so it is callable and testable without a
+  request context, per `AGENTS.md`'s "financial calculations must be callable
+  without an LLM" and "deterministic and testable" rules.
+- Added `FinancialGoalController` under `/api/households/{householdId}/goals`
+  (`POST`, `GET /{id}`, `GET` list), `CreateFinancialGoalRequest` (Bean
+  Validation: non-blank name, `targetAmount > 0`, non-negative
+  `currentAmount`, both `@Digits(integer=17, fraction=2)`, 3-letter
+  `currency`, `@FutureOrPresent targetDate`, `priority >= 1`), and
+  `FinancialGoalResponse` (adds computed `remainingAmount` and
+  `progressPercentage` alongside the stored fields — PD-002: progress is
+  derived on read, never stored).
+- Wired `FinancialGoalNotFoundException` into `ApiExceptionHandler`
+  (`FINANCIAL_GOAL_NOT_FOUND`, 404).
+- Added Flyway migration `V5__create_financial_goals.sql`: `financial_goals`
+  table with `CHECK (target_amount > 0)`, `CHECK (current_amount >= 0)`,
+  `CHECK (priority > 0)`, and a household FK+index. Task 008
+  (plan-versus-actual) is running in a parallel worktree off the same `main`;
+  this migration only touches a new `financial_goals` table and does not
+  edit any Task 008 file, per the task's independence constraint.
+
+**Tests**
+
+- `FinancialGoalServiceTest` (Mockito unit tests, 12 cases): household-not-
+  found on create/get/list; name trimming and currency uppercasing on
+  create; cross-household get returns not-found; priority-ordered listing;
+  `remainingAmount` for a normal and an overachieved (current > target)
+  goal; `progressPercentage` at a mid-range value, clamped to 100 when
+  current exceeds target, clamped to 0 at zero current amount; and a test
+  that computing progress does not mutate the entity's stored amounts.
+- `FinancialGoalApiIntegrationTest` (`@SpringBootTest` +
+  `@AutoConfigureMockMvc` + Testcontainers `PostgreSQLContainer`, real Flyway
+  migration run, 21 cases): create/retrieve with computed `remainingAmount`/
+  `progressPercentage` in the response; lowercase-currency normalization;
+  progress bounded at 100% with a negative `remainingAmount` for an
+  overachieved goal; rejection of zero/negative `targetAmount`, negative
+  `currentAmount`, blank name, malformed currency, a past `targetDate`
+  (today itself is accepted), zero/negative `priority`, excessive fractional
+  scale, and precision overflow; unknown-household 404 on create and on get;
+  cross-household get returns `FINANCIAL_GOAL_NOT_FOUND` without disclosing
+  the record; empty list for a new household; list ordered by ascending
+  priority regardless of creation order; household isolation between two
+  households' goal lists; and a check that creating a goal does not alter an
+  existing asset in the same household.
+- Full suite: `./verify.sh` — 187 tests (33 new: 12 unit + 21 integration),
+  0 failures, Flyway migrating a clean database through V1 -> V5
+  automatically.
+- Exercised the primary flow manually: started a disposable Postgres
+  container (`docker run ... postgres:16-alpine`, since no local Postgres or
+  `docker compose` stack was already running in this environment) and ran
+  `./mvnw spring-boot:run` against it. Created a household, created a
+  "Retirement" goal (`targetAmount` 1,000,000.00 PHP, `currentAmount`
+  50,000.00, lowercase `currency` "php"), confirmed the response normalized
+  currency to "PHP" and computed `remainingAmount` 950,000.00 and
+  `progressPercentage` 5.00; retrieved the goal by ID and via the list
+  endpoint; confirmed a blank name and a past `targetDate` both return
+  `VALIDATION_FAILED`/400; confirmed an unknown household returns
+  `HOUSEHOLD_NOT_FOUND`/404; tore the container down afterward.
+
+**Decisions**
+
+- List goals ordered by ascending `priority` (then `createdAt`, then `id`),
+  not creation order. The product brief defines priority as "lower numbers
+  are higher priority" but does not specify list ordering; every existing
+  list endpoint (`Asset`, `Liability`, `IncomeStream`, `Obligation`) orders
+  by creation order because none of those domains has a priority field.
+  Ordering goals by priority is the one ordering that makes the response
+  directly useful for the goal's own purpose (seeing what matters most
+  first) without a client-side sort, and Task 008-Plan-vs-Actual is not
+  depended on for this. Flagged as an assumption for Product Owner review
+  since it is not explicit in the brief.
+- `remainingAmount` is left unclamped (can go negative for an overachieved
+  goal) while only `progressPercentage` is bounded to [0, 100]. The brief's
+  PD-002 only calls the percentage "bounded"; clamping the remaining amount
+  too would hide that a goal has been exceeded, which is itself useful,
+  auditable information.
+- Did not add a goal-specific "invalid value" exception (unlike `Asset`'s
+  `InvalidAssetValueException` for its cross-field `planningValue <=
+  estimatedValue` rule): every Goal validation rule in the brief is a
+  single-field constraint expressible in Bean Validation on
+  `CreateFinancialGoalRequest`, so no service-level cross-field check exists
+  to need one (AGENTS.md principle 9: don't add infrastructure before it's
+  required).
+
+**Assumptions**
+
+- **Flagged brief/domain conflict, resolved in favor of domain sense:** the
+  product brief's Scope section says validation should enforce "non-future
+  target dates," but a financial goal's target date is, by definition and by
+  the roadmap's own examples ("delays a mortgage, education, or retirement
+  goal"), a date the household is planning *toward* — i.e. it must not
+  already be in the past. Implementing "non-future" literally (target date
+  must be today or earlier) would make it impossible to create a goal for
+  any real future objective. Implemented `@FutureOrPresent` (target date
+  today or later) instead of `@PastOrPresent`. This is very likely a
+  drafting inversion in the brief rather than an intentional constraint; per
+  this task's unattended-worker instructions, proceeding with the smallest
+  safe (domain-sensible) assumption rather than stalling, and recording it
+  here plus in the product brief's acceptance-evidence section for Codex to
+  confirm or correct during review.
+- List ordering by priority (see Decisions above) is an assumption, not a
+  stated requirement; Codex may prefer creation order instead.
+- No goal-to-snapshot, goal-to-obligation, or goal-to-plan-versus-actual
+  relationship was added; `currentAmount` is entirely caller-supplied, per
+  the brief's explicit out-of-scope boundary.
+
+**Open questions**
+
+- Should the brief's "non-future target dates" wording (see Assumptions) be
+  corrected to "non-past" / "future-or-present" so future workers don't
+  re-derive this from scratch?
+- Same as the product brief: whether goals later need contributions,
+  milestones, person ownership, multiple metric types, or snapshot-derived
+  progress are all deferred.
+
+**Recommended next task**
+
+- Correct the product brief's target-date wording (see Open questions), and
+  consider a small `docs/`/`AGENTS.md` note that acceptance-criteria wording
+  conflicts found by an unattended worker should be called out explicitly in
+  the PR description (this task's "System evolution" candidate — see below).
+
+**System evolution candidate**
+
+- This is the first task where an unattended worker found a plausible
+  wording inversion in an already-`READY` product brief with no one to ask.
+  `agent/collaboration-workflow.md` already tells an implementer to record
+  such an assumption and keep going, which is what happened here — no
+  process gap found beyond that. Not proposing a rule change; recording this
+  here in case a second occurrence suggests one (e.g. a lightweight
+  brief-linting pass in Codex's framing step).
+
 ### 2026-09-05 — First live run of the automated pipeline (Task 006), three bugs found and fixed
 
 **Changed**
