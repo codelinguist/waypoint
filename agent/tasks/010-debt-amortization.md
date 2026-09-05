@@ -7,7 +7,7 @@ worktree: /Users/rj/Documents/projects/waypoint-orchestrator/worktrees/task-010-
 session: f312039b
 pr:
 claimed_at: 2026-09-05T13:43:59Z
-fix_rounds: 0
+fix_rounds: 1
 conflict_rounds: 0
 ---
 
