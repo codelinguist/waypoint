@@ -1,0 +1,118 @@
+# Product Brief: Constant Monthly Cash-Flow Projection
+
+## Status
+
+`READY`
+
+## Ownership
+
+- Product Owner Agent: Codex
+- User(s): Ralph and his wife
+- Created at: 2026-09-06
+- Last updated at: 2026-09-06
+
+## User input
+
+- Problem as presented: Frame three tasks for parallel execution.
+- Examples or evidence supplied: Phase 7 names cash-flow projection; existing runway handles one ratio but does not show a dated balance path or first shortfall month.
+- Corrections and constraints supplied: Use the worktree-based concurrent workflow.
+- Explicit preferences: Three implementation-ready tasks.
+
+## Product framing
+
+- Underlying problem: A household needs to see how an explicit starting cash balance changes month by month under explicit constant inflow and outflow assumptions.
+- Primary user: Ralph and his wife through the trusted private API.
+- Desired outcome: Produce a deterministic dated projection, lowest balance, and first negative month without reading or changing stored household state.
+- Success measure: A caller can inspect and reconcile every projected month and clearly see whether and when cash becomes negative.
+- Priority and rationale: This completes a named Phase 7 primitive while staying independent from the new persisted-assumption model and future Scenario Engine.
+
+## Knowledge classification
+
+### Confirmed inputs
+
+- The roadmap calls for cash-flow projection and scenario analysis must remain non-destructive.
+- Current income and obligation records exist, but this parallel task must not couple to persistence or infer which records apply.
+
+### Product assumptions to validate
+
+- A constant monthly aggregate model is useful as the smallest projection before irregular dated events and stored-state integration.
+
+### Open questions
+
+- Variable schedules, inflation, multiple currencies, stored-state selection, and scenario overlays remain follow-ups.
+
+## Scope
+
+### In scope
+
+- Required currency, `startMonth` (`YYYY-MM`), non-negative starting cash, non-negative constant monthly inflow, non-negative constant monthly outflow, and whole projection months from 1 through 1200.
+- For each month return opening cash, inflow, outflow, signed net cash flow, and closing cash, with `closing = opening + inflow - outflow`; negative balances are valid modeled results.
+- Return ending cash, lowest closing balance and its first month, and nullable first negative closing-balance month.
+- Return statuses `REMAINS_NONNEGATIVE`, `BECOMES_NEGATIVE`, or `STARTS_NEGATIVE`; because starting cash is otherwise non-negative, omit `STARTS_NEGATIVE` unless negative starting balances are intentionally allowed. This brief chooses non-negative starting cash and therefore uses only the first two statuses.
+- Enforce bounded two-decimal money inputs and overflow-safe derived values; normalize currency independently of locale.
+- Expose `POST /api/planning/cash-flow-projection`, pure domain logic, HTTP mapping, dedicated tests, and feature-local API documentation.
+
+### Out of scope
+
+- Persistence, household/entity access, automatically aggregating income/obligations, multiple currencies, exchange rates, irregular events, interest, inflation, taxes, recommendations, UI, Plan/Scenario persistence, or AI behavior.
+
+## User flow or behavior
+
+1. A caller supplies an explicit start month and temporary constant cash-flow inputs.
+2. The API validates and produces ordered monthly rows.
+3. The caller sees the lowest and first negative month and can reconcile every balance.
+4. Repeating with changed inputs creates no saved state.
+
+## Acceptance criteria
+
+- [ ] Starting January 2027 with cash 1000.00, inflow 300.00, outflow 500.00, and 6 months yields closes 800, 600, 400, 200, 0, -200; status `BECOMES_NEGATIVE`, first negative June 2027, and lowest -200 in June.
+- [ ] Equal inflow/outflow preserves the starting balance; positive net flow increases it; zero starting cash with zero flows remains nonnegative.
+- [ ] Each row reconciles exactly and the next opening equals the previous closing; month labels advance correctly across year boundaries.
+- [ ] If the same lowest balance occurs more than once, the first month is returned; first negative means strictly below zero, not zero.
+- [ ] Months reject missing, fractional, zero, negative, overflow, and above 1200; monetary inputs reject negatives and excessive precision/scale without silent rounding at domain and HTTP boundaries.
+- [ ] Derived balances are not truncated by input precision bounds; currency normalization is locale-independent and inputs are not logged.
+- [ ] Identical requests return identical clock-free responses with no persistence, migration, household lookup, or sibling dependency.
+- [ ] All changes remain in Task 014's exclusive paths; `./verify.sh` passes and synthetic primary/edge flows are exercised.
+
+## Risks and safeguards
+
+- Financial-data or household-approval boundary: Inputs are temporary assumptions; the projection does not approve spending, change canonical data, or claim the household's actual future cash path.
+- Privacy or sensitive-data considerations: Stateless private endpoint, synthetic evidence, no request-value logging.
+- Accessibility considerations: Backend-only; dates, signs, status, and conventions must be explicit text/data rather than color.
+- Failure or misuse risks: Documentation must state that constant aggregate flows exclude timing within a month and irregular events.
+
+## Product decisions
+
+### PD-001 — Use explicit aggregate inputs rather than stored-state integration
+
+- Decision: Project one currency from caller-supplied constant monthly totals and a stated start month.
+- Evidence: This is the smallest Phase 7 projection and avoids depending on Task 012 while both run concurrently.
+- Alternatives considered: Aggregate persisted incomes/obligations; full scenario engine; daily projection.
+- Rationale: Delivers an auditable primitive without guessing applicability or creating cross-task dependencies.
+- User input required: `NO` — no household values or policies are chosen.
+
+### PD-002 — Isolate the parallel implementation
+
+- Decision: Exclusive ownership of `com.waypoint.planning.cashflow/**`, matching tests, `agent/product/cash-flow-projection/**`, and its lifecycle file. No migration or shared-file edits.
+- Evidence: Stateless additive code can be implemented independently.
+- Alternatives considered: Shared planning abstractions and existing household-package edits.
+- Rationale: Avoids merge conflicts and premature infrastructure.
+- User input required: `NO`.
+
+## Delivery handoff
+
+- Current task: `agent/tasks/014-cash-flow-projection.md`
+- Design brief, if applicable: Not applicable; backend-only.
+- Implementation owner: Claude Code in `task/014-cash-flow-projection`.
+- Review evidence: Pending. Use `agent/product/cash-flow-projection/implementation-log.md` and `api.md`; shared docs are deferred until after the batch.
+
+## Feature acceptance
+
+- Acceptance status: `PENDING`
+- Acceptance evidence:
+- Unmet criteria: Pending implementation.
+- Returned work:
+- Follow-up opportunities: Irregular events, persisted-state aggregation, multiple currencies, dated scenarios, and plan integration.
+- Accepted or returned by Product Owner Agent:
+- Accepted or returned at:
+
