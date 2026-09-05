@@ -1,11 +1,11 @@
 ---
-status: IN_REVIEW
+status: MERGED
 task_number: 011
 feature_slug: goal-contribution-calculator
 branch: task/011-goal-contribution-calculator
 worktree: /Users/rj/Documents/projects/waypoint-orchestrator/worktrees/task-011-goal-contribution-calculator
 session: 5c27b89a
-pr:
+pr: 15
 claimed_at: 2026-09-05T13:44:05Z
 fix_rounds: 1
 conflict_rounds: 0
