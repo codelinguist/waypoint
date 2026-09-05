@@ -69,8 +69,15 @@ push_control_main() {
   fi
   git -C "$CONTROL_DIR" commit --quiet -m "$msg"
   if ! git -C "$CONTROL_DIR" push --quiet origin main; then
-    git -C "$CONTROL_DIR" pull --rebase --quiet origin main
-    git -C "$CONTROL_DIR" push --quiet origin main
+    if ! git -C "$CONTROL_DIR" pull --rebase --quiet origin main || ! git -C "$CONTROL_DIR" push --quiet origin main; then
+      # A genuine conflict, not just a fast-forward gap. Bail out to a clean
+      # state rather than leaving the control clone mid-rebase (which
+      # previously crashed the whole script and blocked every later PR in
+      # the same run from being processed at all).
+      git -C "$CONTROL_DIR" rebase --abort 2>/dev/null || true
+      log "push_control_main: conflict pushing '$msg'; left un-pushed, needs manual resolution in $CONTROL_DIR."
+      return 1
+    fi
   fi
 }
 
@@ -268,6 +275,22 @@ try_merge() {
     return 0
   fi
 
+  # A sibling task can merge in between this PR opening and this check --
+  # both edited the same shared file (README's status prose,
+  # agent/implementation-log.md's shared append point, or a genuinely
+  # overlapping code file) and this branch is no longer cleanly mergeable.
+  # Confirmed against two real parallel tasks. Self-heal with a bounded
+  # rebase-and-resolve round rather than repeatedly failing gh pr merge.
+  local mergeable_state
+  mergeable_state="$(gh pr view "$pr_number" --repo "$REPO_SLUG" --json mergeable --jq '.mergeable' 2>/dev/null || echo UNKNOWN)"
+  if [[ "$mergeable_state" == "CONFLICTING" ]]; then
+    handle_conflict "$pr_number" "$branch" "$task_file"
+    return 0
+  elif [[ "$mergeable_state" != "MERGEABLE" ]]; then
+    log "PR #$pr_number: mergeable state is '$mergeable_state' (GitHub may not have computed it yet), not merging yet."
+    return 0
+  fi
+
   if ! check_migration_collision "$branch"; then
     set_frontmatter_field "$task_file" status STALLED
     push_control_main "Task $branch stalled: Flyway migration version collision against main"
@@ -276,6 +299,14 @@ try_merge() {
   fi
 
   if gh pr merge "$pr_number" --repo "$REPO_SLUG" --squash --delete-branch; then
+    # gh pr merge's squash commit brings the PR branch's own last edit to
+    # $task_file (e.g. status: IN_REVIEW, set by the worker) into
+    # origin/main via GitHub's API -- a purely remote change this clone
+    # doesn't know about yet. Editing $task_file locally without syncing
+    # first diverges from that squash commit and fails to push as a
+    # conflicting rebase (confirmed against a real merge).
+    git -C "$CONTROL_DIR" fetch origin main --quiet
+    git -C "$CONTROL_DIR" reset --hard origin/main --quiet
     set_frontmatter_field "$task_file" status MERGED
     set_frontmatter_field "$task_file" pr "$pr_number"
     push_control_main "Task $branch merged automatically via PR #$pr_number"
@@ -286,6 +317,53 @@ try_merge() {
   else
     log "PR #$pr_number ($branch): gh pr merge failed; will retry next run."
   fi
+}
+
+handle_conflict() {
+  local pr_number="$1" branch="$2" task_file="$3"
+  local fix_rounds
+  fix_rounds="$(frontmatter_field "$task_file" fix_rounds)"
+  [[ -z "$fix_rounds" ]] && fix_rounds=0
+
+  if (( fix_rounds >= MAX_FIX_ROUNDS )); then
+    set_frontmatter_field "$task_file" status STALLED
+    push_control_main "Task $branch stalled: merge conflict against main, exhausted $MAX_FIX_ROUNDS automatic rebase attempts"
+    log "PR #$pr_number ($branch): merge conflict persists after $MAX_FIX_ROUNDS attempts; marked STALLED for a human."
+    return 0
+  fi
+
+  fix_rounds=$((fix_rounds+1))
+  local wt_dir
+  wt_dir="$(frontmatter_field "$task_file" worktree)"
+  if [[ -z "$wt_dir" || ! -d "$wt_dir" ]]; then
+    wt_dir="$WORKTREE_ROOT/$(echo "$branch" | tr '/' '-')"
+    git -C "$CONTROL_DIR" fetch origin "$branch" --quiet
+    git -C "$CONTROL_DIR" worktree add "$wt_dir" "$branch" --quiet
+  else
+    # Always sync to the true remote tip before handing this worktree to a
+    # worker, even if it already exists -- a worktree left over from an
+    # earlier dispatch can be arbitrarily behind origin (e.g. Codex's own
+    # review commit landed after the worktree was created), and resolving
+    # conflicts from a stale base produces a merge that silently drops
+    # commits instead of a real conflict. Confirmed the hard way: an
+    # earlier manual fix on this exact class of bug had to be redone after
+    # being caught doing precisely this.
+    git -C "$wt_dir" fetch origin "$branch" --quiet
+    git -C "$wt_dir" reset --hard "origin/$branch" --quiet
+  fi
+
+  set_frontmatter_field "$task_file" status IN_PROGRESS
+  set_frontmatter_field "$task_file" worktree "$wt_dir"
+  set_frontmatter_field "$task_file" fix_rounds "$fix_rounds"
+  push_control_main "Rebase round $fix_rounds for $branch (merge conflict against main)"
+
+  local fix_note="This branch's PR now conflicts with main -- almost certainly because a sibling task merged in the meantime and touched the same shared file (commonly README.md's Status/endpoint-docs prose or agent/implementation-log.md's shared append point). Run: git fetch origin main && git merge origin/main. Resolve every conflict by KEEPING BOTH sides' additions where they are independent content -- two different doc sections, two different implementation-log entries, two different exception handlers or endpoints -- never drop the other task's work to make yours look cleaner. Only if the conflict is a genuine logical clash in application code (not docs/log prose, and not two independent additions like separate methods) should you use judgment about which version is correct, and record that decision explicitly in agent/implementation-log.md. Do not resolve a conflict in a Flyway migration's version number yourself -- if the conflict involves that, stop and set this task file's status to STALLED with an explanation instead, since that needs a human decision. Once resolved, re-run ./verify.sh to confirm the merge actually builds, commit the merge, and push."
+  local session_id
+  session_id="$(dispatch_worker "$task_file" "$branch" "$wt_dir" "$fix_note" "task-rebase${fix_rounds}-$(echo "$branch" | tr '/' '-')")"
+  set_frontmatter_field "$task_file" session "${session_id:-unknown}"
+  push_control_main "Record rebase-round worker session for $branch"
+
+  log "PR #$pr_number ($branch): dispatched rebase round $fix_rounds to resolve merge conflict (session ${session_id:-unknown})."
 }
 
 handle_blocking() {
@@ -333,7 +411,14 @@ review_and_merge_phase() {
     --jq '.[] | select(.headRefName | startswith("task/")) | "\(.number)\t\(.headRefName)"' 2>/dev/null || true)"
   [[ -z "$prs" ]] && { log "No open task/* PRs."; return 0; }
 
-  while IFS=$'\t' read -r pr_number branch; do
+  # Read the PR list from fd 3, not stdin (fd 0): codex exec, called deep
+  # inside this loop's body, is an interactive-capable CLI that can read
+  # from/seek on whatever it inherits as stdin. Sharing fd 0 with the
+  # loop's own `read` let it silently consume the remaining lines of $prs
+  # after the first PR was processed -- the second PR in the list was
+  # never even attempted, with no error and no log line, because the
+  # loop's next `read` just saw EOF. Confirmed against a real two-PR run.
+  while IFS=$'\t' read -r -u 3 pr_number branch; do
     [[ -z "$pr_number" ]] && continue
     local task_file
     if ! task_file="$(find_task_file_for_branch "$branch")"; then
@@ -365,7 +450,7 @@ review_and_merge_phase() {
       BLOCKING) handle_blocking "$pr_number" "$branch" "$task_file" ;;
       *) log "PR #$pr_number: no usable verdict yet." ;;
     esac
-  done <<< "$prs"
+  done 3<<< "$prs"
 }
 
 main() {

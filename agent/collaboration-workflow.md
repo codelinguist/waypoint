@@ -132,6 +132,20 @@ for throughput:
 - A `BLOCKING` review gets a bounded number of automatic fix rounds (default
   2, `agent/tasks/README.md`'s `fix_rounds` field) before the task is marked
   `STALLED` for a human instead of looping indefinitely.
+- Two parallel tasks independently touching the same shared file (most
+  often `README.md`'s Status prose or `agent/implementation-log.md`'s
+  append point, occasionally an actual shared code file like
+  `ApiExceptionHandler`) is expected, not a bug, once more than one task is
+  ever `IN_PROGRESS` at a time. Prevention: `agent/automation/
+  worker-prompt.md` has each worker merge `main` into its own branch and
+  resolve conflicts (keeping both sides' independent additions) before
+  opening its PR. Self-healing for a conflict that appears later anyway
+  (introduced by a sibling task merging afterward): the orchestrator
+  detects `gh pr view --json mergeable == CONFLICTING` at merge time and
+  dispatches the same bounded number of automatic rounds as a `BLOCKING`
+  finding does, with the worker doing the actual rebase-and-resolve, before
+  falling back to `STALLED`. Confirmed against a real two-task run where
+  both mechanisms were needed.
 - The orchestrator's own git operations (claiming tasks, running Codex's
   review, merging) happen in a dedicated clone under
   `../waypoint-orchestrator/`, never in a human's interactive checkout — see

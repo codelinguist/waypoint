@@ -1,5 +1,157 @@
 # Implementation Log
 
+### 2026-09-05 — Parallel dispatch of Tasks 007/008, four more orchestrator bugs, and self-healing merge conflicts
+
+**Changed**
+
+- Framed and queued Tasks 007 (Goals domain) and 008 (Plan-versus-Actual)
+  via Codex in one pass, deliberately chosen to be mutually independent
+  (own files/migrations, no shared dependency) so they could be dispatched
+  into separate worktrees in the same orchestrator pass. Confirmed genuine
+  parallel execution directly via `claude agents --json`: both sessions
+  showed `status: busy, state: working` simultaneously, as separate OS
+  processes, seconds apart.
+- Installed the cron entry from `agent/automation/README.md`
+  (`*/5 * * * *`). It fires on schedule but fails immediately with `bash:
+  .../orchestrator.sh: Operation not permitted` -- almost certainly macOS
+  blocking `cron` itself from `~/Documents` without Full Disk Access
+  (System Settings -> Privacy & Security). Not yet granted; every dispatch/
+  review/merge in this entry was still run by hand.
+- Fixed four more real bugs found running both tasks through review and
+  merge, none caught by `bash -n` or the previous live run (which only ever
+  had one PR open at a time):
+  1. `review_and_merge_phase`'s `while read pr_number branch; do ... done
+     <<< "$prs"` shared stdin (fd 0) with `codex exec`, called deep inside
+     the loop body. `codex exec` is an interactive-capable CLI and can
+     read from/seek on whatever it inherits as stdin; doing so silently
+     consumed the loop's remaining input, so the second PR in a two-PR
+     list was never even attempted -- no error, no log line, nothing.
+     Fixed by reading from fd 3 instead (`done 3<<< "$prs"`, `read -u 3`),
+     which fully decouples the loop's input from anything a subprocess in
+     its body does with fd 0.
+  2. `try_merge()` edited `$task_file` locally (status -> `MERGED`)
+     immediately after `gh pr merge` succeeded, without first fetching the
+     squash-merge commit `gh pr merge` had just created on `origin/main`
+     via GitHub's API -- a purely remote change this clone didn't know
+     about yet. That squash commit already contains the PR branch's own
+     last edit to the same file (e.g. the worker's `status: IN_REVIEW`),
+     so the local edit diverged from it and failed to push as a
+     genuinely-conflicting rebase, which crashed the whole script
+     mid-run (`set -e`) and blocked every PR still left in that run from
+     being processed at all. Fixed by fetching and hard-resetting the
+     control clone to `origin/main` immediately after a successful `gh pr
+     merge`, before touching `$task_file` again.
+  3. `push_control_main()`'s conflict fallback (`git pull --rebase` then
+     retry push) had no failure path of its own: if the rebase itself hit
+     a real conflict (as in bug 2), the failing command wasn't inside its
+     own conditional, so `set -e` killed the script leaving the control
+     clone mid-rebase -- a broken state that would have made every
+     subsequent orchestrator run fail until a human intervened. Fixed to
+     detect this, `git rebase --abort` back to a clean state, log the
+     conflict, and return failure to the caller instead of crashing or
+     leaving broken state behind.
+  4. Discovered only via manual recovery, not by re-running the fixed
+     script: my own manual fix for bug 2 (merging `main` into an
+     already-created worktree without first syncing that worktree to the
+     PR's true current remote tip) produced a merge that silently omitted
+     Codex's own review commit -- the merge "succeeded" but the resulting
+     history was wrong. `handle_blocking()` already did this sync
+     correctly (`git fetch` + `git reset --hard origin/$branch` before
+     handing a worktree back to a worker); the new `handle_conflict()`
+     below follows the same pattern deliberately, with a comment pointing
+     at this exact mistake so it isn't repeated.
+- Added self-healing for merge conflicts between parallel tasks, which is
+  what actually happened to PR #9 (Task 007) once PR #10 (Task 008) merged
+  first -- both had independently edited `README.md`'s Status prose,
+  `agent/implementation-log.md`'s shared append point, and (a real code
+  conflict) `ApiExceptionHandler.java`, where each task had added its own
+  independent `@ExceptionHandler` method:
+  - **Prevention**: `agent/automation/worker-prompt.md` now has every
+    worker merge `origin/main` into its own branch and resolve conflicts
+    -- keeping both sides' independent additions -- before opening its PR,
+    re-running `./verify.sh` afterward. This only prevents conflicts that
+    exist *before* a PR opens, not ones introduced by a sibling merging
+    later.
+  - **Self-healing**: `try_merge()` now checks `gh pr view --json
+    mergeable` before attempting a merge. `CONFLICTING` dispatches a new
+    `handle_conflict()`, which redispatches a worker (bounded by the same
+    `fix_rounds`/`MAX_FIX_ROUNDS` limit as a `BLOCKING` review finding)
+    with explicit instructions: keep both sides for independent doc/code
+    additions, use judgment only for a genuine logical clash, and always
+    defer a Flyway migration-version conflict to a human (`STALLED`)
+    rather than resolving it automatically -- that one is a product/schema
+    decision, not a mechanical merge.
+- Manually resolved PR #9's actual conflict this way (README.md,
+  implementation-log.md, ApiExceptionHandler.java -- keeping both tasks'
+  additions in each), confirmed `./verify.sh` still passes (208 tests) on
+  the merged result, before building the automated version above.
+
+**Tests**
+
+- No `./verify.sh` run for the orchestrator/prompt changes themselves (no
+  application code touched). `./verify.sh` was run on PR #9's manually
+  resolved merge commit: 208 tests, 0 failures, migrations V1-V5 applying
+  cleanly -- the real evidence that "keep both sides" was the correct
+  resolution for every conflict encountered.
+- `bash -n agent/automation/orchestrator.sh` after every change in this
+  entry.
+
+**Decisions**
+
+- Did not attempt to eliminate the shared-file contention structurally
+  (e.g. splitting `agent/implementation-log.md` into one file per task, or
+  generating `README.md`'s Status section from `agent/tasks/*.md` instead
+  of hand-editing prose) in this pass. That would reduce how often this
+  class of conflict happens at all, but "make the agent able to resolve it
+  itself" (the capability actually asked for) doesn't require it, and
+  restructuring durable historical files is a bigger, separate decision.
+  Recorded as an open question below rather than a silent scope increase.
+- Reused the existing `fix_rounds`/`MAX_FIX_ROUNDS` bound for conflict
+  rounds rather than adding a separate counter: both are "another
+  automatic round before giving up and asking a human," and one shared,
+  already-understood limit is easier to reason about than two.
+- Deliberately excluded Flyway migration-version conflicts from
+  `handle_conflict()`'s automatic resolution (instructed the worker to
+  stop and mark `STALLED` instead) -- that class already has its own
+  dedicated pre-merge check (`check_migration_collision`), and letting a
+  worker improvise a schema-version renumbering unattended is a
+  meaningfully different risk than reconciling two doc paragraphs.
+
+**Assumptions**
+
+- Assuming `gh pr view --json mergeable` reliably distinguishes
+  `MERGEABLE`/`CONFLICTING`/other in practice; treated anything other than
+  those two as "not computed yet, retry next run" rather than erroring,
+  since GitHub can return this asynchronously.
+- The macOS Full Disk Access diagnosis for the cron failure is inferred
+  from the error text and from the identical script succeeding when run
+  directly by an already-permitted process, not confirmed by actually
+  granting the permission and observing success -- that confirmation is
+  still pending.
+
+**Open questions**
+
+- Whether `README.md`'s Status section and `agent/implementation-log.md`
+  are worth restructuring (generated from `agent/tasks/*.md`; split into
+  per-task files) specifically to reduce how often parallel tasks collide
+  on them, now that it's happened on two consecutive multi-task runs.
+- Whether `orchestrator.sh` needs an automated test harness (raised in the
+  previous entry too, now with two more bug classes -- stdin sharing and
+  post-merge sync ordering -- that a mocked `claude`/`codex`/`gh` harness
+  would have caught before a live task branch did).
+- Whether cron actually works once Full Disk Access is granted, or there's
+  a second macOS restriction layered underneath it.
+
+**Recommended next task**
+
+- Grant `cron` Full Disk Access and confirm a real unattended tick
+  succeeds end-to-end (dispatch or review/merge, whichever is pending at
+  the time) with nobody running the script by hand.
+- Frame a task that's very likely to collide with something already
+  `IN_PROGRESS` (e.g. another README-touching task) specifically to
+  exercise `handle_conflict()` automatically end-to-end, the way Task 006
+  was the first real test of the base pipeline.
+
 ### 2026-09-05 — Task 008: Plan-versus-Actual Snapshot Analysis
 
 **Changed**
