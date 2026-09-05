@@ -138,8 +138,40 @@
 
 - Acceptance status: `PENDING`
 - Acceptance evidence: See "Review evidence" above; awaiting independent Product Owner Agent review against the PR diff.
-- Unmet criteria: None known; all acceptance criteria have corresponding test or manual evidence above.
-- Returned work: None.
+- Unmet criteria: Acceptance criteria 3 and 6 remain unmet; see the 2026-09-05 review findings below.
+- Returned work: Add the missing rounding and boundary coverage, correct overstated evidence, rerun ./verify.sh, and return for review.
 - Follow-up opportunities: Stored-state integration only with a separately framed provenance/approval contract; richer models only when concrete household needs justify them; shared-document consolidation after this batch.
-- Accepted or returned by Product Owner Agent:
-- Accepted or returned at:
+- Accepted or returned by Product Owner Agent: Codex (returned; acceptance remains PENDING).
+- Accepted or returned at: 2026-09-05
+
+## Review findings — 2026-09-05
+
+Reviewed PR #14 using `gh pr diff 14`, head `187c234bcedc6e782bd76373662e77d85d2e435e`, against `main`. Review context was limited to AGENTS.md, the collaboration workflow, Task 010, this brief, and the actual PR diff; no implementation conversation or other repository documents were consulted. The required `verify` check succeeded for that head: https://github.com/codelinguist/waypoint/actions/runs/33970359240/job/101317649189. The implementation's recorded local 247-test run and manual primary-flow results are reported evidence, not independently rerun in this review. No visual-review.md exists; UI review is not applicable.
+
+### R1 — Actual half-cent rounding coverage is absent
+
+- Classification: `BLOCKING`.
+- Decision: `ACCEPTED` (required fix; unresolved).
+- Evidence: `backend/src/test/java/com/waypoint/planning/debtamortization/DebtAmortizationCalculatorTest.java`, `halfCentRoundingMatchesWorkedExample`, uses 100.00 × 0.01 = 1.00 and 41.00 × 0.01 = 0.41. Neither is a half-cent. The other schedule tests use zero rates or do not assert a half-cent result. The calculator visibly selects HALF_UP, but the suite does not distinguish it from HALF_DOWN or HALF_EVEN. `api.md` also incorrectly labels the same exact-cent worked example as a half-cent example.
+- Impact/unmet criterion: Criterion 3 explicitly requires half-cent HALF_UP test coverage. A financially material rounding regression can pass the delivered assertions; this is a missing agreed verification requirement, not a preference for additional tests.
+- Acceptance condition: Add a direct domain regression using, for example, principal 1.00, rate 0.005, payment 2.00, currency USD: interest must be 0.01, final payment/total paid 1.01, principal repaid 1.00, closing balance 0.00, and payoffMonths 1. Ensure the assertion fails for HALF_DOWN/HALF_EVEN. Correct the guide's half-cent label or supply a genuine example; retain the approved 100.00 worked example. Record a passing verification run.
+
+### R2 — Claimed HTTP edge-case and validation coverage is incomplete
+
+- Classification: `BLOCKING`.
+- Decision: `ACCEPTED` (required fix; unresolved).
+- Evidence: The entire new `DebtAmortizationApiTest.java` has no HORIZON_LIMIT request/assertion and no payoff-at-month-1200 case; its NON_AMORTIZING case covers equality only. Required-field coverage omits only principal, and contains no explicit null requests. Negative rate and monthlyPayment precision/scale rejection are also absent. Direct domain precision/scale rejection tests likewise exercise principal only. The delivery handoff nevertheless claims HTTP coverage of “all modeled statuses” and “every validation rejection,” and manual coverage of “every modeled case,” while the listed manual calls omit HORIZON_LIMIT.
+- Impact/unmet criterion: Criterion 6 explicitly requires domain and HTTP coverage of required fields, amount bounds/precision/scale, and all defined edge cases. In particular, serialization of the 1200-row result, null payoffMonths, remaining balance and partial totals is unverified at the HTTP boundary. A green suite does not establish the missing acceptance coverage.
+- Acceptance condition: Add HTTP coverage for HORIZON_LIMIT (1200 ordered rows, positive remaining balance, null payoffMonths and reconciled partial totals), payoff exactly at month 1200, and payment below first interest. Cover missing/null required fields and negative rate at HTTP, and monthlyPayment excessive scale/precision at both entry points. Parameterized tests are suitable. Update the handoff to describe only checks actually performed, rerun ./verify.sh, and record results/limitations. No expansion into sibling packages or shared infrastructure is authorized.
+
+### Whole-feature assessment
+
+- Criteria 1–2: Supported by exact domain assertions and recorded synthetic manual API results.
+- Criterion 3: Unmet for half-cent coverage (R1); zero principal, both non-amortizing cases and both horizon outcomes have domain tests.
+- Criterion 4: Supported by the decimal recurrence, capped final payment, and row/schedule reconciliation assertions in the diff.
+- Criterion 5: Supported by typed BigDecimal calculation/DTO mapping, explicit status names, convention documentation and identical-response HTTP test; no clock fields are introduced.
+- Criterion 6: Unmet for the coverage gaps in R2. No ordinary-input arithmetic defect was found by static inspection.
+- Criteria 7–8: The diff stays within the exclusive feature paths and orchestrator lifecycle file. It adds no persistence, identifiers, logging, entity/migration changes, shared edits, or sibling imports.
+- Criterion 9: The recorded local verify/manual primary-flow evidence and green required CI check support baseline delivery. This review did not independently rerun the application; nothing in the diff requires sibling changes.
+- Feature acceptance: `PENDING`; returned for R1 and R2. Findings marked ACCEPTED above accept the fixes, not the feature. Merge is not authorized by this review.
+- System evolution: No shared rule/template edit is needed: the existing brief already explicitly requires these tests. Fix with feature-local regression coverage and accurate evidence under the approved ownership boundaries.
