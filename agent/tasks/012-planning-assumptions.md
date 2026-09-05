@@ -1,12 +1,12 @@
 ---
-status: QUEUED
+status: IN_PROGRESS
 task_number: 012
 feature_slug: planning-assumptions
 branch: task/012-planning-assumptions
-worktree:
+worktree: /Users/rj/Documents/projects/waypoint-orchestrator/worktrees/task-012-planning-assumptions
 session:
 pr:
-claimed_at:
+claimed_at: 2026-09-05T18:05:42Z
 fix_rounds: 0
 conflict_rounds: 0
 ---
