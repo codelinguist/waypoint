@@ -12,11 +12,21 @@ pipeline only).
    (`review-prompt.md`) against PRs with new commits, merges automatically
    once Codex records acceptance and the required `verify` check is green,
    or dispatches a bounded automatic fix round (`worker-prompt.md`, with a
-   fix-round note) when Codex found `BLOCKING` findings.
+   fix-round note, budget tracked in the task file's `fix_rounds`) when
+   Codex found `BLOCKING` findings. A sibling task merging first and leaving
+   the PR merge-conflicted is a separate failure with its own bounded
+   rebase-and-resolve round (`conflict_rounds`) — a review-finding fix round
+   and a conflict-resolution round never share the same budget. If the
+   review itself fails to produce a usable outcome (`codex exec` crashes,
+   prints nothing, or returns an unparseable verdict line), that is
+   `REVIEW_ERROR`, not `BLOCKING`: it is logged, consumes no budget,
+   dispatches no worker, and never authorizes a merge — the PR is simply
+   reviewed again next run.
 2. **Dispatch** newly `QUEUED` tasks from `agent/tasks/`, up to
    `WAYPOINT_MAX_PARALLEL` (default 3) concurrently `IN_PROGRESS`. Each
-   claimed task gets its own git worktree and an unattended `claude -p`
-   background session.
+   claimed task gets its own git worktree and an unattended
+   `claude --bg "<prompt>"` background session (the prompt is passed
+   positionally, not via `-p` — see the note in `dispatch_worker()`).
 
 It is not itself a loop — it does one pass and exits. Cron provides the
 repetition.
@@ -77,6 +87,23 @@ pipeline".
   the review findings in its product brief, and either fix it by hand in its
   worktree (`../waypoint-orchestrator/worktrees/task-<slug>/`) or delete the
   worktree and requeue.
+
+## Tests
+
+`agent/automation/tests/orchestrator_test.sh` is a lightweight local
+regression suite for the pure logic in `orchestrator.sh` — frontmatter
+read/write (including status transitions and the two independent retry
+counters), prompt rendering (asserting the rendered `{{TASK_FILE}}` path is
+never doubled), review-verdict classification (`ACCEPTED` / `BLOCKING` /
+`REVIEW_ERROR`, including that a failed or malformed Codex invocation never
+becomes `BLOCKING`), the `verify`-check state filter, and Flyway
+migration-collision detection against disposable local git fixtures. It does
+not call `gh`, `codex`, or `claude`, and is not part of `./verify.sh` (which
+is reserved for the Java Maven suite per D014) — run it directly:
+
+```
+agent/automation/tests/orchestrator_test.sh
+```
 
 ## First run
 
