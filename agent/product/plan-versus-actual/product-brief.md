@@ -112,7 +112,21 @@
 - Current task: `agent/tasks/008-plan-versus-actual.md`
 - Design brief, if applicable: Not applicable; backend-only task.
 - Implementation owner: Claude Code
-- Review evidence: Pending implementation.
+- Review evidence: Implemented in new
+  `PlannedCurrencyTotals`/`VarianceDirection`/`PlanVersusActualVariance`/
+  `CurrencyPlanVersusActual`/`PlanVersusActualAnalysis`/`InvalidPlanException`/
+  `PlanVersusActualService` (domain), `PlanVersusActualController`
+  (`POST /api/households/{householdId}/financial-snapshots/{snapshotId}/plan-comparison`),
+  and matching request/response DTOs — additive files, reusing
+  `FinancialSnapshotService` for household/snapshot ownership and actual
+  totals rather than editing Task 006's snapshot service/controller. See
+  `agent/implementation-log.md` (2026-09-05, Task 008) for full detail.
+  `./verify.sh`: 175 tests, 0 failures (21 new). Primary flow exercised
+  manually end to end (plan above/below/on actuals, absent-currency
+  zero-actual handling, inconsistent-net-worth rejection, no snapshot
+  mutation) against a throwaway Postgres instance, not the shared
+  `waypoint-postgres-data` Compose volume — see the implementation log's
+  "Open questions" for a recurring risk this surfaced with that volume.
 
 ## Feature acceptance
 
