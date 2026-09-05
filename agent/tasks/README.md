@@ -43,13 +43,15 @@ orchestrator reads that verdict from its own run state, not from this file.
   pass or an automatic fix round (`fix_rounds` counts which); `worktree`,
   `session`, and `branch` are filled in.
 - `IN_REVIEW` — the worker pushed the branch and opened `pr`; waiting on the
-  automated Codex review. A `BLOCKING` verdict here sends the task straight
-  back to `IN_PROGRESS` for another fix round, up to `fix_rounds`' bound —
-  it does not rest in a separate "returned" state.
-- `STALLED` — fix rounds were exhausted, or something the orchestrator can't
-  safely resolve on its own (e.g. a Flyway migration-version collision
-  against `main`). Needs a human or an interactive Claude Code / Codex
-  session; read the product brief's review findings for why.
+  automated Codex review. A `BLOCKING` verdict, or the PR going stale against
+  `main` (a sibling task merged and now conflicts), sends the task straight
+  back to `IN_PROGRESS` for another automatic round, up to `fix_rounds`'
+  bound — it does not rest in a separate "returned" state.
+- `STALLED` — automatic rounds were exhausted, or something the orchestrator
+  can't safely resolve on its own (e.g. a Flyway migration-version collision
+  against `main`, which always needs a human rather than an automatic
+  rebase). Needs a human or an interactive Claude Code / Codex session; read
+  the product brief's review findings for why.
 - `MERGED` — merged to `main` the moment Codex's review records acceptance
   and the required `verify` check is green; worktree removed. Terminal
   state; the file stays as a durable record alongside

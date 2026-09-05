@@ -36,7 +36,21 @@ workflow.md` step 4 ("Implement with Claude Code") exactly:
 5. Update `agent/implementation-log.md` (Changed / Tests / Decisions /
    Assumptions / Open questions / Recommended next task) and update your task
    file's `status:` to `IN_REVIEW`.
-6. Commit your work, push `{{BRANCH}}`, and open the PR yourself (`gh pr
+6. Before committing, run `git fetch origin main` and `git merge origin/main`.
+   A sibling task may have merged while you were working and touched the same
+   shared file — most often `README.md`'s Status/endpoint-docs prose or
+   `agent/implementation-log.md`'s shared append point. If that produces a
+   conflict, resolve it by **keeping both sides' additions** wherever they
+   are independent content (two doc sections, two log entries, two exception
+   handlers or endpoints) — never drop a sibling task's work to make yours
+   look cleaner. Only use judgment about which version wins if it's a
+   genuine logical clash in application code, not independent additions, and
+   say so explicitly in `agent/implementation-log.md`. If the conflict is in
+   a Flyway migration's version number, stop and set this task file's status
+   to `STALLED` with an explanation instead of resolving it yourself — that
+   needs a human decision. Re-run `./verify.sh` after any merge to confirm it
+   still passes before continuing.
+7. Commit your work, push `{{BRANCH}}`, and open the PR yourself (`gh pr
    create`) — you are already standing-authorized to do this, per `AGENTS.md`.
    Link the task file and product brief in the PR description, and record the
    local `./verify.sh` result. Do not merge it yourself; do not wait for the
