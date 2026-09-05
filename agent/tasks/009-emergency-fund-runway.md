@@ -4,10 +4,11 @@ task_number: 009
 feature_slug: emergency-fund-runway
 branch: task/009-emergency-fund-runway
 worktree: /Users/rj/Documents/projects/waypoint-orchestrator/worktrees/task-009-emergency-fund-runway
-session: 00959f0e
+session: d1acf83f
 pr:
 claimed_at: 2026-09-05T13:43:54Z
-fix_rounds: 0
+fix_rounds: 1
+conflict_rounds: 0
 ---
 
 # Task 009: Emergency-Fund Runway
