@@ -268,9 +268,11 @@ summary for re-review:
 + 15 HTTP, versus 20 + 14 before this round). No behavior outside
 `normalizeCurrency`'s validation order/locale handling changed; the
 documented `api.md` request/response contract is unaffected. Merged
-`origin/main` into this branch before committing this round (see git
-history for whether that was a fast-forward or introduced a resolved
-conflict).
+`origin/main` into this branch after committing this round's fix — a clean,
+non-conflicting merge (main had only advanced this task's own orchestrator-
+owned lifecycle file plus unrelated shared automation/docs files; nothing
+under this feature's exclusive ownership paths changed on main). Reran
+`./verify.sh` after the merge: still 245 tests, 0 failures.
 
 Acceptance status remains `PENDING` pending this independent re-review; no
 new finding, scope change, or product decision was introduced by this
