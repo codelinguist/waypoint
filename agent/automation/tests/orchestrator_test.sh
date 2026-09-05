@@ -270,6 +270,40 @@ test_determine_review_verdict_missing_file_is_review_error() {
     "a missing/empty message file must be REVIEW_ERROR"
 }
 
+test_determine_review_verdict_rejects_conflicting_lines_blocking_last() {
+  # Regression for the exact defect Codex's own review of this PR found:
+  # an ACCEPTED line earlier in the message with the real BLOCKING decision
+  # last used to fall through the old order-independent grep correctly by
+  # luck (BLOCKING was checked second and matched first via elif)... but
+  # the mirror case below did not. Both orders must be REVIEW_ERROR now,
+  # not resolved by "whichever grep matched" or "whichever line is last".
+  local mf="$TEST_TMP/msg-conflict-blocking-last.txt"
+  printf 'Earlier example:\nREVIEW_VERDICT: ACCEPTED\nFinal decision:\nREVIEW_VERDICT: BLOCKING\n' > "$mf"
+  assert_equals "REVIEW_ERROR" "$(determine_review_verdict 1 0 "$mf")" \
+    "multiple verdict lines (ACCEPTED then BLOCKING) must be REVIEW_ERROR, not resolved either way"
+}
+
+test_determine_review_verdict_rejects_conflicting_lines_accepted_last() {
+  # This is the actual bug: with the old grep -q ACCEPTED-checked-first
+  # logic, a message with BLOCKING earlier and a stray ACCEPTED-looking
+  # line last (or anywhere) could be misclassified as ACCEPTED, silently
+  # authorizing a merge Codex had actually rejected.
+  local mf="$TEST_TMP/msg-conflict-accepted-last.txt"
+  printf 'REVIEW_VERDICT: BLOCKING\nOn reflection:\nREVIEW_VERDICT: ACCEPTED\n' > "$mf"
+  assert_equals "REVIEW_ERROR" "$(determine_review_verdict 1 0 "$mf")" \
+    "multiple verdict lines (BLOCKING then ACCEPTED) must be REVIEW_ERROR, never ACCEPTED"
+}
+
+test_determine_review_verdict_nonterminal_verdict_is_review_error() {
+  # A single verdict-shaped line that isn't the message's actual last line
+  # violates review-prompt.md's "nothing after it" contract and must not
+  # authorize a merge just because grep found it somewhere.
+  local mf="$TEST_TMP/msg-nonterminal.txt"
+  printf 'REVIEW_VERDICT: ACCEPTED\nOops, one more thought after the verdict.\n' > "$mf"
+  assert_equals "REVIEW_ERROR" "$(determine_review_verdict 1 0 "$mf")" \
+    "a verdict line that isn't the final line must be REVIEW_ERROR, not ACCEPTED"
+}
+
 test_determine_review_verdict_nonzero_codex_status_is_review_error() {
   # Even if the message file happens to contain a leftover ACCEPTED line
   # (e.g. from a stale mktemp collision), a failed codex exec invocation

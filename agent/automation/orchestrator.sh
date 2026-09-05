@@ -313,14 +313,35 @@ determine_review_verdict() {
     return 0
   fi
 
-  if grep -q '^REVIEW_VERDICT: ACCEPTED$' "$msg_file" 2>/dev/null; then
-    echo ACCEPTED
-  elif grep -q '^REVIEW_VERDICT: BLOCKING$' "$msg_file" 2>/dev/null; then
-    echo BLOCKING
-  else
-    log "PR #$pr_number: no parseable REVIEW_VERDICT line from Codex; treating as REVIEW_ERROR (will retry, not BLOCKING)."
+  # Two independent `grep -q` checks (the original design) match anywhere in
+  # the message regardless of order or position -- if Codex's prose happens
+  # to quote or discuss an earlier "REVIEW_VERDICT: ACCEPTED" (an example,
+  # a stale draft, a quoted instruction) before its real final
+  # "REVIEW_VERDICT: BLOCKING" decision, the ACCEPTED check fires first and
+  # wrongly authorizes a merge Codex actually rejected. Confirmed live via
+  # Codex's own review of this exact function. Fixed by requiring both: (a)
+  # exactly one verdict-shaped line in the whole message -- more than one,
+  # in any combination, means the protocol review-prompt.md requires
+  # ("exactly one verdict line and nothing after it") was violated, and the
+  # message can't be trusted regardless of which verdict is "last"; and (b)
+  # that line must be the message's final non-blank line.
+  local verdict_line_count last_line
+  verdict_line_count="$(grep -cE '^REVIEW_VERDICT: (ACCEPTED|BLOCKING)$' "$msg_file" 2>/dev/null || true)"
+  if [[ "${verdict_line_count:-0}" -ne 1 ]]; then
+    log "PR #$pr_number: expected exactly one REVIEW_VERDICT line, found ${verdict_line_count:-0}; treating as REVIEW_ERROR (will retry, never ACCEPTED/BLOCKING on an ambiguous message)."
     echo REVIEW_ERROR
+    return 0
   fi
+
+  last_line="$(grep -v '^[[:space:]]*$' "$msg_file" | tail -n1)"
+  case "$last_line" in
+    "REVIEW_VERDICT: ACCEPTED") echo ACCEPTED ;;
+    "REVIEW_VERDICT: BLOCKING") echo BLOCKING ;;
+    *)
+      log "PR #$pr_number: the sole REVIEW_VERDICT line is not the final line of Codex's message; treating as REVIEW_ERROR (will retry, not BLOCKING)."
+      echo REVIEW_ERROR
+      ;;
+  esac
 }
 
 run_review() {

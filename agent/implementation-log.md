@@ -1,5 +1,74 @@
 # Implementation Log
 
+### 2026-09-05 — PR #16 fix round: conflicting-verdict-line bug in `determine_review_verdict()`
+
+**Changed**
+
+- Ran a manual Codex review against PR #16 (`fix/orchestrator-review-safety`)
+  via `codex exec` (review mode, per `agent/collaboration-workflow.md` ->
+  "Invoking the Product Owner Agent"), since this infra PR has no product
+  brief or `agent/tasks/` file for the orchestrator's automatic review to
+  key off — pointed Codex at `AGENTS.md`, `agent/collaboration-workflow.md`,
+  and the implementation-log entry below as the scope record instead.
+  `gh pr diff 16` failed (`error connecting to api.github.com` — a
+  transient network/connector issue in that session, unrelated to this
+  fix), so Codex reviewed the local branch diff instead and flagged that
+  limitation explicitly in its findings.
+- Codex found one genuine `BLOCKING` issue, with a live reproduction:
+  `determine_review_verdict()` (introduced in the previous entry, extracted
+  from the pre-existing `run_review()` logic it faithfully copied) checked
+  `grep -q '^REVIEW_VERDICT: ACCEPTED$'` before `BLOCKING`, independent of
+  where either line falls in Codex's message. A message containing an
+  earlier `REVIEW_VERDICT: ACCEPTED` (a quoted example, stale draft, or
+  discussion of the protocol) followed by a real final
+  `REVIEW_VERDICT: BLOCKING` would be misclassified as `ACCEPTED`,
+  authorizing a merge Codex had actually rejected. This bug predates this
+  PR (the original `run_review()` had the identical two-independent-`grep`
+  shape) but was squarely in scope since this PR already touches that exact
+  function.
+- Fixed by requiring both: (a) exactly one `REVIEW_VERDICT:` line anywhere
+  in the message — more than one, in any order or combination, means
+  `review-prompt.md`'s "exactly one verdict line and nothing after it"
+  contract was violated and the message can't be trusted regardless of
+  which verdict is "last"; and (b) that line must be the message's actual
+  final non-blank line. Either violation now classifies as `REVIEW_ERROR`
+  (retried next run, never `ACCEPTED`, never silently coerced to
+  `BLOCKING` either).
+- Added three regression tests to `orchestrator_test.sh`: conflicting lines
+  with `BLOCKING` last, conflicting lines with `ACCEPTED` last (the actual
+  bug Codex found — old code returned `ACCEPTED` here), and a single
+  verdict line that isn't the message's terminal line.
+
+**Tests**
+
+- `agent/automation/tests/orchestrator_test.sh`: 38 passed, 0 failed (35
+  from the previous entry + 3 new conflicting/nonterminal-verdict cases).
+- `bash -n` on both shell files.
+- No `./verify.sh` run: no Java application code touched.
+
+**Decisions**
+
+- Followed Codex's specific acceptance condition rather than a looser
+  "just trust the last line" fix: requiring exactly one verdict line
+  *and* terminal position, because a message containing multiple
+  verdict-shaped lines at all indicates the output can't be trusted to
+  follow the protocol, independent of which one happens to be last.
+
+**Open questions**
+
+- Whether `gh pr diff` failing inside a `codex exec` sandbox is a recurring
+  connectivity/permissions issue for manually-triggered (non-orchestrator)
+  reviews specifically, or was transient — not yet reproduced a second
+  time. The orchestrator's own automated review path uses local `git`
+  operations against the control clone rather than `gh pr diff`, so it is
+  not obviously exposed to the same failure mode, but this is worth
+  watching.
+
+**Recommended next task**
+
+- Re-run or wait for a Codex review that can actually reach `gh pr diff 16`
+  to confirm the fixed branch is accepted, then merge PR #16.
+
 ### 2026-09-05 — Orchestrator safety audit: review-error handling, retry-budget separation, isolation-claim correction, and tests
 
 **Changed**
