@@ -51,7 +51,7 @@
 ### In scope
 
 - A household-scoped `FinancialGoal` record with name, target amount, currency, target date, priority, current amount, timestamps, and a stable identifier.
-- Deterministic validation for non-blank names, valid positive monetary targets, non-negative current progress, supported three-letter currency shape, non-future target dates, and positive priority.
+- Deterministic validation for non-blank names, valid positive monetary targets, non-negative current progress, supported three-letter currency shape, non-past target dates (today or later), and positive priority.
 - Create and list/retrieve API operations following existing household-scoped validation, ordering, and not-found conventions.
 - Deterministic progress calculation and response fields that clearly identify target, current amount, remaining amount, and progress percentage.
 - Unit and API/integration tests, including household isolation and persistence across the migration.
@@ -82,16 +82,10 @@
 - [x] Automated tests cover persistence, retrieval, validation, arithmetic, ordering, household isolation, and no mutation of unrelated financial records.
 - [x] The implementation is backend-only, keeps domain logic outside transport concerns, adds only the goal schema needed for this increment, and passes `./verify.sh`.
 
-**Note on the "non-future target dates" requirement above:** implemented as
-"not in the past" (`@FutureOrPresent` — today or later), not literally
-"non-future" (today or earlier). A financial goal's target date is, by
-definition and by this brief's own vision language, a date being planned
-*toward*; a literal reading would make it impossible to create a goal for
-any real future objective. Flagged for Product Owner Agent confirmation
-during review — see `agent/implementation-log.md`'s 2026-09-05 Task 007
-entry ("Assumptions") for the full reasoning. If this reading is wrong,
-please correct the brief's wording and treat it as a return-with-fix rather
-than a silent acceptance.
+**Target-date clarification:** “non-past” means today or later
+(`@FutureOrPresent`). This matches the domain meaning of a goal date being a
+date the household is planning toward; a literal “non-future” interpretation
+would make real future goals impossible.
 
 ## Risks and safeguards
 
@@ -135,17 +129,38 @@ than a silent acceptance.
 
 ## Feature acceptance
 
-- Acceptance status: `PENDING`
-- Acceptance evidence: Implementation complete; see Delivery handoff above
-  and the implementation log entry for full evidence.
+- Acceptance status: `ACCEPTED`
+- Acceptance evidence: PR #9 review found all seven acceptance criteria
+  satisfied. The implementation is backend-only and exposes documented
+  household-scoped create/list/retrieve operations; persists the required
+  fields with normalized currency and timestamps; returns structured
+  validation and not-found responses; computes decimal remaining amount and
+  bounded progress without mutating stored amounts; isolates households; and
+  keeps domain logic outside transport concerns. The implementation log
+  records 187 tests with 0 failures, including 33 goal tests and an end-to-end
+  manual flow. The required GitHub `verify` check passed at
+  https://github.com/codelinguist/waypoint/actions/runs/33962931660/job/101297904499.
 - Unmet criteria: None known; all acceptance criteria above are checked.
-  One item needs Product Owner confirmation, not a fix: see the "Note on the
-  'non-future target dates' requirement" under Acceptance criteria — the
-  implementation treats the target date as required to be today or later,
-  the opposite of a literal reading of the brief's "non-future" wording,
-  because a literal reading would make the feature unable to represent any
-  real household goal.
+  The target-date wording was clarified from “non-future” to “non-past” in
+  this review; this records the domain-sensible interpretation already
+  implemented and tested by the PR.
 - Returned work: None.
 - Follow-up opportunities: Goal updates/completion, contribution schedules, snapshot-derived progress, and non-monetary metrics.
-- Accepted or returned by Product Owner Agent: Pending.
-- Accepted or returned at: Pending.
+- Accepted or returned by Product Owner Agent: Accepted.
+- Accepted or returned at: 2026-09-05.
+
+## Review findings
+
+### 2026-09-05 — PR #9 review
+
+- `RECOMMENDED` — `ACCEPTED`: The brief used “non-future target dates,” while
+  the diff implements `@FutureOrPresent` and the integration tests accept
+  today/future dates and reject past dates. Evidence: PR #9
+  `CreateFinancialGoalRequest`, `FinancialGoalApiIntegrationTest`, and the
+  implementation log’s recorded assumption. Acceptance condition: the brief
+  must state the implemented domain rule explicitly as “non-past (today or
+  later),” which is corrected above. No application-code change is required.
+
+No `BLOCKING` findings remain. This backend-only feature has no applicable
+`visual-review.md`; the verified result satisfies the complete acceptance
+criteria, so feature acceptance is recorded above.
