@@ -136,9 +136,103 @@
 ## Feature acceptance
 
 - Acceptance status: `PENDING`
-- Acceptance evidence: Pending implementation and independent review.
-- Unmet criteria: Not yet implemented.
-- Returned work: None.
+- Acceptance evidence: Independent review of PR #13 at a2a653613ae35a542ff2d011b889047e100acf4c completed on 2026-09-05; see the dated review below. Acceptance withheld pending R1 and R2.
+- Unmet criteria: Currency normalization and direct-domain rejection invariants (criteria 4–5), and HTTP coverage of all defined edge cases (criterion 5), as detailed in R1–R2.
+- Returned work: Resolve accepted BLOCKING findings R1–R2 within the existing ownership paths; rerun ./verify.sh and update feature-local evidence for independent re-review.
 - Follow-up opportunities: Stored-state integration only with a separately framed provenance/approval contract; richer models only when concrete household needs justify them; shared-document consolidation after this batch.
-- Accepted or returned by Product Owner Agent:
-- Accepted or returned at:
+- Accepted or returned by Product Owner Agent: Codex — returned for fixes.
+- Accepted or returned at: 2026-09-05
+
+## Review findings — 2026-09-05
+
+Reviewed PR #13 (`task/009-emergency-fund-runway` against `main`), head
+`a2a653613ae35a542ff2d011b889047e100acf4c`, using `gh pr diff 13` and only
+the requested AGENTS.md, workflow, task and product brief as context.
+The feature has no visual-review.md and is backend-only; visual gates do
+not apply. No application code was edited during review.
+
+### R1 — Currency validation depends on JVM locale and can accept malformed direct inputs
+
+- Classification: `BLOCKING`.
+- Decision: `ACCEPTED` — unresolved; required correctness fix.
+- Visible evidence: `backend/src/main/java/com/waypoint/planning/runway/EmergencyFundRunwayCalculator.java:77`
+  calls `currency.trim().toUpperCase()` with the default locale, then validates
+  the transformed value. Independently executing those exact string operations
+  in JShell with default locale `tr-TR` produced `İNR` for `inr`, which fails
+  `^[A-Z]{3}$`. The request DTO accepts `inr`, so a valid request then fails
+  domain validation instead of returning `INR`. Under `Locale.US`, `ßa`
+  becomes `SSA` and passes that domain pattern, despite the supplied code
+  having only two letters. HTTP rejects the latter, but direct domain calls
+  must enforce the input invariant too.
+- Acceptance condition: Validate the supplied code's three ASCII letters before
+  case expansion (preserving the explicitly tested domain whitespace trimming),
+  and normalize independently of the default locale, such as with `Locale.ROOT`.
+  Add a regression proving valid lowercase `inr` returns `INR` under a Turkish
+  default locale, and that direct calls reject `ßa`. Restore any changed test
+  locale. Normal successful requests and structured HTTP 400 errors must remain
+  intact, with `./verify.sh` passing.
+- Basis: Required uppercase currency normalization, deterministic results and
+  direct-domain invariants in scope and acceptance criteria 4–5. This changes
+  neither currency policy nor household assumptions.
+
+### R2 — Required HTTP edge-case evidence is incomplete
+
+- Classification: `BLOCKING`.
+- Decision: `ACCEPTED` — unresolved acceptance-coverage gap.
+- Visible evidence: The full new
+  `backend/src/test/java/com/waypoint/planning/runway/web/EmergencyFundRunwayApiIntegrationTest.java`
+  has equality and all-zero tests but no request with income greater than
+  expenses. Its all-zero test asserts only status and shortfall. The equality
+  test uses `doesNotExist()` for month fields, which does not establish that
+  the documented fields are present with JSON null values. The domain suite
+  does exercise income greater than expenses, but omits the zero-shortfall
+  assertion in that case. Thus the handoff's claim of the same HTTP edge-case
+  matrix is broader than the visible evidence.
+- Acceptance condition: Add an HTTP case for reserve 1000, expenses 400,
+  income 500 returning 200, `NO_SHORTFALL`, shortfall zero, and both named month
+  fields present with null values. Assert those null fields for equality and
+  all-zero responses too, and assert shortfall zero in the existing domain
+  surplus-income test. Run `./verify.sh` and update the feature-local handoff.
+- Basis: Criterion 5 explicitly requires domain and HTTP tests covering all
+  defined edge cases; criterion 2 defines these outputs. No new behavior or
+  additional feature scope is requested.
+
+### Acceptance assessment and verification evidence
+
+- Criterion 1: Satisfied by the calculator's exact arithmetic and matching
+  domain/HTTP finite-runway tests (1000 / 300 → 3.33 and 3 full months).
+- Criterion 2: Implementation matches the zero-reserve, equality, surplus-income
+  and all-zero semantics; the HTTP evidence needs R2 before complete sign-off.
+- Criterion 3: Satisfied: cent-scaled BigInteger divisions separately derive
+  full months and hundredths; both suites assert 1000 / 600 → 1.66. Inspection,
+  rather than the boundary-test comment alone, establishes the independent
+  derivation of full months.
+- Criterion 4: Endpoint, response documentation, decimal arithmetic and absence
+  of clock fields are correct; currency handling remains blocked by R1.
+- Criterion 5: Not satisfied in full: R1 violates direct-domain currency
+  invariants and R2 leaves required HTTP edge cases insufficiently covered.
+  Existing null, negative, excessive-scale/precision and malformed-request
+  tests provide useful evidence for the remaining validation paths.
+- Criterion 6: Satisfied by the complete additive call path: controller →
+  dependency-free calculator → response mapper, without persistence, household
+  lookup, identifiers, logging, entities or migrations. Identical responses
+  alone would not prove absence of database access; inspected dependencies do.
+- Criterion 7: Satisfied: every changed path is in the exclusive feature code,
+  test or product directory; controller-local error handling avoids shared edits.
+- Criterion 8: The diff has no sibling imports or changes to baseline startup,
+  configuration or dependencies. The delivery record reports local `./verify.sh`
+  with 242 tests and zero failures plus synthetic manual API exercises against
+  disposable infrastructure. Independently checked GitHub's required `verify`
+  result: SUCCESS for the reviewed head, completed 2026-09-05T13:55:15Z,
+  [run evidence](https://github.com/codelinguist/waypoint/actions/runs/33970221538/job/101317285367).
+  The reviewer did not rerun the full suite or manual API flow; the independent
+  reproduction here was the currency operation in JShell. A green check on
+  the eventual revised head remains mandatory before merge.
+
+Feature acceptance remains `PENDING`; R1–R2 must be resolved and independently
+reviewed before this brief can authorize automatic merge. No preference-only
+or speculative polish findings are requested.
+
+System evolution considered: the existing invariant and edge-case requirements
+already cover both findings; no shared rule or template edit is necessary for
+this fix. The requested regression tests are the concrete prevention measure.
