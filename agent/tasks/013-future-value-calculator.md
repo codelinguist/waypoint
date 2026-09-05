@@ -1,12 +1,12 @@
 ---
-status: QUEUED
+status: IN_PROGRESS
 task_number: 013
 feature_slug: future-value-calculator
 branch: task/013-future-value-calculator
-worktree:
+worktree: /Users/rj/Documents/projects/waypoint-orchestrator/worktrees/task-013-future-value-calculator
 session:
 pr:
-claimed_at:
+claimed_at: 2026-09-05T18:05:48Z
 fix_rounds: 0
 conflict_rounds: 0
 ---
