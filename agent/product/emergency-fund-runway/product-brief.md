@@ -111,7 +111,25 @@
 - Current task: `agent/tasks/009-emergency-fund-runway.md`
 - Design brief, if applicable: Not applicable; backend-only, no UI exploration or implementation.
 - Implementation owner: Claude Code in an isolated `task/009-emergency-fund-runway` branch/worktree, starting a fresh implementation conversation.
-- Review evidence: Pending. Add feature-local `api.md` for API examples. Record changed behavior, tests/commands/results, decisions, assumptions, unresolved questions, recommended next task and system-evolution candidates in this brief's delivery evidence or a linked feature-local `implementation-log.md`.
+- Review evidence: Implemented in new `EmergencyFundRunwayCalculator`/
+  `EmergencyFundRunwayResult`/`RunwayStatus`/`InvalidRunwayInputException`
+  (domain, package `com.waypoint.planning.runway`), `EmergencyFundRunwayController`
+  (`POST /api/planning/emergency-fund-runway`, package
+  `com.waypoint.planning.runway.web`), and matching request/response DTOs —
+  entirely additive files inside the exclusive `planning/runway` ownership
+  boundary; no existing file was modified. The controller's
+  `InvalidRunwayInputException` handler is declared directly on the
+  controller (not added to the shared `ApiExceptionHandler`), so it cannot
+  catch a sibling controller's errors, per PD-002. See
+  `agent/product/emergency-fund-runway/implementation-log.md` for full
+  detail and `agent/product/emergency-fund-runway/api.md` for the request/
+  response reference with worked examples.
+  `./verify.sh`: 242 tests, 0 failures (34 new). Primary flow exercised
+  manually end to end (finite runway, the 1000/600 -> 1.66 rounding-down
+  case, `NO_SHORTFALL` for income == expenses and for all-zero inputs,
+  zero-reserve-with-shortfall, and negative-amount/malformed-currency
+  validation errors) against a throwaway, disposable Postgres container, not
+  the shared `waypoint-postgres-data` Compose volume; torn down afterward.
 - Shared prose exception for this batch: Do not edit README.md, agent/implementation-log.md, docs/decisions/decisions.md, roadmap, workflow or shared templates. This task-specific exception to the routine central-log update implements the user's disjoint-file requirement. Consolidating the three feature-local implementation records and any README status/API links into shared docs is an explicit follow-up after this batch; it is not a prerequisite for any sibling. No new long-lived architecture decision is authorized here; return for reframing if one becomes necessary.
 - Independence review: 009 owns `planning/runway`, 010 owns `planning/debtamortization`, 011 owns `planning/goalcontribution`, with matching exclusive tests and product directories. All three are stateless and independently deployable on the current baseline. Review each PR for this ownership constraint as well as financial correctness.
 
