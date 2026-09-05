@@ -34,7 +34,14 @@ LOG_FILE="$LOG_DIR/orchestrator.log"
 LOCK_DIR="$STATE_DIR/.orchestrator.lock"
 
 MAX_PARALLEL="${WAYPOINT_MAX_PARALLEL:-3}"
+# Kept as two independent budgets, each with its own frontmatter field
+# (fix_rounds / conflict_rounds) and its own counter, even though they
+# default to the same number: a PR that burns through fix rounds on a
+# genuine product-review finding and then hits an unrelated sibling-merge
+# conflict (or vice versa) must not find its budget already spent by the
+# other kind of failure.
 MAX_FIX_ROUNDS="${WAYPOINT_MAX_FIX_ROUNDS:-2}"
+MAX_CONFLICT_ROUNDS="${WAYPOINT_MAX_CONFLICT_ROUNDS:-2}"
 
 mkdir -p "$WORKTREE_ROOT" "$STATE_DIR" "$LOG_DIR"
 
@@ -127,7 +134,28 @@ frontmatter_field() {
 
 set_frontmatter_field() {
   local file="$1" field="$2" value="$3"
-  sed -i '' "s|^${field}:.*|${field}: ${value}|" "$file"
+  if grep -q "^${field}:" "$file"; then
+    sed -i '' "s|^${field}:.*|${field}: ${value}|" "$file"
+    return 0
+  fi
+  # The field has no existing line in this file's frontmatter yet (e.g. an
+  # older task file authored before this field existed, or a QUEUED file
+  # Codex wrote from a stale template). sed above only ever rewrites an
+  # existing line, so silently doing nothing here would make every later
+  # increment of this field invisible to frontmatter_field() forever --
+  # comparisons like `(( conflict_rounds >= MAX_CONFLICT_ROUNDS ))` would
+  # always see 0 and never stall. Insert it just above the closing `---` of
+  # the frontmatter block instead.
+  awk -v f="$field" -v v="$value" '
+    BEGIN { in_fm=0; inserted=0 }
+    /^---$/ {
+      in_fm++
+      if (in_fm==2 && !inserted) { print f": "v; inserted=1 }
+      print
+      next
+    }
+    { print }
+  ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
 }
 
 task_files() {
@@ -259,9 +287,66 @@ check_migration_collision() {
   return 0
 }
 
+# Pure verdict-parsing logic, kept separate from the actual `codex exec`
+# invocation so it can be unit-tested against canned exit codes and message
+# files without shelling out to Codex. `codex_status` is codex exec's own
+# exit code (0 on a normal run; nonzero means the invocation itself failed
+# -- a crash, auth failure, timeout, etc. -- not a review outcome).
+#
+# REVIEW_ERROR means review infrastructure failed, not that Codex reviewed
+# the PR and found nothing wrong. It must never be treated as ACCEPTED
+# (that would authorize a merge nobody actually reviewed) or as BLOCKING
+# (that would burn a fix_rounds attempt, and dispatch a worker to "fix"
+# findings that were never actually recorded).
+determine_review_verdict() {
+  local pr_number="$1" codex_status="$2" msg_file="$3"
+
+  if (( codex_status != 0 )); then
+    log "PR #$pr_number: codex exec exited $codex_status; treating as REVIEW_ERROR (will retry, not BLOCKING)."
+    echo REVIEW_ERROR
+    return 0
+  fi
+
+  if [[ ! -s "$msg_file" ]]; then
+    log "PR #$pr_number: codex exec produced no output message; treating as REVIEW_ERROR (will retry, not BLOCKING)."
+    echo REVIEW_ERROR
+    return 0
+  fi
+
+  # Two independent `grep -q` checks (the original design) match anywhere in
+  # the message regardless of order or position -- if Codex's prose happens
+  # to quote or discuss an earlier "REVIEW_VERDICT: ACCEPTED" (an example,
+  # a stale draft, a quoted instruction) before its real final
+  # "REVIEW_VERDICT: BLOCKING" decision, the ACCEPTED check fires first and
+  # wrongly authorizes a merge Codex actually rejected. Confirmed live via
+  # Codex's own review of this exact function. Fixed by requiring both: (a)
+  # exactly one verdict-shaped line in the whole message -- more than one,
+  # in any combination, means the protocol review-prompt.md requires
+  # ("exactly one verdict line and nothing after it") was violated, and the
+  # message can't be trusted regardless of which verdict is "last"; and (b)
+  # that line must be the message's final non-blank line.
+  local verdict_line_count last_line
+  verdict_line_count="$(grep -cE '^REVIEW_VERDICT: (ACCEPTED|BLOCKING)$' "$msg_file" 2>/dev/null || true)"
+  if [[ "${verdict_line_count:-0}" -ne 1 ]]; then
+    log "PR #$pr_number: expected exactly one REVIEW_VERDICT line, found ${verdict_line_count:-0}; treating as REVIEW_ERROR (will retry, never ACCEPTED/BLOCKING on an ambiguous message)."
+    echo REVIEW_ERROR
+    return 0
+  fi
+
+  last_line="$(grep -v '^[[:space:]]*$' "$msg_file" | tail -n1)"
+  case "$last_line" in
+    "REVIEW_VERDICT: ACCEPTED") echo ACCEPTED ;;
+    "REVIEW_VERDICT: BLOCKING") echo BLOCKING ;;
+    *)
+      log "PR #$pr_number: the sole REVIEW_VERDICT line is not the final line of Codex's message; treating as REVIEW_ERROR (will retry, not BLOCKING)."
+      echo REVIEW_ERROR
+      ;;
+  esac
+}
+
 run_review() {
   local pr_number="$1" branch="$2" task_file="$3"
-  local feature_slug task_file_rel prompt msg_file verdict
+  local feature_slug task_file_rel prompt msg_file verdict codex_status
   feature_slug="$(frontmatter_field "$task_file" feature_slug)"
   task_file_rel="agent/tasks/$(basename "$task_file")"
   prompt="$(render_review_prompt "$pr_number" "$branch" "$task_file_rel" "$feature_slug")"
@@ -270,8 +355,9 @@ run_review() {
   git -C "$CONTROL_DIR" fetch origin "$branch" --quiet
   git -C "$CONTROL_DIR" checkout -B "review-${pr_number}" "origin/${branch}" --quiet
 
+  codex_status=0
   (cd "$CONTROL_DIR" && codex exec --dangerously-bypass-approvals-and-sandbox \
-    --output-last-message "$msg_file" "$prompt") >> "$LOG_FILE" 2>&1 || true
+    --output-last-message "$msg_file" "$prompt") >> "$LOG_FILE" 2>&1 || codex_status=$?
 
   # review-prompt.md already tells Codex to push its own findings commit;
   # only push here as a safety net, and only if there's actually something
@@ -287,14 +373,7 @@ run_review() {
   fi
   git -C "$CONTROL_DIR" checkout main --quiet
 
-  if grep -q '^REVIEW_VERDICT: ACCEPTED$' "$msg_file" 2>/dev/null; then
-    verdict=ACCEPTED
-  elif grep -q '^REVIEW_VERDICT: BLOCKING$' "$msg_file" 2>/dev/null; then
-    verdict=BLOCKING
-  else
-    log "PR #$pr_number: no parseable REVIEW_VERDICT line from Codex; treating as BLOCKING (fail safe)."
-    verdict=BLOCKING
-  fi
+  verdict="$(determine_review_verdict "$pr_number" "$codex_status" "$msg_file")"
   rm -f "$msg_file"
   echo "$verdict"
 }
@@ -355,18 +434,18 @@ try_merge() {
 
 handle_conflict() {
   local pr_number="$1" branch="$2" task_file="$3"
-  local fix_rounds
-  fix_rounds="$(frontmatter_field "$task_file" fix_rounds)"
-  [[ -z "$fix_rounds" ]] && fix_rounds=0
+  local conflict_rounds
+  conflict_rounds="$(frontmatter_field "$task_file" conflict_rounds)"
+  [[ -z "$conflict_rounds" ]] && conflict_rounds=0
 
-  if (( fix_rounds >= MAX_FIX_ROUNDS )); then
+  if (( conflict_rounds >= MAX_CONFLICT_ROUNDS )); then
     set_frontmatter_field "$task_file" status STALLED
-    push_control_main "Task $branch stalled: merge conflict against main, exhausted $MAX_FIX_ROUNDS automatic rebase attempts"
-    log "PR #$pr_number ($branch): merge conflict persists after $MAX_FIX_ROUNDS attempts; marked STALLED for a human."
+    push_control_main "Task $branch stalled: merge conflict against main, exhausted $MAX_CONFLICT_ROUNDS automatic rebase attempts"
+    log "PR #$pr_number ($branch): merge conflict persists after $MAX_CONFLICT_ROUNDS attempts; marked STALLED for a human."
     return 0
   fi
 
-  fix_rounds=$((fix_rounds+1))
+  conflict_rounds=$((conflict_rounds+1))
   local wt_dir
   wt_dir="$(frontmatter_field "$task_file" worktree)"
   if [[ -z "$wt_dir" || ! -d "$wt_dir" ]]; then
@@ -388,16 +467,16 @@ handle_conflict() {
 
   set_frontmatter_field "$task_file" status IN_PROGRESS
   set_frontmatter_field "$task_file" worktree "$wt_dir"
-  set_frontmatter_field "$task_file" fix_rounds "$fix_rounds"
-  push_control_main "Rebase round $fix_rounds for $branch (merge conflict against main)"
+  set_frontmatter_field "$task_file" conflict_rounds "$conflict_rounds"
+  push_control_main "Rebase round $conflict_rounds for $branch (merge conflict against main)"
 
   local fix_note="This branch's PR now conflicts with main -- almost certainly because a sibling task merged in the meantime and touched the same shared file (commonly README.md's Status/endpoint-docs prose or agent/implementation-log.md's shared append point). Run: git fetch origin main && git merge origin/main. Resolve every conflict by KEEPING BOTH sides' additions where they are independent content -- two different doc sections, two different implementation-log entries, two different exception handlers or endpoints -- never drop the other task's work to make yours look cleaner. Only if the conflict is a genuine logical clash in application code (not docs/log prose, and not two independent additions like separate methods) should you use judgment about which version is correct, and record that decision explicitly in agent/implementation-log.md. Do not resolve a conflict in a Flyway migration's version number yourself -- if the conflict involves that, stop and set this task file's status to STALLED with an explanation instead, since that needs a human decision. Once resolved, re-run ./verify.sh to confirm the merge actually builds, commit the merge, and push."
   local session_id
-  session_id="$(dispatch_worker "$task_file" "$branch" "$wt_dir" "$fix_note" "task-rebase${fix_rounds}-$(echo "$branch" | tr '/' '-')")"
+  session_id="$(dispatch_worker "$task_file" "$branch" "$wt_dir" "$fix_note" "task-rebase${conflict_rounds}-$(echo "$branch" | tr '/' '-')")"
   set_frontmatter_field "$task_file" session "${session_id:-unknown}"
   push_control_main "Record rebase-round worker session for $branch"
 
-  log "PR #$pr_number ($branch): dispatched rebase round $fix_rounds to resolve merge conflict (session ${session_id:-unknown})."
+  log "PR #$pr_number ($branch): dispatched rebase round $conflict_rounds to resolve merge conflict (session ${session_id:-unknown})."
 }
 
 handle_blocking() {
@@ -472,6 +551,18 @@ review_and_merge_phase() {
 
     if [[ "$head_sha" != "$last_sha" ]]; then
       verdict="$(run_review "$pr_number" "$branch" "$task_file")"
+      if [[ "$verdict" == "REVIEW_ERROR" ]]; then
+        # Review infrastructure failed (codex exec crashed, produced no
+        # output, or a malformed/missing verdict line) rather than
+        # completing a real review. Do not persist last_reviewed_sha: with
+        # no state written, the next run's head_sha still won't match
+        # last_sha, so this PR is retried from scratch next tick instead of
+        # being silently treated as reviewed. Deliberately does not fall
+        # through to the case statement below -- no fix round, no
+        # fix_rounds increment, no merge.
+        log "PR #$pr_number: review infrastructure failure; leaving PR for another review attempt next run."
+        continue
+      fi
       # Codex's own review commit moves the PR's head; record *that* sha,
       # not the pre-review one, or the next tick sees a "new" commit (the
       # review itself) and re-reviews it every single run.
@@ -495,4 +586,12 @@ main() {
   dispatch_phase
 }
 
-main "$@"
+# Allow agent/automation/tests/orchestrator_test.sh to `source` this file to
+# exercise individual functions (prompt rendering, frontmatter helpers,
+# verdict parsing, migration-collision detection) without running a real
+# unattended pass against GitHub/Codex/Claude. Only run main() when this
+# file is executed directly, exactly like the historical `if __name__ ==
+# "__main__"` pattern.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
+fi

@@ -27,7 +27,7 @@ orchestrator control flow.
 
 ---
 
-Read AGENTS.md, agent/collaboration-workflow.md, agent/tasks/{{TASK_FILE}},
+Read AGENTS.md, agent/collaboration-workflow.md, {{TASK_FILE}},
 and agent/product/{{FEATURE_SLUG}}/product-brief.md — nothing else. Do not
 read any other conversation history; you have none for this feature beyond
 what these files say.

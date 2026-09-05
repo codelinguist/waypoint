@@ -108,10 +108,21 @@ being a single-developer household project:
   use `claude --permission-mode bypassPermissions` and
   `codex exec --dangerously-bypass-approvals-and-sandbox` — flags this
   document and `AGENTS.md` otherwise forbid using casually. This bypass is
-  scoped strictly to sessions the orchestrator itself spawns, each confined
-  to one task's worktree/branch; every interactive session (a human running
-  `claude` or `codex` directly) keeps the normal sandboxed, approval-gated
-  behavior.
+  scoped to sessions the orchestrator itself spawns, each assigned its own
+  git worktree and branch — but a worktree only isolates which Git branch a
+  session works on. It does **not** restrict filesystem, network, process,
+  or credential access: a bypassed session can read or write anything the
+  invoking OS user can reach, make outbound network calls, and use whatever
+  credentials that user's environment exposes — including the GitHub token
+  `orchestrator.sh`'s `ensure_authenticated_remote()` embeds directly into
+  the control clone's `.git/config` (see `agent/automation/orchestrator.sh`).
+  Every interactive session (a human running `claude` or `codex` directly)
+  keeps the normal sandboxed, approval-gated behavior. This gap is currently
+  accepted, not mitigated: running unattended agents inside a real
+  sandbox/container or a restricted OS account with narrowly scoped
+  credentials would close it, and should be treated as the next hardening
+  step before this pipeline is trusted with anything more sensitive than
+  this single household's private repository.
 - **Automatic merge.** Merging previously required a human, Codex, or
   Claude-Code-only-when-asked to act after acceptance; the orchestrator now
   merges the moment both gates are satisfied, with no further human step.
