@@ -5,6 +5,48 @@ product brief's "Delivery handoff"). Consolidation into
 `agent/implementation-log.md` is an explicit follow-up after Tasks 009-011,
 not part of this task.
 
+## Fix round 1 (2026-09-05) — R1/R2 from Codex's PR #13 review
+
+Applied both `ACCEPTED` `BLOCKING` findings from the product brief's
+"Review findings — 2026-09-05" section:
+
+- **R1 (currency validation depended on JVM default locale):**
+  `EmergencyFundRunwayCalculator.normalizeCurrency` now validates the
+  supplied code is exactly 3 ASCII letters (`^[A-Za-z]{3}$`) *before* any
+  case change, then uppercases with `Locale.ROOT` rather than the JVM
+  default locale. This fixes both directions of the finding: a valid
+  lowercase code (`inr`) no longer fails validation under a Turkish
+  default locale (where naive `.toUpperCase()` produces `İNR`), and a
+  2-character code that would expand to 3 letters under `Locale.US`
+  case-folding (`ßa` -> `SSA`) is rejected as malformed before expansion,
+  closing the direct-domain-call gap the HTTP-layer `@Pattern` didn't
+  cover. Added
+  `normalizesCurrencyCaseIndependentlyOfDefaultLocale` (sets/restores
+  `Locale.setDefault` around the call) and
+  `rejectsATwoCharacterCodeThatExpandsToThreeUppercaseLetters` to
+  `EmergencyFundRunwayCalculatorTest`.
+- **R2 (HTTP edge-case evidence incomplete):** Added
+  `returnsNoShortfallWithNullMonthValuesWhenIncomeExceedsExpenses` to
+  `EmergencyFundRunwayApiIntegrationTest` (reserve 1000.00 / expenses
+  400.00 / income 500.00 -> 200, `NO_SHORTFALL`, shortfall `0.00`, both
+  month fields present with JSON `null`). Replaced `doesNotExist()` with
+  `value(nullValue())` on `runwayMonths`/`fullMonthsCovered` in the
+  existing equality and all-zero HTTP tests, since Jackson serializes
+  these fields as JSON `null` rather than omitting them and `doesNotExist`
+  does not distinguish "field absent" from "field present with null value."
+  Added the missing `monthlyShortfall` equal-to-zero assertion to the
+  existing domain-level `returnsNoShortfallWhenIncomeExceedsExpenses` test.
+
+`./verify.sh`: 245 tests, 0 failures (37 in the `runway` package: 22
+domain + 15 HTTP, up from 34 total/20+14 before this round). No production
+behavior changed outside `normalizeCurrency`'s validation order and locale
+handling; the documented request/response contract in `api.md` is
+unaffected (currency was already documented as case-insensitive-in,
+uppercase-out).
+
+Merged `origin/main` into this branch before this round (fast-forward, no
+conflicts — no sibling task had merged in the interim).
+
 ## Changed
 
 New, additive package `com.waypoint.planning.runway` — no existing file was
@@ -46,15 +88,16 @@ overflow.
 
 ## Tests
 
-- `EmergencyFundRunwayCalculatorTest` (20 tests): finite runway, the
+- `EmergencyFundRunwayCalculatorTest` (22 tests): finite runway, the
   1000/600 -> 1.66 rounding-down case, a same-value boundary case
   confirming `fullMonthsCovered` isn't derived from the rounded
   `runwayMonths`, zero-reserve-with-shortfall, all three `NO_SHORTFALL`
   paths (income == expenses, income > expenses, all-zero), currency
-  normalization, determinism, and rejection of null/negative/over-scale/
-  over-precision amounts and malformed/blank/null currency directly against
-  the domain calculator (no Spring context).
-- `EmergencyFundRunwayApiIntegrationTest` (14 tests): the same
+  normalization (including locale-independence, per the fix round below),
+  determinism, and rejection of null/negative/over-scale/over-precision
+  amounts and malformed/blank/null currency directly against the domain
+  calculator (no Spring context).
+- `EmergencyFundRunwayApiIntegrationTest` (15 tests): the same
   success/edge-case matrix over HTTP, plus validation-error and
   malformed-JSON responses, currency-case normalization, and a
   byte-for-byte identical-response check for repeated identical requests.
@@ -65,8 +108,9 @@ overflow.
   household/entity identifier on the endpoint, plus the identical-response
   test, is the actual evidence of statelessness.
 
-`./verify.sh`: 242 tests, 0 failures (34 new versus the pre-batch `main`
-baseline this branch was cut from).
+`./verify.sh`: 245 tests, 0 failures (37 in the `runway` package versus the
+pre-batch `main` baseline this branch was cut from; see the fix-round entry
+above for the 3 tests added in round 1).
 
 ## Manual verification
 

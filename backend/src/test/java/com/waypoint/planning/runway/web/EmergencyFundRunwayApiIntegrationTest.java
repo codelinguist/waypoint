@@ -81,9 +81,19 @@ class EmergencyFundRunwayApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("NO_SHORTFALL"))
                 .andExpect(jsonPath("$.monthlyShortfall").value(0.00))
-                .andExpect(jsonPath("$.runwayMonths").doesNotExist())
-                .andExpect(jsonPath("$.fullMonthsCovered").doesNotExist())
+                .andExpect(jsonPath("$.runwayMonths").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.fullMonthsCovered").value(org.hamcrest.Matchers.nullValue()))
                 .andExpect(jsonPath("$.modelNote").value(org.hamcrest.Matchers.containsString("NO_SHORTFALL")));
+    }
+
+    @Test
+    void returnsNoShortfallWithNullMonthValuesWhenIncomeExceedsExpenses() throws Exception {
+        calculate("1000.00", "400.00", "500.00", "USD")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("NO_SHORTFALL"))
+                .andExpect(jsonPath("$.monthlyShortfall").value(0.00))
+                .andExpect(jsonPath("$.runwayMonths").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.fullMonthsCovered").value(org.hamcrest.Matchers.nullValue()));
     }
 
     @Test
@@ -91,7 +101,9 @@ class EmergencyFundRunwayApiIntegrationTest {
         calculate("0", "0", "0", "USD")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("NO_SHORTFALL"))
-                .andExpect(jsonPath("$.monthlyShortfall").value(0.00));
+                .andExpect(jsonPath("$.monthlyShortfall").value(0.00))
+                .andExpect(jsonPath("$.runwayMonths").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.fullMonthsCovered").value(org.hamcrest.Matchers.nullValue()));
     }
 
     @Test

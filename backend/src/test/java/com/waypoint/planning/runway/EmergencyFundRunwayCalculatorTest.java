@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.Locale;
 import org.junit.jupiter.api.Test;
 
 class EmergencyFundRunwayCalculatorTest {
@@ -76,6 +77,7 @@ class EmergencyFundRunwayCalculatorTest {
                 new BigDecimal("1000.00"), new BigDecimal("400.00"), new BigDecimal("500.00"), "USD");
 
         assertThat(result.status()).isEqualTo(RunwayStatus.NO_SHORTFALL);
+        assertThat(result.monthlyShortfall()).isEqualByComparingTo("0.00");
         assertThat(result.runwayMonths()).isNull();
         assertThat(result.fullMonthsCovered()).isNull();
     }
@@ -97,6 +99,36 @@ class EmergencyFundRunwayCalculatorTest {
                 new BigDecimal("1000.00"), new BigDecimal("400.00"), new BigDecimal("100.00"), " usd ");
 
         assertThat(result.currency()).isEqualTo("USD");
+    }
+
+    @Test
+    void normalizesCurrencyCaseIndependentlyOfDefaultLocale() {
+        // Turkish locale's dotless-i case rule turns "inr".toUpperCase() into
+        // "İNR" under the default locale, which then fails the domain's
+        // 3-letter pattern. Normalization must use Locale.ROOT so a valid
+        // lowercase code is never rejected due to the JVM's default locale.
+        Locale originalDefault = Locale.getDefault();
+        Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+        try {
+            EmergencyFundRunwayResult result = calculator.calculate(
+                    new BigDecimal("1000.00"), new BigDecimal("400.00"), new BigDecimal("100.00"), "inr");
+
+            assertThat(result.currency()).isEqualTo("INR");
+        } finally {
+            Locale.setDefault(originalDefault);
+        }
+    }
+
+    @Test
+    void rejectsATwoCharacterCodeThatExpandsToThreeUppercaseLetters() {
+        // Under Locale.US, "ß".toUpperCase() expands to "SS", so "ßa" would
+        // become the 3-letter "SSA" if validated after case expansion. The
+        // supplied code must be validated as 3 ASCII letters before any case
+        // change, so this 2-character input is rejected regardless of locale.
+        assertThatThrownBy(() -> calculator.calculate(
+                new BigDecimal("1000.00"), new BigDecimal("400.00"), new BigDecimal("100.00"), "ßa"))
+                .isInstanceOf(InvalidRunwayInputException.class)
+                .hasMessageContaining("3-letter");
     }
 
     @Test

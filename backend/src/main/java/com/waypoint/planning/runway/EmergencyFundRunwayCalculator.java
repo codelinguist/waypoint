@@ -3,6 +3,7 @@ package com.waypoint.planning.runway;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
+import java.util.Locale;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
 
@@ -21,7 +22,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class EmergencyFundRunwayCalculator {
 
-    private static final Pattern CURRENCY_PATTERN = Pattern.compile("^[A-Z]{3}$");
+    private static final Pattern CURRENCY_PATTERN = Pattern.compile("^[A-Za-z]{3}$");
     private static final int MAX_INTEGER_DIGITS = 17;
     private static final int SCALE = 2;
     private static final BigInteger HUNDRED = BigInteger.valueOf(100);
@@ -75,11 +76,11 @@ public class EmergencyFundRunwayCalculator {
         if (currency == null || currency.isBlank()) {
             throw new InvalidRunwayInputException("currency must not be blank");
         }
-        String normalized = currency.trim().toUpperCase();
-        if (!CURRENCY_PATTERN.matcher(normalized).matches()) {
+        String trimmed = currency.trim();
+        if (!CURRENCY_PATTERN.matcher(trimmed).matches()) {
             throw new InvalidRunwayInputException("currency must be a 3-letter currency code");
         }
-        return normalized;
+        return trimmed.toUpperCase(Locale.ROOT);
     }
 
     private void validateAmount(BigDecimal amount, String fieldName) {

@@ -135,12 +135,12 @@
 
 ## Feature acceptance
 
-- Acceptance status: `PENDING`
-- Acceptance evidence: Independent review of PR #13 at a2a653613ae35a542ff2d011b889047e100acf4c completed on 2026-09-05; see the dated review below. Acceptance withheld pending R1 and R2.
-- Unmet criteria: Currency normalization and direct-domain rejection invariants (criteria 4–5), and HTTP coverage of all defined edge cases (criterion 5), as detailed in R1–R2.
-- Returned work: Resolve accepted BLOCKING findings R1–R2 within the existing ownership paths; rerun ./verify.sh and update feature-local evidence for independent re-review.
+- Acceptance status: `PENDING` (fix round 1 applied; awaiting independent re-review)
+- Acceptance evidence: Independent review of PR #13 at a2a653613ae35a542ff2d011b889047e100acf4c completed on 2026-09-05; see the dated review below. Acceptance withheld pending R1 and R2. Fix round 1 (2026-09-05) resolved both — see `agent/product/emergency-fund-runway/implementation-log.md` -> "Fix round 1" for the concrete changes and new regression tests, and "Acceptance assessment" below for how each affected criterion now reads.
+- Unmet criteria: None believed remaining as of fix round 1; criteria 4–5 (currency normalization, direct-domain rejection invariants, HTTP edge-case coverage) should now be satisfied pending independent re-review confirming R1/R2's acceptance conditions.
+- Returned work: None outstanding from this round. `./verify.sh`: 245 tests, 0 failures (37 in the `runway` package, up from 34).
 - Follow-up opportunities: Stored-state integration only with a separately framed provenance/approval contract; richer models only when concrete household needs justify them; shared-document consolidation after this batch.
-- Accepted or returned by Product Owner Agent: Codex — returned for fixes.
+- Accepted or returned by Product Owner Agent: Codex — returned for fixes on 2026-09-05; re-review pending as of fix round 1.
 - Accepted or returned at: 2026-09-05
 
 ## Review findings — 2026-09-05
@@ -236,3 +236,42 @@ or speculative polish findings are requested.
 System evolution considered: the existing invariant and edge-case requirements
 already cover both findings; no shared rule or template edit is necessary for
 this fix. The requested regression tests are the concrete prevention measure.
+
+## Fix round 1 — 2026-09-05
+
+Applied both `ACCEPTED` findings from the review above. Full detail is in
+`agent/product/emergency-fund-runway/implementation-log.md` -> "Fix round 1";
+summary for re-review:
+
+- **R1**: `EmergencyFundRunwayCalculator.normalizeCurrency` (`backend/src/
+  main/java/com/waypoint/planning/runway/EmergencyFundRunwayCalculator.java`)
+  now matches the supplied code against `^[A-Za-z]{3}$` — three ASCII
+  letters, checked before any case change — and then uppercases with
+  `Locale.ROOT` instead of the JVM default locale. Two new domain tests:
+  `normalizesCurrencyCaseIndependentlyOfDefaultLocale` (temporarily sets the
+  default locale to `tr-TR`, asserts lowercase `inr` still normalizes to
+  `INR`, restores the original default in a `finally` block) and
+  `rejectsATwoCharacterCodeThatExpandsToThreeUppercaseLetters` (asserts a
+  direct `calculate("ßa", ...)` call throws
+  `InvalidRunwayInputException`, reproducing the exact JShell-reported case
+  from R1's evidence).
+- **R2**: Added `returnsNoShortfallWithNullMonthValuesWhenIncomeExceedsExpenses`
+  to `EmergencyFundRunwayApiIntegrationTest` (reserve 1000.00, expenses
+  400.00, income 500.00 -> HTTP 200, `NO_SHORTFALL`, `monthlyShortfall`
+  0.00, both month fields JSON `null`). Changed the equality and all-zero
+  HTTP tests' month-field assertions from `doesNotExist()` to
+  `value(nullValue())`, which is the assertion R2 specifically called for
+  (present-with-null, not absent). Added the missing `monthlyShortfall`
+  zero-assertion to the existing domain-level surplus-income test.
+
+`./verify.sh`: 245 tests, 0 failures (37 in the `runway` package: 22 domain
++ 15 HTTP, versus 20 + 14 before this round). No behavior outside
+`normalizeCurrency`'s validation order/locale handling changed; the
+documented `api.md` request/response contract is unaffected. Merged
+`origin/main` into this branch before committing this round (see git
+history for whether that was a fast-forward or introduced a resolved
+conflict).
+
+Acceptance status remains `PENDING` pending this independent re-review; no
+new finding, scope change, or product decision was introduced by this
+round.
