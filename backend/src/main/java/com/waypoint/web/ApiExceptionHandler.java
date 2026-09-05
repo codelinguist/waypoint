@@ -6,6 +6,7 @@ import com.waypoint.household.HouseholdNotFoundException;
 import com.waypoint.household.IdenticalSnapshotComparisonException;
 import com.waypoint.household.IncomeStreamNotFoundException;
 import com.waypoint.household.InvalidAssetValueException;
+import com.waypoint.household.InvalidPlanException;
 import com.waypoint.household.InvalidScheduleException;
 import com.waypoint.household.LiabilityNotFoundException;
 import com.waypoint.household.ObligationNotFoundException;
@@ -99,6 +100,12 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(IdenticalSnapshotComparisonException.class)
     public ResponseEntity<ErrorResponse> handleIdenticalSnapshotComparison(IdenticalSnapshotComparisonException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse("VALIDATION_FAILED", ex.getMessage(), List.of()));
+    }
+
+    @ExceptionHandler(InvalidPlanException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidPlan(InvalidPlanException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse("VALIDATION_FAILED", ex.getMessage(), List.of()));
     }
