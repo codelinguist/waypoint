@@ -1,5 +1,5 @@
 ---
-status: IN_PROGRESS
+status: IN_REVIEW
 task_number: 010
 feature_slug: debt-amortization
 branch: task/010-debt-amortization
