@@ -136,12 +136,15 @@ dispatch_worker() {
   local prompt
   prompt="$(render_worker_prompt "$task_file_rel" "$branch" "$fix_note")"
   local raw
-  raw="$(cd "$wt_dir" && claude -p "$prompt" --permission-mode bypassPermissions --bg --name "$name" 2>>"$LOG_FILE")"
+  # --bg conflicts with -p/--print (an unattachable job would result); the
+  # prompt is positional here instead. Confirmed empirically against the
+  # installed claude CLI, which rejects the -p form outright.
+  raw="$(cd "$wt_dir" && claude --bg "$prompt" --permission-mode bypassPermissions --name "$name" 2>>"$LOG_FILE")"
   log "claude --bg raw output for $name: $raw"
-  # claude --bg prints the short background-session id; take the last
-  # non-empty line as a best effort. Verify with `claude agents` if this
-  # ever looks wrong — see agent/automation/README.md.
-  echo "$raw" | awk 'NF{line=$0} END{print line}'
+  # Confirmed format: first line is "backgrounded · <id> · <name>", followed
+  # by a few "claude <subcommand> <id> ..." help lines. Take field 2 of line
+  # 1, not the last line (which is one of those help lines, not the id).
+  echo "$raw" | head -1 | awk -F' · ' '{print $2}' | tr -d '[:space:]'
 }
 
 dispatch_phase() {
@@ -183,17 +186,35 @@ dispatch_phase() {
 # ---- review + merge phase ---------------------------------------------------
 
 check_migration_collision() {
+  # Only versions the branch actually *introduces* (added since it diverged
+  # from main) matter here. Comparing the branch's full migration list
+  # against main's always overlaps -- every branch inherits main's existing
+  # migrations by definition -- so that comparison alone is not a collision
+  # check at all; it was confirmed to false-positive on every single branch
+  # during the first live run of this pipeline.
   local branch="$1" dir="backend/src/main/resources/db/migration"
   git -C "$CONTROL_DIR" fetch origin main "$branch" --quiet
-  local main_versions branch_versions dup collision
-  main_versions="$(git -C "$CONTROL_DIR" ls-tree -r --name-only "origin/main" -- "$dir" 2>/dev/null \
-    | xargs -n1 basename 2>/dev/null | grep -oE '^V[0-9]+' | sort -u || true)"
-  branch_versions="$(git -C "$CONTROL_DIR" ls-tree -r --name-only "origin/$branch" -- "$dir" 2>/dev/null \
-    | xargs -n1 basename 2>/dev/null | grep -oE '^V[0-9]+' | sort || true)"
-  dup="$(echo "$branch_versions" | uniq -d)"
-  [[ -n "$dup" ]] && return 1
-  collision="$(comm -12 <(echo "$main_versions") <(echo "$branch_versions" | sort -u) 2>/dev/null || true)"
-  [[ -n "$collision" ]] && return 1
+  local merge_base new_files new_versions main_files v branch_file main_file
+  merge_base="$(git -C "$CONTROL_DIR" merge-base origin/main "origin/$branch" 2>/dev/null || true)"
+  [[ -z "$merge_base" ]] && return 0
+
+  new_files="$(git -C "$CONTROL_DIR" diff --diff-filter=A --name-only "$merge_base" "origin/$branch" -- "$dir" 2>/dev/null \
+    | xargs -n1 basename 2>/dev/null || true)"
+  new_versions="$(echo "$new_files" | grep -oE '^V[0-9]+' | sort -u || true)"
+  [[ -z "$new_versions" ]] && return 0
+
+  # A within-branch duplicate (two new files claiming the same version) is
+  # always a real collision.
+  [[ -n "$(echo "$new_files" | grep -oE '^V[0-9]+' | sort | uniq -d)" ]] && return 1
+
+  main_files="$(git -C "$CONTROL_DIR" ls-tree -r --name-only "origin/main" -- "$dir" 2>/dev/null \
+    | xargs -n1 basename 2>/dev/null || true)"
+  for v in $new_versions; do
+    main_file="$(echo "$main_files" | grep "^${v}__" || true)"
+    [[ -z "$main_file" ]] && continue
+    branch_file="$(echo "$new_files" | grep "^${v}__" || true)"
+    [[ "$branch_file" != "$main_file" ]] && return 1
+  done
   return 0
 }
 
@@ -211,7 +232,18 @@ run_review() {
   (cd "$CONTROL_DIR" && codex exec --dangerously-bypass-approvals-and-sandbox \
     --output-last-message "$msg_file" "$prompt") >> "$LOG_FILE" 2>&1 || true
 
-  git -C "$CONTROL_DIR" push --quiet origin "HEAD:$branch" || true
+  # review-prompt.md already tells Codex to push its own findings commit;
+  # only push here as a safety net, and only if there's actually something
+  # local that isn't on origin yet (an unconditional push here previously
+  # always logged a confusing non-fast-forward rejection, since Codex's own
+  # push already landed the same commit).
+  local origin_sha local_sha
+  origin_sha="$(git -C "$CONTROL_DIR" rev-parse "origin/${branch}" 2>/dev/null || true)"
+  local_sha="$(git -C "$CONTROL_DIR" rev-parse HEAD 2>/dev/null || true)"
+  if [[ -n "$local_sha" && "$origin_sha" != "$local_sha" ]]; then
+    git -C "$CONTROL_DIR" push --quiet origin "HEAD:$branch" 2>>"$LOG_FILE" \
+      || log "PR #$pr_number: could not push Codex's review commit as a safety net (already pushed by Codex, or a real conflict)."
+  fi
   git -C "$CONTROL_DIR" checkout main --quiet
 
   if grep -q '^REVIEW_VERDICT: ACCEPTED$' "$msg_file" 2>/dev/null; then
@@ -321,6 +353,10 @@ review_and_merge_phase() {
 
     if [[ "$head_sha" != "$last_sha" ]]; then
       verdict="$(run_review "$pr_number" "$branch" "$task_file")"
+      # Codex's own review commit moves the PR's head; record *that* sha,
+      # not the pre-review one, or the next tick sees a "new" commit (the
+      # review itself) and re-reviews it every single run.
+      head_sha="$(gh pr view "$pr_number" --repo "$REPO_SLUG" --json headRefOid --jq .headRefOid)"
       printf '{"last_reviewed_sha":"%s","verdict":"%s"}\n' "$head_sha" "$verdict" > "$state_file"
     fi
 

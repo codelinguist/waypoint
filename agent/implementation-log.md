@@ -1,5 +1,99 @@
 # Implementation Log
 
+### 2026-09-05 — First live run of the automated pipeline (Task 006), three bugs found and fixed
+
+**Changed**
+
+- Ran `agent/automation/orchestrator.sh` for real against Task 006 (read-only
+  financial snapshot comparison, `agent/product/snapshot-comparison/
+  product-brief.md`) end to end: dispatched an unattended `claude --bg`
+  worker in its own worktree, which implemented the feature, ran
+  `./verify.sh` (154 tests, 0 failures), and opened PR #7; then ran the
+  review/merge phase, which had Codex review the PR unattended, record
+  acceptance in the product brief, and — once the required `verify` check
+  went green — merge PR #7 automatically with no human step. This is the
+  first task to go through the full pipeline described in `agent/
+  collaboration-workflow.md` -> "Automated pipeline".
+- Fixed three real bugs this first live run surfaced in
+  `agent/automation/orchestrator.sh`, none of which were caught by the
+  syntax-only check in the previous entry:
+  1. `dispatch_worker()` called `claude -p "$prompt" ... --bg`; `claude`
+     rejects combining `--bg` with `-p`/`--print` outright ("the job would
+     be unattachable"). Fixed to pass the prompt positionally with `--bg`
+     alone.
+  2. That same call's session-id extraction assumed the last non-empty line
+     of `claude --bg`'s output was the id; the real output is `backgrounded
+     · <id> · <name>` on line 1, followed by a few `claude <subcommand> <id>
+     ...` help lines — the "last line" was actually one of those help lines,
+     never the id. Fixed to parse field 2 of line 1.
+  3. `check_migration_collision()` compared a branch's *entire* migration
+     file list against `main`'s and treated any overlap as a collision —
+     which is every normal branch, always, since a branch inherits all of
+     main's existing migrations by definition. This would have silently
+     stalled every single future task at the merge step. Fixed to diff
+     against the merge-base and only compare versions the branch actually
+     introduces.
+  - Also discovered (not a bug, but worth recording): unattended
+    `--permission-mode bypassPermissions --bg` requires a one-time
+    interactive disclaimer acceptance per machine
+    (`claude --dangerously-skip-permissions`, run once in a real terminal —
+    the harness's own non-interactive command execution doesn't provide a
+    real TTY and can't get past this, by design); and `codex exec`'s own
+    review commit retriggers the required CI check, so a review pass isn't
+    "done" the instant Codex responds — the orchestrator only merges once
+    `gh pr checks` reports the *current* head sha's check as `SUCCESS`,
+    which already handled this correctly.
+
+**Tests**
+
+- No `./verify.sh` run for this change itself (touches only
+  `agent/automation/orchestrator.sh`, not application code). The real test
+  *was* the live run: Task 006's worker's own `./verify.sh` passed (154
+  tests, 18 new, 0 failures), and the required CI `verify` check passed
+  twice (once per PR #7 commit) before merge.
+
+**Decisions**
+
+- Left the state-tracking fix (record the review's *post*-commit head sha,
+  not the pre-review one) in the same pass as the migration-collision fix,
+  since both were found from the same live run and an incomplete fix would
+  have left the pipeline re-reviewing its own review commit every tick.
+- Did not add automated tests for `orchestrator.sh` itself (e.g. a bats
+  suite) in this pass — the collision-check fix and the flag fixes were
+  each verified against the real Task 006 branch/PR directly, which is
+  stronger evidence than a synthetic test would be for this first pass, but
+  a regression suite is a real gap now that the script has already shipped
+  one bug per major function.
+
+**Assumptions**
+
+- Assuming the `claude --bg` output format (`backgrounded · <id> · <name>`
+  plus help lines) is stable across versions; a future `claude` CLI update
+  could change this format again the same way `codex exec review`'s
+  argument handling turned out to differ from what the collaboration
+  workflow originally documented.
+
+**Open questions**
+
+- Whether `orchestrator.sh` needs its own test harness (mocking `claude`/
+  `codex`/`gh`) given it has now shipped bugs in dispatch, review-state
+  tracking, and merge-safety logic — each caught only by an actual live run,
+  not by `bash -n`.
+- Whether the "wait for a fresh CI run after Codex's own commit" behavior
+  should be made explicit/logged in `try_merge()` rather than implicitly
+  handled by the existing check-state comparison, since it was a source of
+  real confusion while diagnosing this run.
+
+**Recommended next task**
+
+- Frame Task 007 with Codex and let it flow through the now-verified
+  pipeline unattended, ideally without a human intervening mid-run this
+  time, as the real test of whether these fixes hold.
+- Consider a minimal automated test harness for `agent/automation/
+  orchestrator.sh`'s pure-logic pieces (`check_migration_collision`,
+  frontmatter parsing) so the next bug is caught before a live task branch
+  finds it.
+
 ### 2026-09-05 — Task 006: Financial Snapshot Comparison
 
 **Changed**
