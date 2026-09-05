@@ -1,5 +1,5 @@
 ---
-status: IN_PROGRESS
+status: IN_REVIEW
 task_number: 006
 feature_slug: snapshot-comparison
 branch: task/006-snapshot-comparison

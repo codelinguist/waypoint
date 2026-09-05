@@ -112,7 +112,23 @@
 - Current task: `agent/tasks/006-snapshot-comparison.md`
 - Design brief, if applicable: Not applicable; backend-only task.
 - Implementation owner: Claude Code
-- Review evidence: Pending implementation.
+- Review evidence: `GET /api/households/{householdId}/financial-snapshots/comparison?
+  earlierSnapshotId=&laterSnapshotId=` implemented in
+  `FinancialSnapshotController`/`FinancialSnapshotService`
+  (`backend/src/main/java/com/waypoint/household/`); no persistence added
+  (PD-002), no Flyway migration needed. Local `./verify.sh`: 154 tests,
+  0 failures (18 new: 7 unit in `FinancialSnapshotServiceTest`, 11
+  integration in `FinancialSnapshotApiIntegrationTest`), covering
+  arithmetic (including a currency present in only one snapshot, and
+  all-zero deltas), self-comparison rejection, missing household/snapshot,
+  cross-household isolation, missing query parameters, and no
+  persistence/mutation. Primary flow manually exercised against `docker
+  compose up --build` using an isolated scratch Postgres volume (not the
+  shared `waypoint-postgres-data` volume, to avoid mixing test data with
+  any real household records it may hold) — see the 2026-09-05 Task 006
+  entry in `agent/implementation-log.md` for full detail, the routing note
+  on `/comparison` vs. `/{snapshotId}`, and a flagged follow-up about that
+  shared volume default.
 
 ## Feature acceptance
 
