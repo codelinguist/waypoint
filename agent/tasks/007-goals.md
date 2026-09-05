@@ -4,7 +4,7 @@ task_number: 007
 feature_slug: goals
 branch: task/007-goals
 worktree: /Users/rj/Documents/projects/waypoint-orchestrator/worktrees/task-007-goals
-session:
+session: e99c5dd2
 pr:
 claimed_at: 2026-09-05T11:08:28Z
 fix_rounds: 0
