@@ -14,6 +14,9 @@ regardless of size.
 
 ### Claude Code: design explorer and implementer
 
+- research the codebase and external documentation needed to explore
+  directions and plan implementation — the technical side of the research
+  split described below
 - turn product requirements into two or three meaningfully different UI directions
 - reason about information hierarchy, interaction flow, responsive behavior,
   accessibility, and visual coherence
@@ -25,6 +28,8 @@ regardless of size.
 
 ### Product Owner Agent (Codex): product decision owner
 
+- research the product and problem space — existing product context, prior
+  briefs, user input — the product side of the research split described below
 - convert user-reported problems and feedback into durable product briefs
 - define the user problem, desired outcome, priority, and boundaries
 - decide whether a feature is ready for design and implementation
@@ -35,11 +40,45 @@ regardless of size.
 - accept, reject, or defer changes found during that review
 - accept the completed feature or return it with unmet acceptance criteria
 
-The Product Owner Agent runs as Codex, in a task or session kept separate from
-the implementation agent, so acceptance stays independent of the agent that
-built the feature. Its complete instructions are in
-`agent/roles/product-owner.md`. It owns routine, reversible product decisions
-that can be grounded in repository evidence.
+The Product Owner Agent runs as Codex. Claude Code invokes it non-interactively
+through the local `codex` CLI rather than the user running a separate manual
+session, so acceptance stays independent of the agent that built the feature:
+each invocation starts from zero shared context and reads only checked-in
+artifacts (the product brief, `agent/current-task.md`, the PR diff) — never
+Claude Code's planning or implementation conversation. Its complete
+instructions are in `agent/roles/product-owner.md`. It owns routine, reversible
+product decisions that can be grounded in repository evidence.
+
+### Invoking the Product Owner Agent
+
+Claude Code (or the user directly) triggers Codex through the `codex` CLI,
+already authenticated on this machine against the user's ChatGPT
+subscription. This automates the mechanics of the Product Owner role; it does
+not change its authority or responsibilities above.
+
+- **Framing, brief-writing, design approval, acceptance** — run through
+  `codex exec`, sandboxed as `workspace-write` so Codex can write
+  `agent/product/<feature-slug>/product-brief.md`,
+  `agent/ui/<feature-slug>/design-brief.md`, and `agent/current-task.md`, and
+  commit its own changes to the task branch (its existing standing
+  authorization to commit findings and acceptance records applies the same
+  way here).
+- **PR review** — run through `codex review` (or `codex exec review`) with
+  `--base main` or `--commit <sha>`, which is purpose-built for reviewing a
+  diff non-interactively.
+- **Follow-up questions** — Codex may end an invocation by asking a
+  clarifying question instead of finishing the brief. Claude Code relays that
+  question to the user in the same conversation — no tool switch required —
+  then continues the same Codex session with
+  `codex exec resume <session-id> "<answer>"` rather than starting a fresh
+  one, so the back-and-forth reads as one continuous framing conversation on
+  Codex's side.
+- **Context boundary** — every invocation's prompt points Codex only at
+  checked-in files. Never paste Claude Code's conversation into a `codex`
+  prompt; if context beyond a file's content is needed, put it in the file
+  first.
+- The user can always run `codex` interactively themselves instead, for any
+  step where they want to be directly in the loop.
 
 ### User and household authority
 
@@ -71,6 +110,7 @@ gets UI artifacts:
 ```text
 agent/product/<feature-slug>/
   product-brief.md
+  implementation-plan.md   # optional — see agent/templates/implementation-plan.md
 
 agent/ui/<feature-slug>/
   design-brief.md
@@ -108,8 +148,10 @@ task includes UI work.
   primary user flow as manually exercised, applicable UI evidence, and any
   deviations or known limitations (mirroring what step 4 below requires in
   the brief, and the pull-request template).
-- The Product Owner Agent reviews the PR diff and evidence — via `gh pr diff` /
-  `gh pr view` or the GitHub UI — instead of raw working-tree files. Findings
+- The Product Owner Agent reviews the PR diff and evidence — via `codex review`
+  / `codex exec review` against the PR branch (see "Invoking the Product Owner
+  Agent" above), or `gh pr diff` / `gh pr view` when the user runs Codex
+  interactively — instead of raw working-tree files. Findings
   are still recorded in the product brief (and `visual-review.md` for UI
   work); referencing the PR number is enough, PR review comments are not the
   durable record. The Product Owner Agent (Codex) has standing authorization
@@ -132,6 +174,19 @@ task includes UI work.
   convention in `agent/current-task.md`.
 
 ## Workflow
+
+This cycles through three phases, repeated once per feature:
+
+- **Plan** — steps 1-3: frame the problem, explore directions, approve one.
+- **Implement** — step 4: build the approved direction.
+- **Validate** — steps 5-7: review, fix, accept.
+
+Plan and Implement run in separate Claude Code conversations. Once the
+Product Owner Agent approves a brief, start a fresh conversation for step 4,
+seeded with only the approved brief and the documents `AGENTS.md` lists — not
+the exploration conversation that produced it. The brief exists precisely so
+implementation doesn't need that conversation; carrying it forward defeats the
+point and lets implementation quietly lean on reasoning nobody wrote down.
 
 ### 0. User presents a problem
 
@@ -168,6 +223,12 @@ brief must cover narrow and wide layouts, loading/empty/error states,
 accessibility, and the visual distinction between facts, assumptions, goals,
 recommendations, and decisions when relevant.
 
+Claude Code may use research sub-agents here to investigate the codebase or
+gather documentation — a different kind of research from the product and
+problem investigation Codex already did in step 1, and never a stand-in for
+drafting implementation code, which stays in the main conversation once step
+4 begins.
+
 Status remains `DRAFT`.
 
 ### 3. Select a direction
@@ -181,8 +242,16 @@ change to canonical financial data, a new product rule, or broader scope.
 
 ### 4. Implement with Claude Code
 
-Claude Code checks the approved brief for conflicts or missing acceptance
-criteria, then implements the smallest complete vertical increment. It
+In a fresh conversation seeded only with the approved brief — not the step 2/3
+exploration conversation, per the Plan/Implement/Validate note above — Claude
+Code checks the approved brief for conflicts or missing acceptance criteria.
+For a task complex enough that the brief alone leaves real ambiguity about
+where things go, it first writes
+`agent/product/<feature-slug>/implementation-plan.md` from
+`agent/templates/implementation-plan.md` — file-level tasks, patterns to
+mirror, and a validation command per task — before writing any code; small,
+well-bounded tasks can skip straight to implementing. Either way, Claude Code
+implements the smallest complete vertical increment. It
 preserves domain logic outside the UI and uses deterministic application
 services for financial calculations.
 
@@ -203,8 +272,10 @@ until the Product Owner Agent approves the revised brief.
 
 ### 5. Review and decide on follow-up changes with the Product Owner Agent
 
-Back in the Codex session, the Product Owner Agent inspects the approved brief
-and the PR's diff and evidence — it does not edit application code. Findings
+Claude Code invokes the Product Owner Agent against the PR (`codex review` /
+`codex exec review`, per "Invoking the Product Owner Agent" above); Codex
+inspects the approved brief and the PR's diff and evidence — it does not edit
+application code. Findings
 go in the product brief (and `visual-review.md` for UI work) and are
 classified as:
 
@@ -263,3 +334,20 @@ A UI feature is complete only when all applicable answers are yes:
 - Keep the Product Owner Agent (Codex) session separate from the
   implementation agent (Claude Code) session so acceptance evidence is judged
   independently of the agent that produced it.
+- Keep Plan and Implement in separate Claude Code conversations too, for the
+  same reason: implementation should stand on what the brief says, not on
+  reasoning that only exists in the exploration conversation.
+
+## System evolution
+
+A defect found during review or acceptance is two things, not one: something
+to fix in this feature, and a signal about what's missing from the shared
+rules that let it happen. Before closing out a finding, ask explicitly: does
+`AGENTS.md`, a template, or a `docs/` file need to change so this class of
+mistake can't recur — and if a regression test can catch it going forward,
+add one.
+
+Don't fold that change into the feature's fix silently. Propose it as its own
+small, explicit edit, and say why, in `agent/implementation-log.md`. This is
+deliberate evolution of shared rules, not autonomous rewriting of them — the
+same care that applies to a material design change applies here.
