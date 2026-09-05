@@ -1,6 +1,7 @@
 package com.waypoint.web;
 
 import com.waypoint.household.AssetNotFoundException;
+import com.waypoint.household.FinancialGoalNotFoundException;
 import com.waypoint.household.FinancialSnapshotNotFoundException;
 import com.waypoint.household.HouseholdNotFoundException;
 import com.waypoint.household.IdenticalSnapshotComparisonException;
@@ -102,6 +103,12 @@ public class ApiExceptionHandler {
     public ResponseEntity<ErrorResponse> handleIdenticalSnapshotComparison(IdenticalSnapshotComparisonException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse("VALIDATION_FAILED", ex.getMessage(), List.of()));
+    }
+
+    @ExceptionHandler(FinancialGoalNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleFinancialGoalNotFound(FinancialGoalNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("FINANCIAL_GOAL_NOT_FOUND", ex.getMessage(), List.of()));
     }
 
     @ExceptionHandler(InvalidPlanException.class)
