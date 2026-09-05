@@ -31,10 +31,13 @@
 - `bash -n agent/automation/orchestrator.sh` passed;
   `agent/automation/tests/orchestrator_test.sh` passed with 74 tests; and
   `git diff --check` passed. No Java application code changed.
-- The disposable live PR smoke test could not be started because neither the
-  configured GitHub login nor the cached automation token currently passes
-  `gh auth status`. No disposable branch or PR was created. Re-authentication
-  is required before this change can be considered end-to-end validated.
+- Disposable PR #18 (`test/sandbox-review-smoke`) exercised the exact rendered
+  review prompt with `codex exec -s workspace-write -c
+  sandbox_workspace_write.network_access=true`. Codex successfully ran
+  `gh pr diff`, updated the product brief, created commits `26701cf` and
+  `666e3ff`, pushed both to the test branch, and returned the required final
+  `REVIEW_VERDICT: ACCEPTED`. The PR was then closed without merge and its
+  remote branch deleted; none of its fixture files reached `main`.
 
 **Decisions**
 
@@ -56,9 +59,9 @@
 
 **Open questions**
 
-- Whether sandboxed Codex can reliably write Git metadata and push under the
-  exact cron environment remains subject to the disposable-PR smoke test,
-  currently blocked by unavailable GitHub authentication.
+- The live smoke test proved the exact sandboxed command and review prompt can
+  inspect, edit, commit, and push. Continued cron monitoring should still catch
+  environment-specific authentication or macOS sandbox regressions.
 
 **Recommended next task**
 
