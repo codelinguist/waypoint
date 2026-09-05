@@ -76,9 +76,9 @@
 - [x] Target 1000.00, current 100.00, 3 months returns remaining 900.00, monthly 300.00, total contributions 900.00, projected 1000.00 and excess 0. Verified in `GoalContributionCalculatorTest.calculatesEqualMonthlyContributionsThatExactlyReachTheTarget`, `GoalContributionApiIntegrationTest.returnsEqualMonthlyContributionsForAnUnfundedGoal`, and manually via `curl` (see `api.md`).
 - [x] Target 100.00, current 0, 3 months returns monthly 33.34, total 100.02 and excess 0.02; a nonzero gap never rounds down to an insufficient contribution. Verified in `GoalContributionCalculatorTest.roundsMonthlyContributionUpSoTotalContributionsNeverFallShortOfTheGap`, the matching HTTP test, and manually.
 - [x] At or above target returns ALREADY_FUNDED and zero contributions while preserving an existing surplus; one month returns the entire positive gap. Verified in `GoalContributionCalculatorTest.returnsAlreadyFundedWhenCurrentAmountEqualsTarget`, `...AndPreservesExistingSurplusWhenCurrentAmountExceedsTarget`, `...oneMonthReturnsTheEntirePositiveGap`, and the matching HTTP test.
-- [x] Tests reject zero, negative, fractional, missing, and greater-than-1200 month counts; results reconcile projectedAmount with currentAmount + totalContributions. Verified in both test classes; fractional months required a scoped `WholeNumberDeserializer` since Jackson otherwise truncates instead of rejecting — see `implementation-log.md` Decisions.
+- [ ] Tests reject zero, negative, fractional, missing, and greater-than-1200 month counts; results reconcile projectedAmount with currentAmount + totalContributions. Verified in both test classes; fractional months required a scoped `WholeNumberDeserializer` since Jackson otherwise truncates instead of rejecting — see `implementation-log.md` Decisions.
 - [x] The documented POST endpoint returns the defined inputs, outputs and statuses using deterministic decimal arithmetic; identical requests return identical results without clock-dependent fields. Verified in `GoalContributionApiIntegrationTest.identicalRequestsProduceIdenticalResponses` and manually (repeated identical `curl` calls).
-- [x] Domain and HTTP tests cover required fields, currency normalization/rejection, amount bounds, precision and scale, all defined edge cases and successful calculation. Direct domain calls reject invalid values too. 18 domain unit tests call `GoalContributionCalculator` directly with no Spring context; 18 HTTP tests cover the same surface through `@WebMvcTest`.
+- [ ] Domain and HTTP tests cover required fields, currency normalization/rejection, amount bounds, precision and scale, all defined edge cases and successful calculation. Direct domain calls reject invalid values too. 18 domain unit tests call `GoalContributionCalculator` directly with no Spring context; 18 HTTP tests cover the same surface through `@WebMvcTest`.
 - [x] No database reads/writes, entity changes or migrations are introduced. This endpoint accesses no household data and accepts no household/entity identifier; caller-supplied financial inputs are not logged. Confirmed by inspection: no repository/entity/migration references anywhere in the package, no logging statements, no path/request parameters beyond the JSON body.
 - [x] All implementation and evidence changes stay within the exclusive ownership paths below. Existing application startup, shared error handling and the other two increments require no edits. Confirmed via `git diff --stat` against `main` (see `implementation-log.md`); `ApiExceptionHandler` and sibling packages untouched.
 - [x] The feature works against the pre-batch main baseline without either sibling. Run `./verify.sh`, exercise the documented primary API flow with synthetic data, and record results and limitations in this brief before review. The required GitHub verify check must be green before merge. `./verify.sh` passed locally: 244 tests, `BUILD SUCCESS`, run before either sibling task's PR merged. Manual API flow exercised against a real running instance (see `implementation-log.md`). GitHub `verify` check pending on the opened PR.
@@ -120,9 +120,86 @@
 ## Feature acceptance
 
 - Acceptance status: `PENDING`
-- Acceptance evidence: Implementation complete; see all acceptance criteria above (checked) and `agent/product/goal-contribution-calculator/implementation-log.md` / `api.md`. Pending independent Product Owner Agent review of the PR diff.
-- Unmet criteria: None known; pending independent review.
-- Returned work: None.
+- Acceptance evidence: Independent review of PR #15 at d81e70cdec26d1d0b4c5c24f55ebf0773d40a1dc completed on 2026-09-05. Acceptance withheld for unresolved R1 and R2 below; passing CI does not cover these cases.
+- Unmet criteria: Criterion 4 (reject out-of-range month counts) and criterion 6 (direct domain validation of amount bounds) remain unmet; see R1 and R2. Earlier implementation verification claims above are qualified by this review.
+- Returned work: Resolve R1 and R2 with regression tests, rerun ./verify.sh, and update feature-local evidence for independent re-review.
 - Follow-up opportunities: Stored-state integration only with a separately framed provenance/approval contract; richer models only when concrete household needs justify them; shared-document consolidation after this batch.
-- Accepted or returned by Product Owner Agent:
-- Accepted or returned at:
+- Accepted or returned by Product Owner Agent: Codex — returned for fixes.
+- Accepted or returned at: 2026-09-05
+
+## Review findings — 2026-09-05
+
+Reviewed PR #15 using `gh pr diff 15`, head
+`d81e70cdec26d1d0b4c5c24f55ebf0773d40a1dc`, against the approved criteria and
+collaboration workflow. Context was limited to the four requested files and
+the actual PR diff; no other conversation history was used. No visual-review
+file exists; UI criteria do not apply to this backend-only feature.
+
+### R1 — BLOCKING — ACCEPTED — Unresolved: month overflow silently changes the input
+
+- Evidence: `backend/src/main/java/com/waypoint/planning/goalcontribution/web/dto/WholeNumberDeserializer.java:24`
+  returns `node.intValue()` after checking only `isIntegralNumber()`. A JSON
+  integer `4294967299` narrows to `3`; the request's subsequent 1–1200
+  validation therefore accepts it and calculates three contributions instead
+  of rejecting the supplied out-of-range count. Negative `-4294967293` also
+  narrows to `3`. The HTTP tests only test the upper violation `1201`.
+- Impact: Violates criterion 4 and the explicit rejection/no-silent-conversion
+  contract, returning a successful financial calculation for invalid inputs.
+- Acceptance condition: Check representability/range before narrowing. HTTP
+  regression tests for both values above and an integer beyond the long range
+  must return structured HTTP 400, while 1 and 1200 remain valid and existing
+  fractional rejection continues to pass.
+
+### R2 — BLOCKING — ACCEPTED — Unresolved: negative decimal scale bypasses domain amount limits
+
+- Evidence: `backend/src/main/java/com/waypoint/planning/goalcontribution/GoalContributionCalculator.java:91`
+  counts digits as `value.precision() - Math.max(value.scale(), 0)`.
+  `new BigDecimal("1E+17")` has precision 1 and scale -17, so this check counts
+  one integer digit and accepts `100000000000000000.00` (18 digits). Both
+  target and current amounts use this helper. The existing excessive-integer
+  test uses a plain decimal with positive scale and misses this case.
+- Impact: Criterion 6 explicitly requires direct domain entry points to reject
+  invalid amounts independently of HTTP validation. The 17-digit invariant is
+  bypassed by an equivalent numeric representation.
+- Acceptance condition: Account for negative scale when enforcing integer
+  digits, before expanding the value. Direct-domain tests must reject `1E+17`
+  for either amount with `InvalidGoalContributionInputException`, accept the
+  valid `1E+16` boundary representation, and preserve valid derived values
+  beyond the input digit limit without truncation.
+
+### R3 — RECOMMENDED — ACCEPTED — Open: normalize currency independently of locale
+
+- Evidence: `backend/src/main/java/com/waypoint/planning/goalcontribution/GoalContributionCalculator.java:78`
+  uses default-locale `currency.toUpperCase()`. Under Turkish locale, valid
+  input `inr` becomes `İNR` instead of the ASCII currency code `INR`.
+- Impact: Currency output depends on host configuration. No affected deployment
+  locale is evidenced here, so this is recommended rather than merge-blocking.
+- Acceptance condition: Use locale-independent normalization (for example
+  `Locale.ROOT`) and add a regression that verifies `inr` becomes `INR` with a
+  Turkish default locale, restoring the locale after the test.
+
+### Verification and acceptance decision
+
+- Independently confirmed the required `verify` check is SUCCESS for the
+  reviewed head: https://github.com/codelinguist/waypoint/actions/runs/33970465781/job/101317945138.
+  The diff records local `./verify.sh` success (244 tests), 36 feature tests,
+  and synthetic manual API exercises; these are implementer-provided evidence,
+  not new reviewer test runs.
+- Reviewer JShell probes confirmed integer narrowing of `4294967299` to `3`,
+  the digit expression returning 1 for `1E+17` and accepting its scale-2
+  expansion, and Turkish uppercasing of `inr` to `İNR`. Findings follow the
+  exact code paths in the diff; no full HTTP reproduction or suite rerun was
+  performed during this review.
+- Criteria 1–3 and the ordinary decimal arithmetic/reconciliation paths have
+  supporting code and tests. Criterion 5's response mapping and repeatability
+  have supporting tests, with the locale improvement recorded as R3. Criteria
+  7–8 are supported by the diff's stateless implementation, scoped advice and
+  exclusive paths; the task lifecycle change is within authorized ownership.
+  Criterion 9 has recorded baseline/manual evidence and independently green CI.
+  Criteria 4 and 6 remain unmet as detailed above. Feature acceptance remains
+  `PENDING`; the feature is returned for fixes and automatic merge is not
+  authorized.
+- System evolution: Existing invariant rules already require these rejections;
+  no shared rule change is necessary. Add feature-local regression coverage
+  for representation boundaries in the fix round and record it in this
+  feature's implementation log, preserving the shared-prose exception.
