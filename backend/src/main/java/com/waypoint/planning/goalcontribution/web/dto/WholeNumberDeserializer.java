@@ -21,6 +21,9 @@ final class WholeNumberDeserializer extends JsonDeserializer<Integer> {
         if (!node.isIntegralNumber()) {
             throw InvalidFormatException.from(parser, "must be a whole number", node.asText(), Integer.class);
         }
+        if (!node.canConvertToInt()) {
+            throw InvalidFormatException.from(parser, "must fit in a 32-bit integer", node.asText(), Integer.class);
+        }
         return node.intValue();
     }
 }

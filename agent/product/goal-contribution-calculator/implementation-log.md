@@ -150,6 +150,68 @@ distinguished from a persisted plan or recommendation, per the facts/
 assumptions/goals/recommendations/decisions distinction in
 `docs/product/problems.md`.
 
+## Fix round 1 — 2026-09-05
+
+Applied all three ACCEPTED findings from the PR #15 review recorded in
+`product-brief.md` ("Review findings — 2026-09-05").
+
+- **R1 (blocking) — month-count integer narrowing.**
+  `WholeNumberDeserializer.deserialize` checked `node.isIntegralNumber()`
+  but then called `node.intValue()` unconditionally, which narrows any
+  integral JSON number to `int` by truncation (Jackson/Jackson-core
+  behavior), so `4294967299` silently became `3` and passed the 1–1200
+  range check instead of being rejected. Fixed by also requiring
+  `node.canConvertToInt()` before narrowing, rejecting with the same
+  `MALFORMED_REQUEST` path as the existing fractional-value rejection.
+- **R2 (blocking) — negative-scale digit-limit bypass.**
+  `GoalContributionCalculator.validateAmount` computed integer digits as
+  `value.precision() - Math.max(value.scale(), 0)`, which clamps negative
+  scale to zero and undercounts digits for a value like `1E+17`
+  (precision 1, scale -17 → counted as 1 digit instead of 18), letting an
+  18-digit amount past the 17-digit limit. Fixed to
+  `Math.max(value.precision() - value.scale(), 0)`, which correctly
+  expands negative scale into the digit count instead of discarding it.
+- **R3 (recommended) — locale-dependent currency casing.**
+  `validateCurrency` called `currency.toUpperCase()` using the JVM default
+  locale; under Turkish locale, `inr` uppercases to `İNR` instead of the
+  ASCII `INR`. Fixed to `currency.toUpperCase(Locale.ROOT)`.
+
+Regression coverage added (all three ACCEPTED findings, per their stated
+acceptance conditions):
+
+- `GoalContributionCalculatorTest`: `rejectsIntegerDigitLimitBypassedByNegativeScaleRepresentation`
+  (`1E+17` rejected for both `targetAmount` and `currentAmount`),
+  `acceptsIntegerDigitLimitAtTheNegativeScaleBoundary` (`1E+16` accepted),
+  `normalizesCurrencyToUppercaseIndependentlyOfDefaultLocale` (Turkish
+  default locale, restored via `@BeforeEach`/`@AfterEach`).
+- `GoalContributionApiIntegrationTest`: `rejectsContributionMonthsThatOverflowAndNarrowToAValidValue`
+  (`4294967299`), `rejectsNegativeContributionMonthsThatUnderflowAndNarrowToAValidValue`
+  (`-4294967293`), `rejectsContributionMonthsBeyondTheLongRange` (33-digit
+  literal), `acceptsContributionMonthsAtTheLowerAndUpperBounds` (`1` and
+  `1200` still valid, confirming the fix has no false-positive rejections).
+- Domain suite grew from 18 to 21 tests; HTTP suite grew from 18 to 22
+  tests. `./mvnw --batch-mode -Dtest="com.waypoint.planning.goalcontribution.**" test`
+  → `Tests run: 43, Failures: 0, Errors: 0, Skipped: 0` — `BUILD SUCCESS`.
+- Full suite: `./verify.sh` (repository root) →
+  `Tests run: 251, Failures: 0, Errors: 0, Skipped: 0` — `BUILD SUCCESS`.
+
+Manual re-verification: ran the real application (`./mvnw spring-boot:run`)
+against a throwaway local `postgres:16-alpine` container (same connection
+settings as the original manual verification), and confirmed via `curl`:
+`4294967299`, `-4294967293`, and a 33-digit `contributionMonths` all now
+return `400 MALFORMED_REQUEST`; `1` and `1200` still return `200`;
+`targetAmount: "1E+17"` returns `400 VALIDATION_FAILED` (caught by the
+existing `@Digits` bean validation before reaching the domain layer) while
+`"1E+16"` returns `200` with the full 17-digit value preserved; lowercase
+`currency` still normalizes to uppercase for an ordinary request (the
+locale-specific case is exercised by the automated test, not `curl`, since
+it depends on the JVM default locale rather than the request). Stopped the
+manual app and the throwaway Postgres container afterward; no container or
+process was left running.
+
+No scope change, no new assumption, and no edit outside this task's
+exclusive ownership paths were required to resolve these findings.
+
 ## System-evolution candidate
 
 Not proposing a change to `AGENTS.md` or a template from this task. The one

@@ -2,6 +2,7 @@ package com.waypoint.planning.goalcontribution;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Locale;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
 
@@ -78,7 +79,7 @@ public class GoalContributionCalculator {
         if (!CURRENCY_CODE.matcher(currency).matches()) {
             throw new InvalidGoalContributionInputException("currency must be a 3-letter currency code");
         }
-        return currency.toUpperCase();
+        return currency.toUpperCase(Locale.ROOT);
     }
 
     private BigDecimal validateAmount(BigDecimal value, String fieldName, boolean allowZero) {
@@ -89,7 +90,7 @@ public class GoalContributionCalculator {
             throw new InvalidGoalContributionInputException(
                     fieldName + " must have at most " + MAX_FRACTION_DIGITS + " fraction digits");
         }
-        int integerDigits = value.precision() - Math.max(value.scale(), 0);
+        int integerDigits = Math.max(value.precision() - value.scale(), 0);
         if (integerDigits > MAX_INTEGER_DIGITS) {
             throw new InvalidGoalContributionInputException(
                     fieldName + " must have at most " + MAX_INTEGER_DIGITS + " integer digits");

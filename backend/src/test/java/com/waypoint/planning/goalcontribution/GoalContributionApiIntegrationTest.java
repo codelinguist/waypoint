@@ -171,6 +171,42 @@ class GoalContributionApiIntegrationTest {
     }
 
     @Test
+    void rejectsContributionMonthsThatOverflowAndNarrowToAValidValue() throws Exception {
+        String body = """
+                { "currency": "PHP", "targetAmount": "100.00", "currentAmount": "0", "contributionMonths": 4294967299 }
+                """;
+        mockMvc.perform(post(ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void rejectsNegativeContributionMonthsThatUnderflowAndNarrowToAValidValue() throws Exception {
+        String body = """
+                { "currency": "PHP", "targetAmount": "100.00", "currentAmount": "0", "contributionMonths": -4294967293 }
+                """;
+        mockMvc.perform(post(ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void rejectsContributionMonthsBeyondTheLongRange() throws Exception {
+        String body = """
+                { "currency": "PHP", "targetAmount": "100.00", "currentAmount": "0",
+                  "contributionMonths": 99999999999999999999999999999999 }
+                """;
+        mockMvc.perform(post(ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void acceptsContributionMonthsAtTheLowerAndUpperBounds() throws Exception {
+        calculate(request("PHP", "100.00", "0", 1))
+                .andExpect(status().isOk());
+        calculate(request("PHP", "1200.00", "0", 1200))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void rejectsMissingContributionMonths() throws Exception {
         Map<String, Object> payload = request("PHP", "100.00", "0", 3);
         payload.remove("contributionMonths");

@@ -153,9 +153,12 @@ Response (`400 Bad Request`):
 Other rejected inputs (all `400 VALIDATION_FAILED` unless noted): negative
 `currentAmount`; `contributionMonths` of `0`, negative, or above `1200`; a
 malformed `currency` code; a missing required field; more than 17 integer or
-2 fraction digits on either amount. A fractional `contributionMonths` (e.g.
-`3.5`) and a non-JSON body both return `400 MALFORMED_REQUEST` instead, since
-they fail before request-object validation runs.
+2 fraction digits on either amount, including a negative-scale representation
+of the same value (e.g. `1E+17`). A fractional `contributionMonths` (e.g.
+`3.5`), a `contributionMonths` that does not fit in a 32-bit integer (e.g.
+`4294967299`, which would otherwise silently narrow to `3`), and a non-JSON
+body all return `400 MALFORMED_REQUEST` instead, since they fail before
+request-object validation runs.
 
 ## Manually verified
 
@@ -163,5 +166,9 @@ All of the requests and responses above were exercised against a running
 instance of the application (`./mvnw spring-boot:run` against a local
 `postgres:16-alpine` container, per `docker-compose.yml`'s connection
 settings) on 2026-09-05 and matched exactly, including the `400` error
-paths. See `agent/implementation-log.md` (feature-local, this directory) for
-the full verification record.
+paths. A fix-round pass on 2026-09-05 additionally re-verified the three
+representation-boundary cases returned from PR #15 review (integer
+narrowing, negative-scale digit-limit bypass, locale-dependent
+uppercasing) against the same running instance. See
+`agent/implementation-log.md` (feature-local, this directory) for the full
+verification record.

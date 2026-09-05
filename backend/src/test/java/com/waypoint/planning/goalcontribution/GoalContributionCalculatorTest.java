@@ -4,11 +4,25 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
+import java.util.Locale;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class GoalContributionCalculatorTest {
 
     private final GoalContributionCalculator calculator = new GoalContributionCalculator();
+    private Locale originalDefaultLocale;
+
+    @BeforeEach
+    void captureDefaultLocale() {
+        originalDefaultLocale = Locale.getDefault();
+    }
+
+    @AfterEach
+    void restoreDefaultLocale() {
+        Locale.setDefault(originalDefaultLocale);
+    }
 
     @Test
     void calculatesEqualMonthlyContributionsThatExactlyReachTheTarget() {
@@ -139,6 +153,34 @@ class GoalContributionCalculatorTest {
         BigDecimal tooLarge = new BigDecimal("100000000000000000.00");
         assertThatThrownBy(() -> calculator.calculate("PHP", tooLarge, BigDecimal.ZERO, 1))
                 .isInstanceOf(InvalidGoalContributionInputException.class);
+    }
+
+    @Test
+    void rejectsIntegerDigitLimitBypassedByNegativeScaleRepresentation() {
+        BigDecimal negativeScaleTooLarge = new BigDecimal("1E+17");
+        assertThatThrownBy(() -> calculator.calculate("PHP", negativeScaleTooLarge, BigDecimal.ZERO, 1))
+                .isInstanceOf(InvalidGoalContributionInputException.class);
+        assertThatThrownBy(() -> calculator.calculate("PHP", new BigDecimal("100.00"), negativeScaleTooLarge, 1))
+                .isInstanceOf(InvalidGoalContributionInputException.class);
+    }
+
+    @Test
+    void acceptsIntegerDigitLimitAtTheNegativeScaleBoundary() {
+        GoalContributionResult result = calculator.calculate(
+                "PHP", new BigDecimal("1E+16"), BigDecimal.ZERO, 1);
+
+        assertThat(result.targetAmount()).isEqualByComparingTo("1E+16");
+        assertThat(result.status()).isEqualTo(GoalContributionStatus.CONTRIBUTIONS_REQUIRED);
+    }
+
+    @Test
+    void normalizesCurrencyToUppercaseIndependentlyOfDefaultLocale() {
+        Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+
+        GoalContributionResult result = calculator.calculate(
+                "inr", new BigDecimal("100.00"), new BigDecimal("0"), 1);
+
+        assertThat(result.currency()).isEqualTo("INR");
     }
 
     @Test
