@@ -114,7 +114,11 @@ ensure_gh_token() {
       log "ensure_gh_token: $GH_TOKEN_OVERRIDE_FILE is empty after trimming whitespace; refusing to use it."
       return 1
     fi
-    if ! GH_TOKEN="$override_token" gh auth status >/dev/null 2>&1; then
+    # Validate the credential by exercising the API with GH_TOKEN itself.
+    # `gh auth status` also inspects configured Keychain accounts and can
+    # return nonzero under cron when that separate storage backend is
+    # inaccessible, even though the supplied GH_TOKEN is fully valid.
+    if ! GH_TOKEN="$override_token" gh api /user >/dev/null 2>&1; then
       log "ensure_gh_token: the scoped token in $GH_TOKEN_OVERRIDE_FILE failed validation (revoked/expired/malformed); refusing to fall back to the broader account token. Replace or remove $GH_TOKEN_OVERRIDE_FILE."
       return 1
     fi
@@ -147,7 +151,7 @@ ensure_gh_token() {
   # Validate both fresh and cached broad tokens before allowing main() past
   # its authentication gate; otherwise later `gh` failures can masquerade
   # as an empty PR list again.
-  if ! GH_TOKEN="$token" gh auth status >/dev/null 2>&1; then
+  if ! GH_TOKEN="$token" gh api /user >/dev/null 2>&1; then
     log "ensure_gh_token: the live/cached account token failed validation; no usable credential this run. Re-authenticate with gh, then run the orchestrator interactively once to refresh the cache."
     return 1
   fi

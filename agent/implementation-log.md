@@ -1,5 +1,22 @@
 # Implementation Log
 
+## 2026-09-06 — Cron token validation false negative
+
+- Diagnosed repeated scheduled-run authentication failures while the cached
+  token remained identical to the live Keychain token and successfully called
+  GitHub's `/user` API. `gh auth status` was an unsuitable validator because it
+  also evaluates configured Keychain accounts, which cron cannot access, and
+  can therefore return nonzero despite a valid explicit `GH_TOKEN`.
+- Changed both broad cached-token and optional scoped-token validation to
+  `GH_TOKEN=... gh api /user`, which tests the credential the orchestrator will
+  actually use without depending on Keychain state.
+- Updated the automation documentation and regression fakes/assertions to
+  exercise API validation rather than `gh auth status`.
+
+**Tests**
+
+- `agent/automation/tests/orchestrator_test.sh`
+
 ### 2026-09-06 — Sandbox automated review and scope automation credentials
 
 **Changed**

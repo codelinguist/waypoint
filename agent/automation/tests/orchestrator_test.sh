@@ -360,7 +360,7 @@ test_run_review_uses_sandboxed_codex_invocation() {
 # Shared fake `gh` for every test below: never touches the real gh CLI or
 # real credentials. Behavior is controlled entirely via env vars read at
 # invocation time:
-#   GH_AUTH_STATUS_EXIT   - exit code for `gh auth status` (default 0)
+#   GH_API_USER_EXIT      - exit code for `gh api /user` (default 0)
 #   GH_FAKE_TOKEN         - value `gh auth token` prints and succeeds with;
 #                           unset/empty makes `gh auth token` fail
 #   GH_AUTH_TOKEN_MARKER  - if set, a marker file written whenever
@@ -372,8 +372,8 @@ setup_fake_gh() {
   cat > "$fake_bin/gh" <<'EOS'
 #!/usr/bin/env bash
 case "$1 $2" in
-  "auth status")
-    exit "${GH_AUTH_STATUS_EXIT:-0}"
+  "api /user")
+    exit "${GH_API_USER_EXIT:-0}"
     ;;
   "auth token")
     [[ -n "${GH_AUTH_TOKEN_MARKER:-}" ]] && printf 'called' > "$GH_AUTH_TOKEN_MARKER"
@@ -469,7 +469,7 @@ test_ensure_gh_token_rejects_invalid_cached_broad_token() {
 
   GH_TOKEN="stale-inherited-token"
   local rc=0
-  GH_FAKE_TOKEN="" GH_AUTH_STATUS_EXIT=1 ensure_gh_token || rc=$?
+  GH_FAKE_TOKEN="" GH_API_USER_EXIT=1 ensure_gh_token || rc=$?
 
   assert_equals "1" "$rc" "a cached broad token that fails validation should return 1"
   assert_equals "" "${GH_TOKEN:-}" "an invalid cached broad token must leave GH_TOKEN unset"
@@ -501,7 +501,7 @@ test_ensure_gh_token_valid_override_short_circuits_broad_path() {
   assert_equals "0" "$rc" "a valid override should make ensure_gh_token return 0"
   assert_equals "scoped-token-value" "${GH_TOKEN:-}" \
     "ensure_gh_token should export the override file's (trimmed) content"
-  [[ ! -e "$marker" ]] && pass || fail "a valid override must never invoke 'gh auth token' (the broad-scope path), even though it legitimately calls 'gh auth status' to validate itself"
+  [[ ! -e "$marker" ]] && pass || fail "a valid override must never invoke 'gh auth token' (the broad-scope path), even though it legitimately calls 'gh api /user' to validate itself"
 
   PATH="$saved_path"
   GH_TOKEN_OVERRIDE_FILE="$saved_override"
@@ -598,7 +598,7 @@ test_ensure_gh_token_override_empty_rejected() {
 test_ensure_gh_token_override_failed_validation_rejected_without_cache_fallback() {
   # The specific "fail visibly, don't silently widen scope" case: even
   # with a valid cached broad token sitting right there, a scoped override
-  # that fails gh auth status validation (revoked/expired/malformed) must
+  # that fails API validation (revoked/expired/malformed) must
   # not fall back to it.
   local fake_bin="$TEST_TMP/fake-gh-override-invalid-status"
   setup_fake_gh "$fake_bin"
@@ -615,9 +615,9 @@ test_ensure_gh_token_override_failed_validation_rejected_without_cache_fallback(
   rm -f "$marker"
   GH_TOKEN="stale-inherited-token"
   local rc=0
-  GH_AUTH_STATUS_EXIT=1 GH_AUTH_TOKEN_MARKER="$marker" ensure_gh_token || rc=$?
+  GH_API_USER_EXIT=1 GH_AUTH_TOKEN_MARKER="$marker" ensure_gh_token || rc=$?
 
-  assert_equals "1" "$rc" "an override that fails gh auth status validation should return 1"
+  assert_equals "1" "$rc" "an override that fails API validation should return 1"
   assert_equals "" "${GH_TOKEN:-}" \
     "a failed-validation override must leave GH_TOKEN unset, not silently fall back to the cached broad token"
   [[ ! -e "$marker" ]] && pass || fail "a failed-validation override must never invoke 'gh auth token' (the broad-scope fallback)"
