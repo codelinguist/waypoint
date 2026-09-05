@@ -1,12 +1,12 @@
 ---
-status: QUEUED
+status: IN_PROGRESS
 task_number: 007
 feature_slug: goals
-branch:
-worktree:
+branch: task/007-goals
+worktree: /Users/rj/Documents/projects/waypoint-orchestrator/worktrees/task-007-goals
 session:
 pr:
-claimed_at:
+claimed_at: 2026-09-05T11:08:28Z
 fix_rounds: 0
 ---
 
