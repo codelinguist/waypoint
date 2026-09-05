@@ -86,6 +86,8 @@ Update `agent/implementation-log.md` with:
 - any assumptions introduced
 - unresolved questions
 - recommended next task
+- any rule, template, or doc that should change because of what this task
+  revealed (see `agent/collaboration-workflow.md` -> "System evolution")
 
 `agent/current-task.md` holds only the active task; the Product Owner Agent
 overwrites it entirely when the next task starts. Do not treat it as a log —
@@ -105,13 +107,36 @@ If a new long-lived architectural or product decision is made, add it to `docs/d
   as product managers.
 - Only one agent should edit a feature at a time unless the work is isolated in
   separate Git worktrees with explicit ownership.
-- Codex acts as the Product Owner Agent, in a planning session kept separate
-  from implementation. It frames problems, writes product briefs, sets
-  `agent/current-task.md`, approves design direction, and accepts or returns
-  completed work against evidence.
+- Codex acts as the Product Owner Agent. It frames problems, writes product
+  briefs, sets `agent/current-task.md`, approves design direction, and accepts
+  or returns completed work against evidence. Claude Code invokes it
+  non-interactively through the local `codex` CLI (`codex exec` for framing,
+  brief-writing, design approval, and acceptance; `codex review` /
+  `codex exec review` for PR review) rather than the user running a separate
+  manual Codex session — see `agent/collaboration-workflow.md` ->
+  "Invoking the Product Owner Agent" for the mechanics. Each invocation reads
+  only checked-in artifacts (the product brief, `agent/current-task.md`, the
+  PR diff); it is never given Claude Code's planning or implementation
+  conversation, preserving the same independent-review boundary a separate
+  session would.
 - Claude Code is the default implementation and integration owner for
   repository-wide work, deterministic behavior, and tests. For UI features it
   also explores directions and writes the design brief before implementing.
+- Research splits by role: Codex investigates the product and problem space
+  (existing product context, prior briefs, user input) as part of framing;
+  Claude Code investigates the codebase and external documentation (patterns,
+  libraries, prior implementations) since it is the one that actually touches
+  code. See `agent/collaboration-workflow.md` -> "Default responsibilities".
+  Either way, sub-agents (Claude Code's own, or a research pass run through
+  the `codex` CLI) are for research only — never for writing implementation
+  code. Coding stays in the main conversation, which needs the full history
+  of files already touched; delegating it away risks hallucinated changes
+  that don't fit what's actually there.
+- Planning and implementation run in separate conversations. Once a product
+  brief or design brief is approved, Claude Code starts a fresh conversation
+  for implementation, loaded with the approved brief and the documents this
+  file lists — not the exploration conversation that produced the brief. See
+  `agent/collaboration-workflow.md` -> "Workflow" for where this applies.
 - Every task ships on its own branch (`task/<NNN>-<feature-slug>`) via a pull
   request, never a direct commit to `main`. The user has standing-authorized
   Claude Code to push the branch and open the PR itself as part of completing
