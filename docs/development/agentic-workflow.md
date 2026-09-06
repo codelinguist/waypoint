@@ -532,6 +532,39 @@ Read-only inspection verified:
   active scheduler was found. A running process could not be independently
   inspected from the sandbox and should be checked in Terminal if needed.
 
+Pilot evidence and new decisions:
+
+- WAP-5 verified the full preview path: Jira transition, authenticated HTTPS
+  tunnel, local receiver on `127.0.0.1:8088`, durable SQLite receipt, and
+  preview admission. Validation requests can create distinct event IDs; duplicate
+  delivery must be tested separately using the same event ID.
+- The first Cloudflare quick-tunnel hostname became unreachable when the local
+  `cloudflared` process stopped. Jira recorded an Atlassian/Squid HTTP 500 rather
+  than reaching the receiver. The receiver and tunnel are separate long-running
+  services; health and restart state must be observable before admitting work.
+- Jira's web-request validator requires a real issue key for smart-value
+  substitution. A successful HTTP 200 response is the receiver evidence; a
+  validator message about a missing work item is a Jira test-context error when no
+  key is supplied.
+- The initial pilot used a shared `X-Preview-Token` header because Jira Automation
+  cannot conveniently calculate the receiver's HMAC. This is acceptable for the
+  disposable preview only; live use needs secret rotation, redaction, and a
+  documented receiver credential boundary.
+- Jira issues are now the execution intake. Existing Markdown task files remain
+  historical or transitional references; new Jira-managed work should not create
+  new `QUEUED` files. Product briefs, implementation logs, API/design evidence,
+  and review records remain repository source-of-truth artifacts.
+- Worktree creation and Claude background-session startup failed from the Codex
+  sandbox because the main checkout's `.git` metadata and Claude jobs directory
+  were not writable. Ralph's Terminal session created the branch/worktree and
+  launched Claude. A coordinator must run with explicit Git metadata and agent
+  runtime permissions, record launch intent before starting a worker, and fail
+  closed when those permissions are unavailable.
+- The first independent Codex review found evidence gaps without changing files.
+  Review output must be preserved verbatim as a durable artifact and passed to
+  Claude for bounded fixes; acceptance must be recorded only after a fresh review
+  of the new commit. A green required check does not replace evidence review.
+
 Next inspect KAN's board/backlog, statuses/transitions, admin permissions,
 Automation quota/audit behavior, installed GitHub integration, Rovo entitlement,
 and Claude Agent availability/billing. The interactive connector is not evidence
