@@ -122,7 +122,7 @@
 ## Feature acceptance
 
 - Acceptance status: `PENDING`
-- Acceptance evidence: Independent PR #22 diff review at `eb328ce0a97b14d998cbb0d08d8bcfe9f39db7e0`; see Review findings dated 2026-09-06 below. Feature acceptance withheld.
+- Acceptance evidence: Independent PR #22 diff re-review at `59188166c4ad41549f0c0422830dfb1935e071e4`; see the latest Review findings dated 2026-09-06 below. Feature acceptance withheld.
 - Unmet criteria: Criterion 5, atomic supersession with immutable history and no changes from an already-superseded request, is not enforced for overlapping requests (R1).
 - Returned work: Resolve R1 and supply a PostgreSQL concurrency regression test plus a passing `./verify.sh` result.
 - Follow-up opportunities: Typed assumption values, Plan versions, stale-assumption alerts, approval workflows, and stored scenario integration.
@@ -191,3 +191,69 @@ Backend-only: no visual-review file exists and no visual gate applies.
 - System evolution: a feature-local concurrency regression test is required.
   No shared rule/template/doc change is needed for this fix: the existing
   atomicity and immutable-history requirements already cover the defect.
+
+
+## Review findings — 2026-09-06 (current-head re-review)
+
+Independently obtained the complete PR #22 diff against `main` using
+`gh pr diff 22`. Reviewed head: `59188166c4ad41549f0c0422830dfb1935e071e4`.
+Read only the four requested context documents and the actual PR diff;
+no other conversation history was used. The existing R1 record is part of
+this brief, not external review context. No visual-review file exists;
+this is backend-only and visual gates do not apply.
+
+### R1 — Concurrent supersessions can overwrite history (still unresolved)
+
+- Classification: `BLOCKING`.
+- Decision: `ACCEPTED` — correction required; still unresolved at this head.
+- Visible evidence: `PlanningAssumptionService.supersedeAssumption`, lines
+  93–119, still reads through ordinary `findByIdAndHousehold_Id`, checks the
+  in-memory supersession link, saves a replacement, and assigns the prior's
+  link. `PlanningAssumptionRepository` has no locking query;
+  `PlanningAssumption` has no optimistic version field or conditional update.
+  V6's unique constraint on `superseded_by_id` prevents sharing a replacement
+  between priors, but does not prevent replacing an already-written link.
+- Failure: overlapping transactions can both read an unsuperseded prior,
+  insert distinct replacements, and commit updates to the same prior. The
+  last update wins, losing the earlier link while both replacements remain
+  active. The in-memory once-only guard and per-request transaction do not
+  serialize this eligibility check. This conclusion follows from the diff;
+  a concurrent runtime reproduction was not performed in this review.
+- Test evidence: `supersedeCreatesReplacementAndLinksPriorVersionAtomically`
+  and `rejectsSupersedingAnAlreadySupersededAssumptionAndChangesNothing` in
+  `PlanningAssumptionApiIntegrationTest` exercise sequential requests only.
+  The domain and mocked service tests likewise do not overlap transactions.
+- Concrete acceptance condition: enforce exactly one successful supersession
+  of a prior across deliberately overlapping PostgreSQL transactions. A
+  regression test must show one success, a structured rejection for the loser,
+  no losing replacement persisted, exactly two history records, the original
+  linked to the winner, and only the winner active on an applicable explicit
+  date. Retain sequential validation/isolation behavior and pass `./verify.sh`.
+- Basis: criterion 5 and PD-002 already require atomic supersession and
+  immutable, auditable history. No new product requirement is introduced.
+
+### Acceptance assessment at the reviewed head
+
+- Criteria 1–2: supported by immutable field mappings, manual provenance,
+  creation timestamp, bounded/not-blank DTO constraints, required dates,
+  date-order validation, and the creation/validation PostgreSQL API tests.
+- Criteria 3–4: supported by household-scoped repository lookups and stable
+  name/effectiveFrom/createdAt/id ordering, explicit `asOf` validation, and
+  temporal-boundary, household-isolation, and active-filter tests.
+- Criterion 5: **unmet** for overlapping supersessions, as R1 details.
+- Criteria 6–7: supported by the additive create/get/list/supersede surface,
+  no update/delete route or canonical aggregate writes, exclusive feature
+  paths, and exactly one V6 migration plus the task lifecycle change.
+- Criterion 8: the brief and implementation-log diff report local
+  `./verify.sh` passing (385 tests, zero failures/errors/skips). Independently
+  verified the reviewed head's required GitHub `verify` check completed with
+  `SUCCESS`: https://github.com/codelinguist/waypoint/actions/runs/33984650534/job/101355838610.
+  Synthetic PostgreSQL create/query/supersede/history tests are present in
+  the diff. Tests were not rerun locally during this review.
+- Feature acceptance remains `PENDING`; returned to Claude Code for R1.
+  Green CI does not resolve the missing concurrency protection. This review
+  does not authorize automatic merge.
+- No additional `RECOMMENDED` or `OPTIONAL` findings.
+- System evolution: the requested PostgreSQL regression test addresses this
+  defect class. Existing atomicity and immutable-history rules suffice;
+  no shared rule, template, or documentation edit is proposed.
