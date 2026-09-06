@@ -2319,6 +2319,10 @@ contracts in product documents until ready. The future UI task explicitly extend
 canonical verify command and CI environment to cover frontend quality without weakening
 the backend gate. No orchestrator change is needed for this framing.
 
+> Historical record: the orchestration LABS initiative below was canceled by Ralph
+> on 2026-09-06. Its approvals and next-task recommendations are superseded;
+> do not resume or queue this work. Associated planning files have been removed.
+
 ## 2026-09-06 — Orchestration lab plan for manual execution
 
 Saved `agent/product/orchestration-lab/implementation-plan.md` with nine stages,
@@ -2371,3 +2375,19 @@ passed with temporary Temurin Java 21 and Docker access: 392 tests, no failures,
 errors, or skips. Initial verification with system Java 26 under sandbox restrictions
 failed; no application-code fix or permanent Java installation was needed.
 PR/independent acceptance and required CI remain outstanding before completion.
+
+
+## 2026-09-06 — Cancel orchestration LABS initiative
+
+At Ralph's explicit request, removed the experimental roadmap, execution contract,
+product briefs, and manual Task 023. Discarded the unfinished dispatch-guard
+implementation, its fixture test, and associated CI/documentation changes, restoring
+the existing orchestrator and task conventions to HEAD. Historical entries above
+remain solely as an audit record; their approvals and recommended work are canceled.
+
+Validation: whitespace check, shell syntax check, existing orchestrator fixture suite,
+and search for active references. No new tests or architectural decisions.
+The financial product roadmap and Codex/Claude responsibilities remain unchanged.
+Next direction: direct Jira Kanban integration within the token budget; no replacement
+roadmap or implementation is authorized by this cleanup. No unresolved cleanup
+questions or shared-rule changes.
