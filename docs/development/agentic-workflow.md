@@ -1,15 +1,16 @@
 # Our agentic development workflow
 
-Agreed direction: 2026-09-06. Setup and implementation have not started.
+Agreed direction: 2026-09-06. Interactive access inspection started on 2026-09-06.
 
 This is infrastructure for how we build software together. It is separate from
 Waypoint's financial application, product roadmap, product briefs, and task queue.
 We will implement this guide interactively: Ralph handles account access and
 service settings; Codex inspects configuration and writes the necessary scripts.
-We are currently planning. Codex may refine this guide as our decisions evolve.
-Documentation approval does not authorize installing services, writing implementation
-scripts, changing authentication, or launching workers. Ralph will explicitly start
-implementation and enable live execution when we are ready.
+Ralph has authorized interactive setup and native capability inspection. Codex may
+update this guide and, after identifying native capability gaps, implement minimal
+workflow tooling. Ralph provides authentication through secure service/local flows.
+Live execution still requires preview evidence and an explicitly selected pilot;
+broader dispatch is not authorized by setup.
 This document does not enqueue work or authorize an unattended rollout.
 
 ## What we want
@@ -77,8 +78,8 @@ that legacy runtime or its settings during planning.
 Ralph authorizes Codex to create Jira backlog issues after framing work, without
 asking for permission for each issue. Once Jira access and the destination are
 configured, use a native connector/API or supported Jira capability first; write
-custom integration only if necessary. This standing authorization does not enable
-account setup or live execution during our current planning phase.
+custom integration only if necessary. Interactive account setup is now authorized separately; this standing backlog
+authorization does not enable live execution.
 
 Each issue should contain a clear title, problem/context, intended outcome, bounded
 scope, acceptance criteria, relevant repository/design links, and known dependencies
@@ -500,8 +501,40 @@ tradeoff honestly is part of learning to operate the system.
 
 ## Current position
 
-Only this guide exists. No Jira setup, script implementation, new queued task,
-authentication change, scheduler change, or live execution is performed by documenting
-it. We remain in planning; next discuss any remaining setup choices, then wait for
-Ralph to start implementation before inspecting account connections or provisioning
-anything. Update this guide as decisions evolve and, later, with verified commands.
+Interactive setup began on 2026-09-06 from handoff commit `c705cc7`.
+Read-only inspection verified:
+
+- The Atlassian Rovo connector authenticates as Ralph Jourdan Barro.
+- Site: `https://codelinguistics.atlassian.net`; cloud ID:
+  `9a481e0b-1d02-44c7-9215-ed8e52569d99`.
+- Connector scopes returned: `read:jira-work`, `write:jira-work`. These do not
+  establish site administration, Automation permissions, or script credentials.
+- The complete visible project listing has two projects: Waypoint Financial
+  (`KAN`, ID `10001`, `next-gen`/team-managed) and the example Billing System Dev
+  (`SAM1`, ID `10000`). KAN is the candidate destination; backlog and board
+  configuration still need inspection before issue creation.
+- The in-app browser reaches Atlassian sign-in. Ralph must authenticate there to
+  inspect settings unavailable through the connector. No credentials were requested
+  in chat or read from credential files.
+- Ralph completed the initial Jira setup steps and supplied a screenshot showing
+  GitHub for Atlassian connected to the `codelinguist` organization, backfill
+  `FINISHED`, repository access currently `All repos` (10), and `FULL ACCESS`.
+  This confirms the integration is connected, but its access is broader than the
+  intended pilot scope; narrow it to `codelinguist/waypoint` before live execution.
+- Repository origin is `https://github.com/codelinguist/waypoint.git`.
+- Checked-in legacy `orchestrator.sh` selects open PRs targeting main with `task/`
+  branch prefixes and can auto-merge accepted work. The new workflow must avoid
+  that selection boundary. Running scheduler/worker configuration and repository
+  permissions/check protection remain unverified; no runtime settings changed.
+- On 2026-09-06, the user crontab was inspected with elevated access and was
+  empty; no legacy cron entry was present to remove. No matching LaunchAgent was
+  visible. The checked-in legacy script remains for historical reference, but no
+  active scheduler was found. A running process could not be independently
+  inspected from the sandbox and should be checked in Terminal if needed.
+
+Next inspect KAN's board/backlog, statuses/transitions, admin permissions,
+Automation quota/audit behavior, installed GitHub integration, Rovo entitlement,
+and Claude Agent availability/billing. The interactive connector is not evidence
+of unattended authentication. Local versus hosted execution remains undecided;
+no listener, tunnel, automation rule, task queue entry, or worker has been created.
+No live dispatch or automatic merge is enabled for this workflow.

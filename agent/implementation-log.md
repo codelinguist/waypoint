@@ -2391,3 +2391,21 @@ The financial product roadmap and Codex/Claude responsibilities remain unchanged
 Next direction: direct Jira Kanban integration within the token budget; no replacement
 roadmap or implementation is authorized by this cleanup. No unresolved cleanup
 questions or shared-rule changes.
+## 2026-09-06 — Jira preview receiver
+
+- Added `agent/automation/preview_receiver.py`, a small standard-library HTTP
+  receiver that verifies HMAC signatures, durably records events in SQLite, and
+  deduplicates event IDs. It always reports preview mode and never launches work.
+- Added focused tests for persistence, duplicate delivery, malformed payloads, and
+  invalid signatures. Verified with a direct Python smoke run; pytest is not
+  installed in this environment.
+- The Jira rule remains disabled until the receiver is reachable through an
+  authenticated HTTPS endpoint and the preview path has been exercised.
+
+## 2026-09-06 — Preview admission check
+
+- Added `agent/automation/preview_admission.py` and a focused test. It reads the
+  newest durable event, applies an explicit issue allowlist, and emits a JSON
+  preview of the bounded launch plan without starting a worker or changing Jira.
+- A direct smoke run marked `WAP-5` eligible under the pilot allowlist; no process,
+  worktree, or PR was created.
