@@ -106,15 +106,48 @@ No notifications, scheduling, freshness scoring, inferred review intervals, assu
 - Current task: `agent/tasks/019-financial-data-freshness.md`
 - Design brief: Not applicable; backend-only.
 - Implementation owner: Claude Code, fresh conversation in isolated `task/019-financial-data-freshness` branch/worktree.
-- Review evidence: Pending. Deliver feature-local `api.md` and `implementation-log.md` including changes, tests, assumptions, architectural choices, limitations, next task and system-evolution recommendations.
+- Review evidence: Implemented in new `FinancialDataFreshnessCalculator`/
+  `FinancialDataFreshnessService`/`FreshnessSourceRecord`/`FreshnessRecord`/
+  `FreshnessRecordKind`/`FreshnessClassification`/`FinancialDataFreshnessResult`/
+  `InvalidFreshnessReviewInputException` (domain, package
+  `com.waypoint.review.freshness`), `FinancialDataFreshnessController`
+  (`GET /api/households/{householdId}/financial-data-freshness`, package
+  `com.waypoint.review.freshness.web`), and matching response DTOs — entirely
+  additive files inside the exclusive `review/freshness` ownership boundary;
+  no existing file was modified. `FinancialDataFreshnessService` reads
+  household state only through the existing, unmodified `AssetService` and
+  `LiabilityService`. The controller's `InvalidFreshnessReviewInputException`
+  handler is declared directly on the controller (not added to the shared
+  `ApiExceptionHandler`), so it cannot catch a sibling controller's errors,
+  per PD-002. See `agent/product/financial-data-freshness/implementation-log.md`
+  for full detail and `agent/product/financial-data-freshness/api.md` for the
+  request/response reference.
+- Local `./verify.sh`: 427 tests, 0 failures (35 new: 18 domain +
+  17 HTTP, in `FinancialDataFreshnessCalculatorTest` and
+  `FinancialDataFreshnessApiIntegrationTest`).
+- Manual verification: packaged app run locally against a disposable,
+  throwaway Postgres container; curl-exercised the exact acceptance-criteria
+  boundary example (2026-09-06/30 → CURRENT at 30, STALE at 31),
+  `FUTURE_DATED`, a zero threshold, unknown household (404), missing/
+  malformed `reviewDate`, fractional/negative/overflow/above-bound
+  `maxAgeDays`, an empty household, and a no-mutation check across both
+  assets and liabilities — all matched documented behavior exactly. See
+  implementation-log.md's "Manual verification" section for the full
+  reproducible transcript (every command and observed response).
+- Fix round 1 (2026-09-07): applied both `BLOCKING` findings from
+  independent review — extended `keepsRecordsIsolatedBetweenHouseholds` and
+  `performsNoMutationOfUnderlyingRecords` to cover liability records (not
+  only assets), and replaced the summarized manual-verification section
+  with a fully reproducible command-by-command transcript. See
+  implementation-log.md's "Fix round 1" section for detail.
 - Delivery gates: Task PR, local ./verify.sh, green required CI verify, and independent Product Owner acceptance under agent/collaboration-workflow.md.
 
 ## Feature acceptance
 
-- Acceptance status: `PENDING`
-- Acceptance evidence: None; framing only.
-- Unmet criteria: Implementation and verification pending.
+- Acceptance status: `ACCEPTED`
+- Acceptance evidence: Independent Codex review accepted PR #27 at commit `b31e7b44004ad86d28ddea31aae6559c6b5d0bc1`; all eight criteria are supported and required CI `verify` passed 427 tests with zero failures, errors, or skips.
+- Unmet criteria: None. Non-blocking documentation cleanup remains: refresh stale PR verification links/status and replace broad process cleanup with targeted cleanup before reusing the manual runbook.
 - Returned work: None.
 - Follow-up opportunities: Household-facing integration after these bounded APIs are accepted; do not expand this task during implementation.
-- Accepted or returned by Product Owner Agent:
-- Accepted or returned at:
+- Accepted or returned by Product Owner Agent: Codex (independent review session)
+- Accepted or returned at: 2026-09-07
