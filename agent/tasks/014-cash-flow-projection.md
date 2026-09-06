@@ -1,11 +1,11 @@
 ---
-status: IN_PROGRESS
+status: MERGED
 task_number: 014
 feature_slug: cash-flow-projection
 branch: task/014-cash-flow-projection
 worktree: /Users/rj/Documents/projects/waypoint-orchestrator/worktrees/task-014-cash-flow-projection
 session: 921b5290
-pr:
+pr: 21
 claimed_at: 2026-09-05T18:05:53Z
 fix_rounds: 0
 conflict_rounds: 0
