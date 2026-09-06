@@ -110,9 +110,73 @@
 
 - Acceptance status: `PENDING`
 - Acceptance evidence:
-- Unmet criteria: Pending implementation.
-- Returned work:
+- Unmet criteria: Criterion 3 and PD-001's monetary rounding convention are not satisfied; see R1 below.
+- Returned work: Correct premature monthly-rate rounding and add domain/HTTP regression evidence for R1.
 - Follow-up opportunities: Inflation-adjusted returns, fees, taxes, variable contributions, and stochastic projections.
-- Accepted or returned by Product Owner Agent:
-- Accepted or returned at:
+- Accepted or returned by Product Owner Agent: Codex (returned for correction).
+- Accepted or returned at: 2026-09-06.
 
+## Review findings — 2026-09-06
+
+Reviewed PR #20 using `gh pr diff 20`, head
+`1a74d1bd1deae4057cc67662a93b751a415ce457`, against this brief and the
+collaboration workflow. Context was limited to the four requested files and
+the actual PR diff; no implementation conversation was used. Backend-only;
+no feature visual-review file exists.
+
+### R1 — BLOCKING — ACCEPTED — Premature rate rounding changes monthly growth
+
+- Evidence: `backend/src/main/java/com/waypoint/planning/futurevalue/FutureValueCalculator.java:66`
+  rounds `annualRatePercentage / 1200` to 12 places before line 73 multiplies
+  it by the opening balance. With USD, principal `6.00`, contribution `0`,
+  annual percentage `1.00`, and one month, the submitted calculator returns
+  growth `0.00` and ending value `6.00`. Exact growth before monetary rounding
+  is `6.00 * 1.00 / 1200 = 0.005`; the specified HALF_UP convention requires
+  growth `0.01` and ending value `6.01`.
+- Verification: Extracted the calculator and its three domain types directly
+  from the fetched diff into a disposable temporary directory, removed only
+  the package declarations and Spring service annotation/import, and compiled
+  and ran a Java harness. Output: `Actual growth=0.00, ending=6.00`;
+  independent BigDecimal multiply-then-divide at scale 2 with HALF_UP:
+  `Expected growth=0.01`. No application source was edited.
+- Impact: Valid small inputs produce incorrect financial results. Rows still
+  add up internally, but the growth term does not follow PD-001 or criterion
+  3's rounded-growth/no-hidden-precision requirement. The implementation log's
+  claim that 12-place rate rounding avoids drift is contradicted by this case.
+- Acceptance condition: Compute each month's growth from the exact product
+  of opening balance and annual percentage divided by 1200, rounding only
+  the monetary result HALF_UP to two decimals (or an equivalent exact method).
+  Add domain and HTTP regression coverage for the above half-cent case and
+  a non-terminating rate with a large accepted balance; assert independently
+  derived growth as well as row/totals reconciliation. Correct the feature-local
+  precision explanation and rerun `./verify.sh` with a green required check.
+- Disposition: ACCEPTED as a required fix; unresolved. No change to the
+  approved financial model or household preference is needed.
+
+### Acceptance assessment
+
+Feature acceptance remains `PENDING`; returned to Claude Code for R1.
+No other BLOCKING, RECOMMENDED, or OPTIONAL findings were identified.
+
+- Criteria 1–2: Worked-example, zero-rate, and zero-money domain/MVC assertions
+  match the brief; the diff's API and implementation log record manual flows.
+- Criterion 3: Unmet for the rounded-growth convention, as independently
+  reproduced in R1; summation identities alone pass but do not prove correct growth.
+- Criterion 4: Domain sign/digit/range checks, DTO constraints, and whole-number
+  deserialization reject the specified invalid inputs; focused tests cover
+  fractional and overflowing months before narrowing.
+- Criterion 5: ASCII currency validation and `Locale.ROOT` normalization are
+  present, with a Turkish-locale regression; no financial-value logging is
+  introduced in the diff.
+- Criterion 6: Pure deterministic loop, explicit inputs and ordered immutable
+  schedule; no clock, persistence, household lookup, or sibling dependency.
+- Criterion 7: All 14 changed files are in the exclusive code/test/prose paths.
+- Criterion 8: Implementation evidence reports local `./verify.sh` success
+  (389 tests) and manually exercised synthetic flows. Independently checked
+  required [verify run](https://github.com/codelinguist/waypoint/actions/runs/33983493676/job/101352773582)
+  is SUCCESS for the reviewed head. The full suite was not rerun during this
+  review; its current coverage misses R1.
+
+System evolution: No shared-rule change is required for this fix; PD-001
+already defines the correct convention. The feature regression tests should
+check exact rounding boundaries, not only reconciliation, to prevent recurrence.
