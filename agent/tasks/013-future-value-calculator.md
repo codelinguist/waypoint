@@ -1,5 +1,5 @@
 ---
-status: IN_PROGRESS
+status: STALLED
 task_number: 013
 feature_slug: future-value-calculator
 branch: task/013-future-value-calculator
