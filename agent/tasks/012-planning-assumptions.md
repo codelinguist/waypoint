@@ -1,5 +1,5 @@
 ---
-status: IN_PROGRESS
+status: STALLED
 task_number: 012
 feature_slug: planning-assumptions
 branch: task/012-planning-assumptions
