@@ -2318,3 +2318,47 @@ invent lifecycle states or enqueue blocked implementation work. Keep dependent e
 contracts in product documents until ready. The future UI task explicitly extends the
 canonical verify command and CI environment to cover frontend quality without weakening
 the backend gate. No orchestrator change is needed for this framing.
+
+## 2026-09-06 — Orchestration lab plan for manual execution
+
+Saved `agent/product/orchestration-lab/implementation-plan.md` with nine stages,
+14 dependency-linked planning tasks, Jira epic grouping, failure experiments,
+acceptance evidence, and a transition from manual initiation to event triggers.
+The objective explicitly includes learning production orchestration independent
+of product scale. No executable queue entries or Jira issues were created, and
+no cron or worker configuration was changed.
+
+Tests: documentation-only; checked Markdown diff for whitespace errors.
+Architectural decisions: none finalized; ownership and adapter boundaries are
+proposed for LAB-01, and implementation technologies remain to be evaluated.
+Assumptions: existing acceptance/CI gates remain; only one coordinator owns a task.
+Unresolved: confirm Jira destination, establish unattended authentication, inspect
+active workers before disabling cron and transferring execution ownership.
+Recommended next task: manually initiate LAB-01, then duplicate-worker prevention.
+System evolution: document a manual execution contract before introducing lab work
+to the orchestrator-owned task directory; planning IDs are not executable task IDs.
+
+## 2026-09-06 — LAB-01 lifecycle contract
+
+Added the orchestration lab product brief and execution contract, covering task
+and attempt records, version-checked transitions, ownership, dispatch ambiguity,
+cancellation, revision-bound acceptance, and manual starts. Updated plan progress.
+Tests: documentation diff/whitespace checks only; no runtime behavior changed.
+Decisions: proposed contract serializes attempts per task and blocks uncertain
+dispatch; it explicitly limits lease fencing when workers retain direct access.
+Assumptions: legacy task states remain unchanged; no lab task enters the cron queue.
+Observations: empty user crontab; six blocked Claude sessions; none modified.
+Unresolved: independent acceptance, Jira setup, worker recovery implementation.
+Next: LAB-02 shared dispatch guard and active-worktree protection.
+System evolution: establish manual execution conventions before adding lab files
+to the legacy queue; distinguish specification coverage from runtime verification.
+
+## 2026-09-06 — Real-product requirement for orchestration experiments
+
+Ralph reaffirmed that Waypoint is intended for real users and consequential use.
+Updated the orchestration plan, product brief, and execution contract to require
+continued useful product delivery, unchanged correctness/security/acceptance gates,
+and isolated synthetic work for destructive failure experiments. Learning remains
+an additional objective. No runtime or financial-data changes; documentation-only
+verification via `git diff --check`. No new architectural decision: this reinforces
+the existing product mission. Next task remains LAB-02.
