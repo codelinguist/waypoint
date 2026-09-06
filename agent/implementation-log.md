@@ -2290,3 +2290,31 @@ product brief, implemented and PR'd directly.
 **Recommended next task**
 
 - ...
+
+
+### 2026-09-06 — First financial-position frontend framing
+
+**Changed:** Added the parent financial-position product brief; queued design-only
+Task 020 and independent current-position API Task 021; wrote the UI implementation
+contract outside the queue until design and API acceptance. Updated roadmap sequencing
+and recorded D015 following Ralph's explicit request.
+
+**Tests:** Documentation links, task uniqueness and lifecycle fields checked. Application
+code unchanged; no application tests or rendered-design approval claimed.
+
+**Decisions and assumptions:** Use current recorded assets/liabilities with per-currency
+planning-value net worth, an exact decimal-string read model, an existing configured
+household, and a read-only first UI. Design exploration and implementation remain in
+separate conversations. Tasks 015–019 were preserved.
+
+**Open questions:** Household feedback should choose the next experience after this
+page; data entry/correction remains outside this slice.
+
+**Recommended next task:** Run design Task 020 and API Task 021 independently. After
+both merge, assign the next unused task number to the gated UI contract.
+
+**System evolution:** The current queue has no documented dependency scheduler; do not
+invent lifecycle states or enqueue blocked implementation work. Keep dependent execution
+contracts in product documents until ready. The future UI task explicitly extends the
+canonical verify command and CI environment to cover frontend quality without weakening
+the backend gate. No orchestrator change is needed for this framing.
