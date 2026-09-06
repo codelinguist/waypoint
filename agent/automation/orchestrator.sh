@@ -306,6 +306,29 @@ count_in_progress() {
   echo "$n"
 }
 
+# Fail closed before claiming work or spending retry budgets. This must run in
+# the same login session as the scheduler; no credential is copied to disk.
+worker_auth_ready() {
+  local auth
+  auth="$(claude auth status 2>/dev/null)" || return 1
+  jq -e '.loggedIn == true' <<< "$auth" >/dev/null 2>&1
+}
+
+# The active roster includes blocked workers. Never reset a worktree while
+# any worker still owns it, including one waiting for login or user input.
+worker_worktree_busy() {
+  local wt_dir="$1" roster
+  [[ -z "$wt_dir" ]] && return 1
+  roster="$(claude agents --json 2>/dev/null)" || return 0
+  jq -e 'type == "array"' <<< "$roster" >/dev/null 2>&1 || return 0
+  jq -e --arg cwd "$wt_dir" 'any(.[]; .cwd == $cwd)' <<< "$roster" >/dev/null
+}
+
+retry_waiting_for_commit() {
+  local status="$1" head_sha="$2" last_sha="$3"
+  [[ "$status" == "IN_PROGRESS" && -n "$last_sha" && "$head_sha" == "$last_sha" ]]
+}
+
 dispatch_worker() {
   local task_file="$1" branch="$2" wt_dir="$3" fix_note="$4" name="$5"
   local task_file_rel="agent/tasks/$(basename "$task_file")"
@@ -335,6 +358,10 @@ dispatch_phase() {
     (( slots <= 0 )) && break
     [[ "$(frontmatter_field "$f" status)" == "QUEUED" ]] || continue
 
+    if ! worker_auth_ready; then
+      log "Claude login unavailable; queued tasks left untouched. Run scheduler in the macOS login session."
+      return 0
+    fi
     local num slug branch wt_dir
     num="$(frontmatter_field "$f" task_number)"
     slug="$(frontmatter_field "$f" feature_slug)"
@@ -551,6 +578,14 @@ try_merge() {
 
 handle_conflict() {
   local pr_number="$1" branch="$2" task_file="$3"
+  if ! worker_auth_ready; then
+    log "PR #$pr_number: Claude login unavailable; retry budget unchanged."
+    return 0
+  fi
+  if worker_worktree_busy "$(frontmatter_field "$task_file" worktree)"; then
+    log "PR #$pr_number: existing worker still owns the worktree; retry budget unchanged."
+    return 0
+  fi
   local conflict_rounds
   conflict_rounds="$(frontmatter_field "$task_file" conflict_rounds)"
   [[ -z "$conflict_rounds" ]] && conflict_rounds=0
@@ -598,6 +633,14 @@ handle_conflict() {
 
 handle_blocking() {
   local pr_number="$1" branch="$2" task_file="$3"
+  if ! worker_auth_ready; then
+    log "PR #$pr_number: Claude login unavailable; retry budget unchanged."
+    return 0
+  fi
+  if worker_worktree_busy "$(frontmatter_field "$task_file" worktree)"; then
+    log "PR #$pr_number: existing worker still owns the worktree; retry budget unchanged."
+    return 0
+  fi
   local fix_rounds
   fix_rounds="$(frontmatter_field "$task_file" fix_rounds)"
   [[ -z "$fix_rounds" ]] && fix_rounds=0
@@ -656,6 +699,14 @@ review_and_merge_phase() {
       continue
     fi
 
+    local task_status
+    task_status="$(frontmatter_field "$task_file" status)"
+    [[ "$task_status" == "STALLED" || "$task_status" == "MERGED" ]] && continue
+    if worker_worktree_busy "$(frontmatter_field "$task_file" worktree)"; then
+      log "PR #$pr_number: worker still owns worktree; waiting before review, reset, or merge."
+      continue
+    fi
+
     local head_sha state_file last_sha verdict
     head_sha="$(gh pr view "$pr_number" --repo "$REPO_SLUG" --json headRefOid --jq .headRefOid)"
     state_file="$STATE_DIR/pr-${pr_number}.json"
@@ -666,7 +717,17 @@ review_and_merge_phase() {
       verdict="$(jq -r '.verdict // empty' "$state_file")"
     fi
 
+    if retry_waiting_for_commit "$task_status" "$head_sha" "$last_sha"; then
+      log "PR #$pr_number: dispatched worker has not pushed a new commit; waiting without spending another retry."
+      continue
+    fi
+
     if [[ "$head_sha" != "$last_sha" ]]; then
+      if [[ "$task_status" == "IN_PROGRESS" ]]; then
+        set_frontmatter_field "$task_file" status IN_REVIEW
+        set_frontmatter_field "$task_file" pr "$pr_number"
+        push_control_main "Task $branch ready for review of new worker commit"
+      fi
       verdict="$(run_review "$pr_number" "$branch" "$task_file")"
       if [[ "$verdict" == "REVIEW_ERROR" ]]; then
         # Review infrastructure failed (codex exec crashed, produced no

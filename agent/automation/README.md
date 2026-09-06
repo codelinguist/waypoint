@@ -97,28 +97,41 @@ Tail it to see what the pipeline has been doing:
 tail -f agent/automation/logs/orchestrator.log
 ```
 
-## Installing the cron job
+## Scheduling on macOS
 
-```
-crontab -e
-```
+Run every five minutes as a user LaunchAgent in the `gui/<uid>` domain,
+with `LimitLoadToSessionType` set to `Aqua`, `StartInterval` set to `300`,
+and `ProgramArguments` pointing to the absolute `orchestrator.sh` path.
+Use the repository root as `WorkingDirectory` and redirect stdout/stderr to
+`agent/automation/logs/scheduler.log`. Install the plist under
+`~/Library/LaunchAgents/com.waypoint.orchestrator.plist`, then load it with
+`launchctl bootstrap gui/$(id -u) <plist>`.
 
-Add (every 5 minutes; adjust to taste — a shorter interval just means more
-skipped runs while the lock is held, not more throughput):
+Do not schedule this worker pipeline through cron. Claude's macOS Keychain
+login is available in the logged-in GUI session but was unavailable to cron
+workers, which exited immediately with `Not logged in`. A LaunchAgent uses
+the existing login without copying an OAuth token into a plaintext cache.
+Remove only the old Waypoint crontab entry when switching; preserve other jobs.
+The existing single-instance lock still protects overlapping invocations.
 
-```
-*/5 * * * * /Users/rj/Documents/projects/waypoint/agent/automation/orchestrator.sh >> /Users/rj/Documents/projects/waypoint/agent/automation/logs/cron.log 2>&1
-```
+The machine must be awake and the user logged in. A failed Claude auth
+preflight leaves queued tasks and retry budgets unchanged. Active or blocked
+workers retain exclusive ownership of their worktrees. After a fix or rebase
+is dispatched, an unchanged PR head waits without consuming another round,
+even if its worker has exited. A new worker commit permits another review;
+`STALLED` tasks require explicit recovery and are not repeatedly dispatched.
 
-This only runs while this machine is on and this user is logged in (cron on
-macOS is machine-local, not a service that survives a reboot into a
-different session by default). That's an accepted limitation of the "local
-cron" choice, not a bug — see `agent/collaboration-workflow.md` -> "Automated
-pipeline".
+To recover a login-blocked task, first verify auth from the scheduler's session,
+stop its failed workers, inspect the worktree for unpushed work, and repair the
+infrastructure issue. Under the orchestrator lock, use its frontmatter helpers
+to return the task to `IN_REVIEW`. Restore only retry budget proven to have
+been spent on infrastructure failures, record the evidence in the implementation
+log, and let the next scheduled pass dispatch one fresh worker. Do not delete
+review verdicts, bypass acceptance/CI, or reset a worktree owned by a worker.
 
 ## Turning it off
 
-- Temporarily: `crontab -e` and comment out or delete the line.
+- Temporarily: `launchctl bootout gui/$(id -u)/com.waypoint.orchestrator`.
 - Mid-flight: `claude agents` lists background worker sessions; `claude stop
   <id>` stops one without losing its conversation. `codex` invocations inside
   a review pass are short-lived and finish on their own.

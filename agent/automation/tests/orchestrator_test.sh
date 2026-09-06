@@ -831,6 +831,80 @@ test_migration_collision_detection() {
   CONTROL_DIR="$saved_control_dir"
 }
 
+# ---- worker ownership and retry lifecycle ---------------------------------
+
+test_retry_waits_for_new_commit() {
+  assert_success "in-progress unchanged head must wait" retry_waiting_for_commit IN_PROGRESS abc abc
+  assert_failure "new worker commit permits review" retry_waiting_for_commit IN_PROGRESS def abc
+  assert_failure "first review is allowed" retry_waiting_for_commit IN_PROGRESS abc ""
+  assert_failure "undispatched verdict may start a fix" retry_waiting_for_commit IN_REVIEW abc abc
+}
+
+test_worker_auth_and_roster_fail_closed() {
+  local result
+  result="$(
+    claude() { printf '%s' "$fake_reply"; return "$fake_exit"; }
+    fake_reply='{"loggedIn":true}' fake_exit=0
+    worker_auth_ready || exit 1
+    fake_reply='{"loggedIn":false}'
+    worker_auth_ready && exit 2
+    fake_reply='bad json'
+    worker_auth_ready && exit 3
+    fake_reply='[{"cwd":"/task","state":"blocked"}]'
+    worker_worktree_busy /task || exit 4
+    worker_worktree_busy /other && exit 5
+    fake_reply='[]'
+    worker_worktree_busy /task && exit 6
+    fake_reply='bad json'
+    worker_worktree_busy /task || exit 7
+    fake_exit=1
+    worker_worktree_busy /task || exit 8
+    echo ok
+  )"
+  assert_equals ok "$result" "auth errors deny dispatch; unavailable roster and blocked workers protect worktree"
+}
+
+test_repeated_ticks_do_not_redispatch_cached_blocking() {
+  local result
+  result="$(
+    fixture_task="$TEST_TMP/retry-task.md"
+    printf '%s\n' '---' 'status: IN_REVIEW' 'worktree: /task' '---' > "$fixture_task"
+    STATE_DIR="$TEST_TMP/retry-state"
+    mkdir -p "$STATE_DIR"
+    printf '%s\n' '{"last_reviewed_sha":"abc","verdict":"BLOCKING"}' > "$STATE_DIR/pr-22.json"
+    REPO_SLUG=test/repo
+    fake_head=abc calls=0 busy=false reviews=0
+    push_control_main() { :; }
+    gh() {
+      if [[ "$2" == list ]]; then printf '22\ttask/example\n'; else echo "$fake_head"; fi
+    }
+    find_task_file_for_branch() { echo "$fixture_task"; }
+    worker_worktree_busy() { [[ "$busy" == true ]]; }
+    handle_blocking() {
+      calls=$((calls+1))
+      set_frontmatter_field "$fixture_task" status IN_PROGRESS
+    }
+    run_review() { echo BLOCKING; }
+    review_and_merge_phase
+    review_and_merge_phase
+    review_and_merge_phase
+    [[ "$calls" == 1 ]] || exit 1
+    fake_head=def
+    busy=true
+    review_and_merge_phase
+    [[ "$calls" == 1 ]] || exit 2
+    busy=false
+    review_and_merge_phase
+    [[ "$calls" == 2 ]] || exit 3
+    set_frontmatter_field "$fixture_task" status STALLED
+    fake_head=ghi
+    review_and_merge_phase
+    [[ "$calls" == 2 ]] || exit 4
+    echo ok
+  )"
+  assert_equals ok "$result" "one dispatch per reviewed head; busy and stalled tasks never redispatch"
+}
+
 # ---- run everything ---------------------------------------------------
 
 for t in $(declare -F | awk '{print $3}' | grep '^test_'); do

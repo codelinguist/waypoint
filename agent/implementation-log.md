@@ -2290,3 +2290,32 @@ product brief, implemented and PR'd directly.
 **Recommended next task**
 
 - ...
+
+
+## 2026-09-06 — Recover cron-blocked workers and protect retry ownership
+
+- Changed: auth preflight before claims/retries; active worker roster protects
+  worktrees before review/reset/merge; unchanged reviewed heads wait after
+  dispatch; STALLED tasks stay stopped. The orchestrator now records IN_REVIEW
+  when a new worker commit becomes reviewable. Worker prompt respects exclusive
+  feature logs and orchestrator-owned lifecycle fields.
+- Evidence: task 012 workers af284563/b1621059 and task 013 workers
+  028b54ba/f40345ed all immediately reported "Not logged in". Cached BLOCKING
+  verdicts dispatched round 2 on the next tick, then exhausted both budgets.
+  Interactive and GUI LaunchAgent auth probes report loggedIn=true. No actual
+  product-fix attempts consumed those budgets.
+- Tests: 80 automation assertions pass, including repeated scheduled ticks,
+  new commits, active/blocked ownership, STALLED suppression, and auth/roster
+  failure handling. Canonical ./verify.sh is run before delivery.
+- Decisions: use a macOS login-session LaunchAgent for the existing five-minute
+  schedule; do not copy Claude credentials into a plaintext cache.
+- Assumptions: a blocked worker retains ownership until explicitly stopped;
+  an unavailable roster is not evidence that a worktree is unowned.
+- Open questions: workers that exit without pushing now wait for intervention;
+  automatic infrastructure retry policy remains intentionally out of scope.
+- Recommended next task: recover 012/013 once the corrected runner is installed,
+  then independently review their new commits and require green verify.
+- System evolution: automation README documents the session requirement and
+  recovery procedure; regression coverage now exercises repeated ticks rather
+  than relying only on source-shape checks. Worker lifecycle ownership is
+  aligned with agent/tasks/README.md.

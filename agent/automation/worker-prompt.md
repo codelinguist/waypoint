@@ -35,9 +35,10 @@ workflow.md` step 4 ("Implement with Claude Code") exactly:
    type/lint checks, until it passes.
 4. Exercise the primary user flow manually if the application can be run
    locally; note plainly if it can't be from this environment.
-5. Update `agent/implementation-log.md` (Changed / Tests / Decisions /
-   Assumptions / Open questions / Recommended next task) and update your task
-   file's `status:` to `IN_REVIEW`.
+5. Record Changed / Tests / Decisions / Assumptions / Open questions /
+   Recommended next task in the implementation log allowed by your task.
+   Exclusive feature ownership takes precedence over shared-log instructions.
+   Do not edit task lifecycle fields; the orchestrator owns them.
 6. Before committing, run `git fetch origin main` and `git merge origin/main`.
    A sibling task may have merged while you were working and touched the same
    shared file — most often `README.md`'s Status/endpoint-docs prose or
@@ -48,8 +49,7 @@ workflow.md` step 4 ("Implement with Claude Code") exactly:
    look cleaner. Only use judgment about which version wins if it's a
    genuine logical clash in application code, not independent additions, and
    say so explicitly in `agent/implementation-log.md`. If the conflict is in
-   a Flyway migration's version number, stop and set this task file's status
-   to `STALLED` with an explanation instead of resolving it yourself — that
+   a Flyway migration's version number, stop and record the blocker in your feature log instead of resolving it yourself — that
    needs a human decision. Re-run `./verify.sh` after any merge to confirm it
    still passes before continuing.
 7. Commit your work, push `{{BRANCH}}`, and open the PR yourself (`gh pr
@@ -59,6 +59,5 @@ workflow.md` step 4 ("Implement with Claude Code") exactly:
    CI check.
 
 If `./verify.sh` cannot pass for a reason outside this task's scope (a broken
-`main`, a missing external dependency), set the task file's `status:` to
-`STALLED`, explain why in `agent/implementation-log.md`, and stop — do not
+`main`, a missing external dependency), record the blocker in your feature implementation log and stop — do not
 guess around a broken foundation.
