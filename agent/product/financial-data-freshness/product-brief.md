@@ -144,10 +144,10 @@ No notifications, scheduling, freshness scoring, inferred review intervals, assu
 
 ## Feature acceptance
 
-- Acceptance status: `PENDING`
-- Acceptance evidence: Implementation complete; awaiting independent Product Owner Agent review of the PR diff and evidence above.
-- Unmet criteria: None known; pending independent verification.
+- Acceptance status: `ACCEPTED`
+- Acceptance evidence: Independent Codex review accepted PR #27 at commit `b31e7b44004ad86d28ddea31aae6559c6b5d0bc1`; all eight criteria are supported and required CI `verify` passed 427 tests with zero failures, errors, or skips.
+- Unmet criteria: None. Non-blocking documentation cleanup remains: refresh stale PR verification links/status and replace broad process cleanup with targeted cleanup before reusing the manual runbook.
 - Returned work: None.
 - Follow-up opportunities: Household-facing integration after these bounded APIs are accepted; do not expand this task during implementation.
-- Accepted or returned by Product Owner Agent:
-- Accepted or returned at:
+- Accepted or returned by Product Owner Agent: Codex (independent review session)
+- Accepted or returned at: 2026-09-07
