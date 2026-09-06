@@ -196,3 +196,28 @@ can override.
 **Tradeoff:** A required check can deadlock merging if its definition breaks;
 recovering from that is a deliberate, explicitly-decided administrator action,
 not a routine bypass.
+
+
+---
+
+## D015 — Bring forward the first financial-position frontend slice
+
+**Status:** Accepted
+
+Following Ralph's explicit request on 2026-09-06, begin the read-only financial-position
+slice of Phase 9 before completing the full Phase 8 scenario engine. Explore and
+approve the design separately, add the missing coherent current-position read model,
+and queue UI implementation only after both prerequisites are accepted and merged.
+
+Use the existing asset planning-value convention for net worth, calculated in Java
+per currency. The new read model returns source rows and totals together with exact
+decimal-string monetary fields for browser precision; existing API contracts remain
+unchanged. Retrieval time does not turn dated records into current confirmed values.
+
+**Reason:** Existing financial records support a useful household experience now.
+A narrow UI feedback loop can guide subsequent development without waiting for every
+planning capability. Read-only delivery preserves household authority.
+
+**Tradeoff:** The first page has no data-entry flow, requires an existing configured
+household, and does not include broader cash-flow, goals or scenario views. Design
+approval, independent acceptance and the required verification gate remain mandatory.

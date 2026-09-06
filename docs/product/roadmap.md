@@ -95,6 +95,26 @@ Implement:
 
 ## Phase 9 — Basic React dashboard
 
+### Authorized early slice — 2026-09-06
+
+Ralph requested bringing forward the first read-only financial-position experience:
+what we own, what we owe, and net worth by currency. This slice can begin before
+Phase 8 is complete; it does not imply the full dashboard or scenario engine is
+finished. See [the product brief](../../agent/product/financial-position/product-brief.md)
+and D015.
+
+- Task 020: explore wide/narrow UI directions and record Product Owner design approval.
+- Task 021: provide a coherent read-only current-position API with server-calculated
+  totals and exact decimal-string monetary transport. This can run alongside design.
+- After both merge: queue the React/TypeScript implementation from the
+  [gated implementation contract](../../agent/product/financial-position/implementation-task-draft.md),
+  then verify desktop/mobile behavior and the real API flow.
+
+The implementation contract stays outside the executable queue until its dependencies
+are accepted. Other dashboard views below remain later increments. Task numbers
+identify work; they do not introduce dependency scheduling to the orchestrator.
+
+
 Initial views:
 
 - current financial position
