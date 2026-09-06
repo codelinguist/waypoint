@@ -128,10 +128,18 @@ No notifications, scheduling, freshness scoring, inferred review intervals, assu
 - Manual verification: packaged app run locally against a disposable,
   throwaway Postgres container; curl-exercised the exact acceptance-criteria
   boundary example (2026-09-06/30 → CURRENT at 30, STALE at 31),
-  `FUTURE_DATED`, unknown household (404), missing/malformed `reviewDate`,
-  fractional/negative/overflow/above-bound `maxAgeDays`, and an empty
-  household — all nine matched documented behavior exactly. See
-  implementation-log.md for full output.
+  `FUTURE_DATED`, a zero threshold, unknown household (404), missing/
+  malformed `reviewDate`, fractional/negative/overflow/above-bound
+  `maxAgeDays`, an empty household, and a no-mutation check across both
+  assets and liabilities — all matched documented behavior exactly. See
+  implementation-log.md's "Manual verification" section for the full
+  reproducible transcript (every command and observed response).
+- Fix round 1 (2026-09-07): applied both `BLOCKING` findings from
+  independent review — extended `keepsRecordsIsolatedBetweenHouseholds` and
+  `performsNoMutationOfUnderlyingRecords` to cover liability records (not
+  only assets), and replaced the summarized manual-verification section
+  with a fully reproducible command-by-command transcript. See
+  implementation-log.md's "Fix round 1" section for detail.
 - Delivery gates: Task PR, local ./verify.sh, green required CI verify, and independent Product Owner acceptance under agent/collaboration-workflow.md.
 
 ## Feature acceptance

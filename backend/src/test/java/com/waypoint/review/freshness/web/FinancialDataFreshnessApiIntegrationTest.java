@@ -165,16 +165,30 @@ class FinancialDataFreshnessApiIntegrationTest {
         LocalDate reviewDate = LocalDate.now().minusDays(1);
 
         createAsset(householdOneId, "Household one fund", reviewDate);
+        createLiability(householdOneId, "Household one loan", reviewDate);
         createAsset(householdTwoId, "Household two fund", reviewDate);
         createAsset(householdTwoId, "Household two fund 2", reviewDate);
+        createLiability(householdTwoId, "Household two loan", reviewDate);
+        createLiability(householdTwoId, "Household two loan 2", reviewDate);
 
-        review(householdOneId, reviewDate, 30)
+        String householdOneBody = review(householdOneId, reviewDate, 30)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.records.length()").value(1))
-                .andExpect(jsonPath("$.records[0].name").value("Household one fund"));
+                .andExpect(jsonPath("$.records.length()").value(2))
+                .andExpect(jsonPath("$.countsByKind.ASSET").value(1))
+                .andExpect(jsonPath("$.countsByKind.LIABILITY").value(1))
+                .andReturn().getResponse().getContentAsString();
         review(householdTwoId, reviewDate, 30)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.records.length()").value(2));
+                .andExpect(jsonPath("$.records.length()").value(4))
+                .andExpect(jsonPath("$.countsByKind.ASSET").value(2))
+                .andExpect(jsonPath("$.countsByKind.LIABILITY").value(2));
+
+        var householdOneNames = objectMapper.readTree(householdOneBody).get("records");
+        for (var record : householdOneNames) {
+            String name = record.get("name").asText();
+            org.assertj.core.api.Assertions.assertThat(name)
+                    .isIn("Household one fund", "Household one loan");
+        }
     }
 
     @Test
@@ -202,8 +216,11 @@ class FinancialDataFreshnessApiIntegrationTest {
         String householdId = createHouseholdId();
         LocalDate reviewDate = LocalDate.now().minusDays(1);
         createAsset(householdId, "Fund", reviewDate);
+        createLiability(householdId, "Loan", reviewDate);
 
         String assetsBefore = mockMvc.perform(get("/api/households/{h}/assets", householdId))
+                .andReturn().getResponse().getContentAsString();
+        String liabilitiesBefore = mockMvc.perform(get("/api/households/{h}/liabilities", householdId))
                 .andReturn().getResponse().getContentAsString();
 
         review(householdId, reviewDate, 30).andExpect(status().isOk());
@@ -211,8 +228,11 @@ class FinancialDataFreshnessApiIntegrationTest {
 
         String assetsAfter = mockMvc.perform(get("/api/households/{h}/assets", householdId))
                 .andReturn().getResponse().getContentAsString();
+        String liabilitiesAfter = mockMvc.perform(get("/api/households/{h}/liabilities", householdId))
+                .andReturn().getResponse().getContentAsString();
 
         org.assertj.core.api.Assertions.assertThat(assetsAfter).isEqualTo(assetsBefore);
+        org.assertj.core.api.Assertions.assertThat(liabilitiesAfter).isEqualTo(liabilitiesBefore);
     }
 
     @Test
