@@ -2362,3 +2362,12 @@ and isolated synthetic work for destructive failure experiments. Learning remain
 an additional objective. No runtime or financial-data changes; documentation-only
 verification via `git diff --check`. No new architectural decision: this reinforces
 the existing product mission. Next task remains LAB-02.
+
+## 2026-09-06 — LAB-01 approval and verification
+
+Recorded Ralph's explicit execution-contract approval. Isolated the documentation
+commit on current main, excluding the prior backlog commit. Required `./verify.sh`
+passed with temporary Temurin Java 21 and Docker access: 392 tests, no failures,
+errors, or skips. Initial verification with system Java 26 under sandbox restrictions
+failed; no application-code fix or permanent Java installation was needed.
+PR/independent acceptance and required CI remain outstanding before completion.

@@ -54,6 +54,12 @@ out of 247 tests (zero assertion failures), including Mockito MockMaker
 initialization and a Testcontainers PostgreSQL image fetch error. Do not merge
 until the required verification gate is green.
 
+Verification resolved on 2026-09-06: after placing this documentation-only commit
+on current `origin/main`, `./verify.sh` passed with temporary Temurin Java 21 and
+Docker socket access: 392 tests, zero failures/errors/skips. The initial attempt
+used Java 26 under sandbox restrictions; no application code or system Java
+configuration was changed. `git diff --check origin/main...HEAD` also passed.
+
 Branch: `task/022-orchestration-lab-plan` (plan and initial contract documentation).
 Verification: documentation diff/whitespace review; no runtime changes.
 Feature acceptance: PENDING independent PR review; checked criteria indicate
