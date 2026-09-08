@@ -73,11 +73,12 @@ evidence say once the user brings a stage to it.
    concurrent code changes. Record BLOCKING, RECOMMENDED, or OPTIONAL
    findings with concrete evidence and acceptance conditions as a comment on
    the Jira issue. Use agent/templates/ui-visual-review.md for UI evidence.
-   Record ACCEPTED only when all acceptance criteria are supported — leave
-   the issue in Review; Ship is the only stage that moves it to Done.
-   Otherwise record RETURNED with unmet criteria and move the issue back to
-   In Progress, since it needs more implementation work before it's
-   reviewable again. Either way, record the reviewed revision.
+   Record ACCEPTED only when all acceptance criteria are supported and move
+   the issue to Acceptance — it's approved but not yet merged; Ship is still
+   the only stage that moves it to Done. Otherwise record RETURNED with
+   unmet criteria and move the issue back to In Progress, since it needs
+   more implementation work before it's reviewable again. Either way, record
+   the reviewed revision.
 5. **Revise (Claude Code):** when requested, resolve accepted review findings
    (read from the Jira issue's comments) on the same branch — the issue
    should already be In Progress from Review's RETURNED verdict; move it
@@ -87,10 +88,10 @@ evidence say once the user brings a stage to it.
    need the Jira issue updated and re-approved by Codex.
 6. **Ship (Claude Code):** only on an explicit user request, verify acceptance
    applies to the current implementation and the required verify check is
-   green on the current PR head. Merge the intended PR, move the Jira issue to
-   Done (or the board's equivalent terminal column, if it isn't named Done —
-   ask if unclear), and record completion. A later code change invalidates
-   stale acceptance. Do not bypass missing, pending, or failed checks.
+   green on the current PR head. Merge the intended PR, move the Jira issue
+   from Acceptance to Done, and record completion. A later code change
+   invalidates stale acceptance. Do not bypass missing, pending, or failed
+   checks.
 
 ## Commands
 
