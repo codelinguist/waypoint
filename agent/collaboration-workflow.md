@@ -8,14 +8,20 @@ repair loop, or automatic merge.
 
 ## Context and ownership
 
-Read AGENTS.md and its required documents. Resolve the requested task or Jira
-issue and its linked repository brief. Retrieve available issue context when
-asked to work on it; do not scan for work to start. If access is unavailable,
-report the missing context without inventing requirements.
+Read AGENTS.md and its required documents. Resolve the requested Jira issue
+(or, for work predating this workflow, its legacy `agent/tasks` file).
+Retrieve available issue context when asked to work on it; do not scan for
+work to start. If access is unavailable, report the missing context without
+inventing requirements.
 
-Repository briefs, code, and evidence are the handoff boundary. Jira identifies
-and summarizes work; its column does not authorize execution. Existing files in
-agent/tasks remain usable records. Do not create a second task for a Jira issue.
+The Jira issue, code, and evidence are the handoff boundary for feature work.
+Its column does not authorize execution — the user still initiates each
+stage. Durable cross-feature documentation (`docs/product/roadmap.md`,
+`docs/decisions/decisions.md`, and the other docs required by AGENTS.md)
+stays in the repository and is what Codex reads to decide what to frame next;
+only the per-feature specification moved to Jira. Existing `agent/product/`
+briefs and `agent/tasks/` files are retained as historical records; do not
+create new ones.
 
 Codex owns product framing, design approval, and independent acceptance. Claude
 Code normally owns technical research, design exploration, implementation, and
@@ -27,31 +33,36 @@ Load checked-in artifacts rather than another agent's reasoning transcript.
 
 ## Stages
 
-1. **Frame:** investigate the user problem and write a brief using
-   agent/templates/product-brief.md. Define scope, non-goals, and testable
-   acceptance criteria. Record readiness, then hand back to the user.
+1. **Frame:** investigate the user problem against docs/product/roadmap.md,
+   docs/decisions/decisions.md, and the other product docs required by
+   AGENTS.md. Define the outcome, scope, non-goals, and testable acceptance
+   criteria using the checklist in agent/templates/product-brief.md, create a
+   Jira issue with that content, and move it to To Do. Hand the issue key
+   back to the user.
 2. **Design (material UI work):** explore distinct directions using
    agent/templates/ui-design-brief.md. Obtain Product Owner approval in a
    separately requested review before implementation. Small mechanical UI
    changes and backend tasks do not require this stage.
-3. **Implement:** in a fresh session, load the approved brief, create a task
-   branch/worktree as needed, and complete the smallest scoped increment.
-   Use agent/templates/implementation-plan.md when complexity warrants it.
+3. **Implement:** in a fresh session, load the Jira issue (and approved
+   design brief, if any), create a task branch/worktree as needed, and
+   complete the smallest scoped increment. Use
+   agent/templates/implementation-plan.md when complexity warrants it.
    Fix implementation and test failures within this stage. Run ./verify.sh,
    exercise the primary flow, and capture wide/narrow UI evidence when relevant.
-   Update the implementation log and delivery handoff, push, and open the PR.
-   Report the PR and evidence; do not invoke review automatically.
+   Update the implementation log, push, and open the PR. Report the PR and
+   evidence; do not invoke review automatically.
 4. **Review:** in an independent session, inspect the current PR diff, relevant
-   code, tests, brief, and evidence. Record BLOCKING, RECOMMENDED, or OPTIONAL
-   findings with concrete evidence and acceptance conditions. Use
-   agent/templates/ui-visual-review.md for UI evidence. Record ACCEPTED only
-   when all acceptance criteria are supported, otherwise RETURNED with unmet
-   criteria. Record the reviewed revision. Commit and push review artifacts;
+   code, tests, the Jira issue, and evidence. Record BLOCKING, RECOMMENDED, or
+   OPTIONAL findings with concrete evidence and acceptance conditions as a
+   comment on the Jira issue. Use agent/templates/ui-visual-review.md for UI
+   evidence. Record ACCEPTED only when all acceptance criteria are supported,
+   otherwise RETURNED with unmet criteria. Record the reviewed revision;
+   commit and push any repository review evidence (e.g. UI screenshots), but
    do not edit implementation code or launch fixes.
 5. **Revise:** when requested, resolve accepted review findings on the same
    branch, verify affected behavior and ./verify.sh, update evidence, and push.
    Return for another user-requested independent review. Material scope/design
-   changes need a revised approved brief.
+   changes need the Jira issue updated and re-approved.
 6. **Ship:** only on an explicit user request, verify acceptance applies to the
    current implementation and the required verify check is green on the current
    PR head. Merge the intended PR and record completion. A later code change
@@ -82,9 +93,10 @@ and explicit ownership. Before handoff, resolve conflicts and check migration
 version collisions against main when applicable.
 
 The implementation stage includes authorization to push and open/update a PR.
-Review includes authorization to commit and push findings. Neither includes
-merge authorization. The brief's evidence-based acceptance is the durable
-independent-review record because the agents share a GitHub account.
+Review includes authorization to comment on the Jira issue and push any
+repository review evidence. Neither includes merge authorization. The Jira
+issue's comment history is the durable independent-review record because the
+agents share a GitHub account.
 
 UI completion requires the approved flow, accessible keyboard and narrow-width
 behavior, deliberate loading/empty/error states, and representative screenshots.

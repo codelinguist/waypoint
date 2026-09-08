@@ -1,12 +1,10 @@
-# Task records
+# Task records (retired for new work)
 
-One file per numbered task records its scoped execution contract and links to
-agent/product/<feature-slug>/product-brief.md. Existing records are retained;
-they are not an executable queue. For Jira work, use the issue and linked brief
-without creating a duplicate numbered task.
-
-The user selects the task and stage. The agent updates status as part of that
-requested stage; no status change dispatches work or triggers review or merge.
+New feature work is defined and tracked as a Jira issue that Codex creates
+during the Frame stage (see `agent/collaboration-workflow.md`) and moves to
+To Do; there is no repository brief or numbered task file to create alongside
+it. This numbered-file format is retained only so the records below stay
+readable as history; do not add new ones.
 
 ```yaml
 status: QUEUED
@@ -16,9 +14,9 @@ branch: task/006-some-feature
 pr:
 ```
 
-Follow the metadata with the goal, deliverables, constraints, and brief link.
-QUEUED means ready for user selection, IN_PROGRESS means implementation is
-underway, IN_REVIEW means awaiting requested review, STALLED means blocked,
-and MERGED means the requested merge was confirmed. Acceptance and findings
-live in the brief. Legacy worker/session/timing/retry fields are historical
-metadata only and need not be maintained. Do not rewrite old records as logs.
+QUEUED meant ready for user selection, IN_PROGRESS meant implementation was
+underway, IN_REVIEW meant awaiting requested review, STALLED meant blocked,
+and MERGED meant the requested merge was confirmed. Acceptance and findings
+for these historical tasks live in their linked
+`agent/product/<feature-slug>/product-brief.md`. Do not rewrite old records
+as logs.

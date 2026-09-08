@@ -25,9 +25,9 @@ before coding:
 6. `docs/architecture/architecture.md`
 7. `docs/decisions/decisions.md`
 8. `docs/product/roadmap.md`
-9. Your assigned file in `agent/tasks/` (see `agent/tasks/README.md`; if you
-   weren't pointed at a specific one, list `agent/tasks/*.md` and ask which
-   task this session is for)
+9. Your assigned Jira issue (if you weren't pointed at a specific one, ask
+   which issue this session is for; pre-existing work may instead point at a
+   legacy `agent/tasks/*.md` file)
 
 ### 2. Read collaboration mechanics
 
@@ -36,10 +36,11 @@ hasn't already — specifically the Plan/Implement/Validate phase definitions
 and the user-initiated stage boundaries. Load context only; do not start a
 stage merely because a task file is ready.
 
-If the current task names a feature slug, also read
-`agent/product/<feature-slug>/product-brief.md` and, if it exists,
-`agent/ui/<feature-slug>/design-brief.md` and
-`agent/product/<feature-slug>/implementation-plan.md`.
+Read the assigned Jira issue's description and comments for the outcome,
+scope, and acceptance criteria. If the issue names a feature slug and a
+design stage happened, also read `agent/ui/<feature-slug>/design-brief.md`.
+(For pre-existing work still tracked by a legacy task file, read its linked
+`agent/product/<feature-slug>/product-brief.md` instead.)
 
 ### 3. Check recent history
 
@@ -63,12 +64,12 @@ present — it is the only verification command, local or CI.
 Report back concisely — headers and short bullets, not prose paragraphs:
 
 ### Current task
-- Task number, feature slug, and one-line goal from your `agent/tasks/` file.
+- Jira issue key, feature slug, and one-line goal from the issue.
 - Which Plan/Implement/Validate phase this session is starting in.
 
 ### Product context
-- The problem and desired outcome this task serves, from the linked product
-  brief and `docs/product/*`.
+- The problem and desired outcome this task serves, from the Jira issue and
+  `docs/product/*`.
 
 ### Domain and architecture constraints
 - Rules from `docs/domain/financial-model.md` and

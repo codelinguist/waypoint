@@ -14,9 +14,8 @@ own.
 
 ## Source
 
-- Product brief: `agent/product/<feature-slug>/product-brief.md`
+- Jira issue: `<issue-key>`
 - Design brief, if applicable: `agent/ui/<feature-slug>/design-brief.md`
-- Current task: `agent/tasks/<NNN>-<feature-slug>.md`
 
 ## Codebase patterns to follow
 

@@ -1,22 +1,11 @@
-# Product Brief: <Feature Name>
+# Jira issue content checklist: <Feature Name>
 
-## Status
-
-`DISCOVERY` | `READY` | `IN_PROGRESS` | `ACCEPTED` | `SUPERSEDED`
-
-## Ownership
-
-- Product Owner Agent:
-- User(s):
-- Created at:
-- Last updated at:
-
-## User input
-
-- Problem as presented:
-- Examples or evidence supplied:
-- Corrections and constraints supplied:
-- Explicit preferences:
+This is the checklist Codex fills in when writing a Jira issue during the
+Frame stage (see `agent/collaboration-workflow.md`) — it is no longer a file
+to create per feature. The issue's own summary, description, and column carry
+this content; comments on the issue carry review findings and the acceptance
+decision. (Pre-2026-09-09 features used this as a repository file instead;
+those files are retained as historical records.)
 
 ## Product framing
 
@@ -28,27 +17,14 @@
 
 ## Knowledge classification
 
-### Confirmed inputs
-
--
-
-### Product assumptions to validate
-
--
-
-### Open questions
-
--
+- Confirmed inputs:
+- Product assumptions to validate:
+- Open questions:
 
 ## Scope
 
-### In scope
-
--
-
-### Out of scope
-
--
+- In scope:
+- Out of scope:
 
 ## User flow or behavior
 
@@ -67,27 +43,8 @@
 
 ## Product decisions
 
-### PD-001 — <Decision>
-
 - Decision:
 - Evidence:
 - Alternatives considered:
 - Rationale:
 - User input required: `NO` | `YES — <reason>`
-
-## Delivery handoff
-
-- Current task:
-- Design brief, if applicable:
-- Implementation owner:
-- Review evidence:
-
-## Feature acceptance
-
-- Acceptance status: `PENDING` | `ACCEPTED` | `RETURNED`
-- Acceptance evidence:
-- Unmet criteria:
-- Returned work:
-- Follow-up opportunities:
-- Accepted or returned by Product Owner Agent:
-- Accepted or returned at:

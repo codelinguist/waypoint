@@ -241,3 +241,31 @@ meaningful boundaries without requiring long, repetitive prompts.
 
 **Tradeoff:** The user initiates each stage. Further stage commands can be
 added incrementally; background orchestration is not part of this workflow.
+
+
+---
+
+## D017 — Jira issue as the per-feature specification artifact
+
+**Status:** Accepted — 2026-09-09, requested by Ralph
+
+Replace the per-feature `agent/product/<slug>/product-brief.md` and numbered
+`agent/tasks/<NNN>-slug.md` file pair with a single Jira issue that Codex
+creates during the Frame stage and moves to To Do. The issue's description
+carries the outcome, scope, non-goals, and acceptance criteria; review
+findings and the acceptance decision are recorded as comments on the same
+issue. Durable, cross-feature documentation — `docs/product/roadmap.md`,
+`docs/decisions/decisions.md`, and the other product/domain docs required by
+AGENTS.md — is unchanged and remains what Codex reads to decide what to frame
+next. Existing `agent/product/` and `agent/tasks/` files are retained as
+historical records; new feature work does not create them.
+
+**Reason:** The file pair duplicated the same specification, needed its own
+status lifecycle and template, and added no benefit over a single Jira issue
+that already tracks column status. Removing it addresses accumulated process
+overhead while preserving the durable roadmap/decisions context Codex needs
+to choose the next feature.
+
+**Tradeoff:** Per-feature specification history now lives partly outside git,
+in Jira, rather than being fully versioned in the repository. Frame, review,
+and accept require Codex to have working Jira write access to complete.
