@@ -71,10 +71,12 @@ evidence say once the user brings a stage to it.
    behavior and ./verify.sh, update evidence, and push. Return for another
    user-requested independent review. Material scope/design changes need the
    Jira issue updated and re-approved by Codex.
-6. **Ship:** only on an explicit user request, verify acceptance applies to the
-   current implementation and the required verify check is green on the current
-   PR head. Merge the intended PR and record completion. A later code change
-   invalidates stale acceptance. Do not bypass missing, pending, or failed checks.
+6. **Ship (Claude Code):** only on an explicit user request, verify acceptance
+   applies to the current implementation and the required verify check is
+   green on the current PR head. Merge the intended PR, move the Jira issue to
+   Done (or the board's equivalent terminal column, if it isn't named Done —
+   ask if unclear), and record completion. A later code change invalidates
+   stale acceptance. Do not bypass missing, pending, or failed checks.
 
 ## Commands
 
