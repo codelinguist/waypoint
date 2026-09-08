@@ -30,32 +30,36 @@ Read these documents in order:
 7. `docs/architecture/architecture.md`
 8. `docs/decisions/decisions.md`
 9. `docs/product/roadmap.md`
-10. The relevant file in [`agent/tasks/`](agent/tasks/README.md)
+10. Your assigned Jira issue
 
 ## Agent collaboration workflow
 
-Every task uses a planning-to-implementation handoff between Codex (Product
+Every feature uses a planning-to-implementation handoff between Codex (Product
 Owner Agent) and Claude Code (implementer), shipped through a branch and pull
 request rather than a direct commit to `main`. The workflow, approval gates,
 branching mechanics, and reusable artifacts are documented in
 [`agent/collaboration-workflow.md`](agent/collaboration-workflow.md).
 
-The short version is:
+Frame, design approval, review, and accept are Codex's stages and happen
+directly between the user and Codex in Codex's own session; Claude Code is
+not invoked for them. Claude Code owns Implement, Revise, and (on request)
+Ship. The short version is:
 
-1. The user presents a problem, context, correction, or feedback.
-2. Codex, acting as the Product Owner Agent in its own session, defines the
-   outcome, priority, scope, and acceptance criteria in a durable product
-   brief, then queues a task in `agent/tasks/`.
+1. The user presents a problem, context, correction, or feedback directly to
+   Codex.
+2. Codex, acting as the Product Owner Agent, defines the outcome, priority,
+   scope, and acceptance criteria, creates a Jira issue, and moves it to To Do.
 3. Claude Code explores UI directions and writes a design brief (UI tasks only).
-4. Codex selects a direction based on the product brief and asks the user
-   only when a material preference cannot be inferred safely (UI tasks only).
+4. Codex selects a direction directly with the user, asking only when a
+   material preference cannot be inferred safely (UI tasks only).
 5. Claude Code implements on a task branch, verifies it in the real
    application, and pushes the branch and opens a PR.
-6. Codex reviews the PR's diff and evidence, without editing the
-   implementation, and triages findings.
+6. Codex reviews the PR's diff and evidence directly with the user, without
+   editing the implementation, and records findings as comments on the Jira
+   issue.
 7. Claude Code applies accepted changes and re-verifies.
-8. Codex accepts the completed feature against evidence, authorizing the
-   merge.
+8. Codex accepts the completed feature against evidence, recording acceptance
+   as a Jira comment and authorizing the merge.
 
 The user initiates each meaningful stage with a short command or request.
 Agents complete the work within that stage, then report the result. There is
@@ -64,7 +68,7 @@ no automatic task pickup, review/fix loop, or merge. See the
 acceptance remain required; shipping requires an explicit user request.
 
 The design-brief and visual-review stages (steps 3–4 and the review evidence
-in step 6) apply only when the task in `agent/tasks/` includes UI work.
+in step 6) apply only when the Jira issue includes UI work.
 
 ## Backend
 

@@ -84,11 +84,6 @@ Changing status to `APPROVED` confirms the selection above.
 - Deviations from approved design:
 - Known limitations:
 
-## Feature acceptance
-
-- Acceptance status: `PENDING` | `ACCEPTED` | `RETURNED`
-- Acceptance criteria met:
-- Unmet criteria:
-- Accepted or returned by Product Owner Agent:
-- Accepted or returned at:
-- Follow-up tasks:
+Feature acceptance (met/unmet criteria, ACCEPTED/RETURNED, follow-up work) is
+recorded as a comment on the Jira issue, not here — see
+`agent/collaboration-workflow.md`.

@@ -39,7 +39,12 @@ Read:
 6. `docs/architecture/architecture.md`
 7. `docs/decisions/decisions.md`
 8. `docs/product/roadmap.md`
-9. Your assigned task file or Jira-linked brief (see `agent/tasks/README.md`)
+9. Your assigned Jira issue (see `agent/collaboration-workflow.md`)
+
+In `docs/decisions/decisions.md`, read every `Accepted` decision in full;
+a `Superseded` decision only needs its one-line status pointer to whatever
+replaced it — its original reasoning stays there for history but is not
+required reading.
 
 Also read `agent/collaboration-workflow.md` for the branching and pull-request
 mechanics that apply to every task. UI work additionally follows its design
@@ -89,11 +94,11 @@ Update `agent/implementation-log.md` with:
 - any rule, template, or doc that should change because of what this task
   revealed (see `agent/collaboration-workflow.md` -> "System evolution")
 
-`agent/tasks/<NNN>-<feature-slug>.md` holds your one active task; do not
-overwrite another task's file, and do not treat any of them as a log —
-`agent/implementation-log.md`, the linked product brief, and git history are
-the record of past tasks. See `agent/tasks/README.md` for the status
-lifecycle maintained during user-requested stages.
+Your assigned Jira issue holds the active task's scope and acceptance
+criteria; do not treat it as a log — `agent/implementation-log.md`, the Jira
+issue's comment history, and git history are the record of past tasks.
+Pre-existing `agent/tasks/<NNN>-<feature-slug>.md` files are retained as
+historical records only; new feature work does not create them.
 
 If a new long-lived architectural or product decision is made, add it to `docs/decisions/decisions.md`.
 
@@ -103,10 +108,12 @@ If a new long-lived architectural or product decision is made, add it to `docs/d
   Agents complete the requested stage autonomously, then report the result.
   Do not poll Jira, claim backlog tasks, launch unattended workers, advance to
   another stage, run automatic review/fix loops, or merge automatically.
-- Treat checked-in briefs and application code as the handoff boundary; do
-  not rely on another agent's chat history.
-- Codex is the Product Owner Agent: it frames problems, writes briefs,
-  approves design direction, and independently accepts or returns work.
+- Treat the Jira issue and checked-in application code as the handoff
+  boundary; do not rely on another agent's chat history.
+- Codex is the Product Owner Agent: it frames problems by creating Jira
+  issues, approves design direction, and independently accepts or returns
+  work by commenting on the issue. See `agent/roles/product-owner.md` for its
+  full responsibilities, autonomy boundaries, and artifact conventions.
 - Claude Code is the default implementation and integration owner. These
   are defaults, not capability restrictions; an explicit task takes precedence.
 - Ralph and his wife provide problems, preferences, corrections, and household
@@ -116,16 +123,20 @@ If a new long-lived architectural or product decision is made, add it to `docs/d
   conversation. Only one agent edits a feature at a time; concurrent tasks
   require separate worktrees with explicit ownership.
 - Ship each task through its own branch and PR, never directly to main.
-  Use `task/<NNN>-<feature-slug>` for numbered tasks or
-  `codex/<feature-slug>` for an explicitly requested repository change.
+  Use `task/<issue-key>-<feature-slug>` (lowercase issue key) for Jira-driven
+  feature work, `codex/<feature-slug>` for an explicitly requested repository
+  change not tied to an issue, or the legacy `task/<NNN>-<feature-slug>` only
+  for pre-existing numbered tasks.
 - The implementation stage includes verification, pushing the branch, and
   opening/updating its PR. Codex may commit and push completed review findings
   and acceptance records to that task branch without asking again.
 - Merging requires an explicit user ship/merge request, Product Owner
-  acceptance in the brief, and a green required `verify` check for the current
-  revision. Never bypass a failing, pending, or missing required check.
-- Both agents share a GitHub account. The brief's recorded independent review
-  is authoritative; do not portray a same-account GitHub review as independent.
+  acceptance recorded on the Jira issue, and a green required `verify` check
+  for the current revision. Never bypass a failing, pending, or missing
+  required check.
+- Both agents share a GitHub account. The Jira issue's recorded independent
+  review is authoritative; do not portray a same-account GitHub review as
+  independent.
 - Product acceptance never authorizes canonical financial-data changes or
   material household decisions. Ask when a choice requires an undiscoverable,
   material household preference.

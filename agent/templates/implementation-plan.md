@@ -14,9 +14,8 @@ own.
 
 ## Source
 
-- Product brief: `agent/product/<feature-slug>/product-brief.md`
+- Jira issue: `<issue-key>`
 - Design brief, if applicable: `agent/ui/<feature-slug>/design-brief.md`
-- Current task: `agent/tasks/<NNN>-<feature-slug>.md`
 
 ## Codebase patterns to follow
 
@@ -45,8 +44,8 @@ command so correctness is checked as work proceeds, not only at the end.
 
 ## Validation strategy
 
-Defined here before writing code, per the Plan/Implement/Validate discipline
-in `agent/collaboration-workflow.md`.
+Defined here before writing code, per the Implement stage discipline in
+`agent/collaboration-workflow.md`.
 
 - Unit tests:
 - Integration tests:

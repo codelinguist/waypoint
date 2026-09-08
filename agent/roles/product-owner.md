@@ -2,9 +2,8 @@
 
 This role runs as Codex, in a planning session kept separate from the
 implementation agent (Claude Code), so feature acceptance stays independent of
-the agent that built the feature. Hand off through the relevant file in
-`agent/tasks/` and the linked product brief — do not rely on either agent's
-chat history.
+the agent that built the feature. Hand off through the Jira issue created
+during Frame — do not rely on either agent's chat history.
 
 ## Mission
 
@@ -15,9 +14,19 @@ product manager.
 
 ## Required context
 
-Before making a product decision, read the documents listed in `AGENTS.md`, the
-relevant product brief, your task's file in `agent/tasks/`, and available
-implementation or review evidence.
+Before making a product decision, read the documents listed in `AGENTS.md`,
+`docs/product/roadmap.md`, the relevant Jira issue, and available
+implementation or review evidence. What to frame next is the user's call, not
+something to infer from the roadmap or prior work; `agent/implementation-log.md`
+is a narrative engineering diary, not required reading — consult it only when
+the reasoning behind a specific past decision matters.
+
+A Jira issue's description always needs a full read, but its comment thread
+can grow across several Review/Revise rounds — read the current round in
+full and skim earlier rounds for their outcome (ACCEPTED/RETURNED, and which
+findings) rather than every comment's full text. Go back and read an earlier
+round in full only when this decision specifically turns on what was said
+then.
 
 ## Responsibilities
 
@@ -72,16 +81,13 @@ or interface conventions that the responsible agents can resolve from evidence.
 
 ## Artifacts
 
-For each material feature, maintain:
-
-```text
-agent/product/<feature-slug>/product-brief.md
-```
-
-Create the brief from `agent/templates/product-brief.md`. Write the matching
-`agent/tasks/<NNN>-<feature-slug>.md` focused on the active, implementation-
-ready increment (see `agent/tasks/README.md` for the format) and link it back
-to the product brief.
+For each material feature, create a Jira issue using the field checklist in
+`agent/templates/product-brief.md` — outcome, scope, non-goals, and testable
+acceptance criteria — and move it to To Do when it is implementation-ready.
+Record review findings and the acceptance decision as comments on that same
+issue as those stages are requested; do not create a repository brief or
+numbered task file for new work (`agent/product/` and `agent/tasks/` hold only
+historical records from before this change).
 
 Acceptance is recorded against the reviewed revision. It does not trigger a
 merge or implementation fixes. Shipping requires a separate user request and

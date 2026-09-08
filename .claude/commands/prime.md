@@ -23,23 +23,29 @@ before coding:
 4. `docs/product/principles.md`
 5. `docs/domain/financial-model.md`
 6. `docs/architecture/architecture.md`
-7. `docs/decisions/decisions.md`
+7. `docs/decisions/decisions.md` — every `Accepted` decision in full; for a
+   `Superseded` one, its one-line status pointer is enough
 8. `docs/product/roadmap.md`
-9. Your assigned file in `agent/tasks/` (see `agent/tasks/README.md`; if you
-   weren't pointed at a specific one, list `agent/tasks/*.md` and ask which
-   task this session is for)
+9. Your assigned Jira issue: description in full, plus comments from the
+   current round (since its last status change) in full. For an issue with
+   several closed Review/Revise rounds behind it, skim earlier comments for
+   their outcome only — read one in full only if this session specifically
+   needs the reasoning behind an earlier finding. If you weren't pointed at a
+   specific issue, ask which one this session is for; pre-existing work may
+   instead point at a legacy `agent/tasks/*.md` file.
 
 ### 2. Read collaboration mechanics
 
 Read `AGENTS.md` and `agent/collaboration-workflow.md` if this session
-hasn't already — specifically the Plan/Implement/Validate phase definitions
-and the user-initiated stage boundaries. Load context only; do not start a
-stage merely because a task file is ready.
+hasn't already — specifically the Implement/Revise/Ship stage definitions,
+since those are the only stages Claude Code runs, and the user-initiated
+stage boundaries. Load context only; do not start a stage merely because the
+Jira issue is in To Do.
 
-If the current task names a feature slug, also read
-`agent/product/<feature-slug>/product-brief.md` and, if it exists,
-`agent/ui/<feature-slug>/design-brief.md` and
-`agent/product/<feature-slug>/implementation-plan.md`.
+If the issue names a feature slug and a design stage happened, also read
+`agent/ui/<feature-slug>/design-brief.md`. (For pre-existing work still
+tracked by a legacy task file, read its linked
+`agent/product/<feature-slug>/product-brief.md` instead.)
 
 ### 3. Check recent history
 
@@ -47,9 +53,14 @@ If the current task names a feature slug, also read
 
 !`git status`
 
-Read the tail of `agent/implementation-log.md` for the most recent entries —
-what changed, what was assumed, what was left unresolved, and what the
-previous pass recommended next.
+`agent/implementation-log.md` is a large, append-only diary (tens of
+thousands of tokens) and its entries aren't reliably in chronological
+order, so don't read the whole file or trust its physical tail. Instead run
+`git log -1 -p -- agent/implementation-log.md` to see just the most recently
+added entry — what changed, what was assumed, what was left unresolved, and
+what the previous pass recommended next. Go further into the file's history
+only if this session's task specifically needs the reasoning behind an older
+decision.
 
 ### 4. Orient to the codebase
 
@@ -63,12 +74,12 @@ present — it is the only verification command, local or CI.
 Report back concisely — headers and short bullets, not prose paragraphs:
 
 ### Current task
-- Task number, feature slug, and one-line goal from your `agent/tasks/` file.
-- Which Plan/Implement/Validate phase this session is starting in.
+- Jira issue key, feature slug, and one-line goal from the issue.
+- Which stage this session is starting in: Implement, Revise, or Ship.
 
 ### Product context
-- The problem and desired outcome this task serves, from the linked product
-  brief and `docs/product/*`.
+- The problem and desired outcome this task serves, from the Jira issue and
+  `docs/product/*`.
 
 ### Domain and architecture constraints
 - Rules from `docs/domain/financial-model.md` and
@@ -79,5 +90,6 @@ Report back concisely — headers and short bullets, not prose paragraphs:
   anything they flagged as assumed or unresolved.
 
 ### Open questions
-- Anything ambiguous enough to raise with the Product Owner Agent (Codex),
-  per `agent/collaboration-workflow.md`, before proceeding.
+- Anything ambiguous enough to flag to the user before proceeding, per
+  `agent/collaboration-workflow.md` — Claude Code has no direct channel to
+  Codex, so the user decides whether it needs a trip back to Codex.
