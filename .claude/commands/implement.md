@@ -44,9 +44,11 @@ instead of guessing.
 8. **Ship the increment.** Update `agent/implementation-log.md`, push the
    branch, and open the PR — reference the issue key in the PR title and
    link it in the description.
-9. **Report.** Tell the user the PR, the evidence gathered, and the issue's
-   new status. Do not invoke review — Review and Accept happen directly
-   between the user and Codex in Codex's own session.
+9. **Move the issue to Review.** The PR is now what needs attention, not the
+   coding — transition the issue from In Progress to Review.
+10. **Report.** Tell the user the PR, the evidence gathered, and the issue's
+    new status. Do not invoke review — Review and Accept happen directly
+    between the user and Codex in Codex's own session.
 
 ## After implementing
 

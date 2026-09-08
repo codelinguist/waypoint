@@ -57,20 +57,25 @@ evidence say once the user brings a stage to it.
    agent/templates/implementation-plan.md when complexity warrants it.
    Fix implementation and test failures within this stage. Run ./verify.sh,
    exercise the primary flow, and capture wide/narrow UI evidence when relevant.
-   Update the implementation log, push, and open the PR. Report the PR and
-   evidence; do not invoke review automatically.
+   Update the implementation log, push, and open the PR, then transition the
+   issue from In Progress to Review — the PR is what needs attention now, not
+   the coding. Report the PR and evidence; do not invoke review automatically.
 4. **Review (Codex, direct):** inspect the current PR diff, relevant code,
    tests, the Jira issue, and evidence. Record BLOCKING, RECOMMENDED, or
    OPTIONAL findings with concrete evidence and acceptance conditions as a
    comment on the Jira issue. Use agent/templates/ui-visual-review.md for UI
-   evidence. Record ACCEPTED only when all acceptance criteria are supported,
-   otherwise RETURNED with unmet criteria, as a comment on the Jira issue,
-   recording the reviewed revision.
+   evidence. Record ACCEPTED only when all acceptance criteria are supported
+   — leave the issue in Review; Ship is the only stage that moves it to Done.
+   Otherwise record RETURNED with unmet criteria and move the issue back to
+   In Progress, since it needs more implementation work before it's
+   reviewable again. Either way, record the reviewed revision.
 5. **Revise (Claude Code):** when requested, resolve accepted review findings
-   (read from the Jira issue's comments) on the same branch, verify affected
-   behavior and ./verify.sh, update evidence, and push. Return for another
-   user-requested independent review. Material scope/design changes need the
-   Jira issue updated and re-approved by Codex.
+   (read from the Jira issue's comments) on the same branch — the issue
+   should already be In Progress from Review's RETURNED verdict; move it
+   there if it somehow isn't. Verify affected behavior and ./verify.sh,
+   update evidence, push, and transition the issue back to Review. Return for
+   another user-requested independent review. Material scope/design changes
+   need the Jira issue updated and re-approved by Codex.
 6. **Ship (Claude Code):** only on an explicit user request, verify acceptance
    applies to the current implementation and the required verify check is
    green on the current PR head. Merge the intended PR, move the Jira issue to
