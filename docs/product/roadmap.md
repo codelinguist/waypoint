@@ -112,7 +112,7 @@ and D015.
 
 The implementation contract stays outside the executable queue until its dependencies
 are accepted. Other dashboard views below remain later increments. Task numbers
-identify work; they do not introduce dependency scheduling to the orchestrator.
+identify work; the user selects when each ready increment starts.
 
 
 Initial views:

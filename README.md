@@ -57,17 +57,11 @@ The short version is:
 8. Codex accepts the completed feature against evidence, authorizing the
    merge.
 
-Steps 4 through 8 normally run unattended:
-[`agent/automation/orchestrator.sh`](agent/automation/README.md), on a
-schedule, dispatches up to 3 tasks in parallel (each in its own git
-worktree), triggers Codex's review as soon as a PR is up, applies a bounded
-number of automatic fix rounds, and merges as soon as Codex accepts and the
-required check is green — see
-[`agent/collaboration-workflow.md`](agent/collaboration-workflow.md) ->
-"Automated pipeline" for what that changes about this project's safety
-posture and why. A task can still be driven by hand end-to-end instead; in
-that case step 8's merge is performed by the user, or by Claude Code only
-when explicitly asked.
+The user initiates each meaningful stage with a short command or request.
+Agents complete the work within that stage, then report the result. There is
+no automatic task pickup, review/fix loop, or merge. See the
+[command-driven workflow](agent/collaboration-workflow.md). CI and independent
+acceptance remain required; shipping requires an explicit user request.
 
 The design-brief and visual-review stages (steps 3–4 and the review evidence
 in step 6) apply only when the task in `agent/tasks/` includes UI work.

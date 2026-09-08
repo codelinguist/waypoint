@@ -33,8 +33,8 @@ before coding:
 
 Read `AGENTS.md` and `agent/collaboration-workflow.md` if this session
 hasn't already — specifically the Plan/Implement/Validate phase definitions
-and the "Automated pipeline" section, and work out which phase the task file
-implies this session is starting in.
+and the user-initiated stage boundaries. Load context only; do not start a
+stage merely because a task file is ready.
 
 If the current task names a feature slug, also read
 `agent/product/<feature-slug>/product-brief.md` and, if it exists,
