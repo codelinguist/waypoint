@@ -97,10 +97,15 @@ task/<issue-key>-<feature-slug> (lowercase issue key, e.g.
 task/wap-123-emergency-fund-runway) for Jira-driven feature work,
 codex/<feature-slug> for explicit repository changes not tied to an issue, or
 the legacy task/<NNN>-<feature-slug> only for pre-existing numbered tasks.
-Preserve existing dirty work. Only one agent edits a feature; parallel work
-requires isolated worktrees and explicit ownership. Before handoff, resolve
-conflicts and check migration version collisions against main when
-applicable.
+The issue key in the branch name is load-bearing, not cosmetic: the GitHub
+for Jira app scans branch names, commits, and PR titles for it and uses that
+to link the branch/commits/PR on the issue's Development panel automatically
+— don't drop it when naming a branch, and also put the issue key in the PR
+title (per the Implement stage) so the PR itself links even if the app's
+branch-matching doesn't catch it. Preserve existing dirty work. Only one
+agent edits a feature; parallel work requires isolated worktrees and
+explicit ownership. Before handoff, resolve conflicts and check migration
+version collisions against main when applicable.
 
 The implementation stage includes authorization to push and open/update a PR.
 Review includes authorization to comment on the Jira issue and push any
