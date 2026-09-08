@@ -44,8 +44,8 @@ command so correctness is checked as work proceeds, not only at the end.
 
 ## Validation strategy
 
-Defined here before writing code, per the Plan/Implement/Validate discipline
-in `agent/collaboration-workflow.md`.
+Defined here before writing code, per the Implement stage discipline in
+`agent/collaboration-workflow.md`.
 
 - Unit tests:
 - Integration tests:

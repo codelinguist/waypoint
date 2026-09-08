@@ -25,21 +25,21 @@ before coding:
 6. `docs/architecture/architecture.md`
 7. `docs/decisions/decisions.md`
 8. `docs/product/roadmap.md`
-9. Your assigned Jira issue (if you weren't pointed at a specific one, ask
-   which issue this session is for; pre-existing work may instead point at a
-   legacy `agent/tasks/*.md` file)
+9. Your assigned Jira issue, in full including its comments (if you weren't
+   pointed at a specific one, ask which issue this session is for;
+   pre-existing work may instead point at a legacy `agent/tasks/*.md` file)
 
 ### 2. Read collaboration mechanics
 
 Read `AGENTS.md` and `agent/collaboration-workflow.md` if this session
-hasn't already — specifically the Plan/Implement/Validate phase definitions
-and the user-initiated stage boundaries. Load context only; do not start a
-stage merely because a task file is ready.
+hasn't already — specifically the Implement/Revise/Ship stage definitions,
+since those are the only stages Claude Code runs, and the user-initiated
+stage boundaries. Load context only; do not start a stage merely because the
+Jira issue is in To Do.
 
-Read the assigned Jira issue's description and comments for the outcome,
-scope, and acceptance criteria. If the issue names a feature slug and a
-design stage happened, also read `agent/ui/<feature-slug>/design-brief.md`.
-(For pre-existing work still tracked by a legacy task file, read its linked
+If the issue names a feature slug and a design stage happened, also read
+`agent/ui/<feature-slug>/design-brief.md`. (For pre-existing work still
+tracked by a legacy task file, read its linked
 `agent/product/<feature-slug>/product-brief.md` instead.)
 
 ### 3. Check recent history
@@ -65,7 +65,7 @@ Report back concisely — headers and short bullets, not prose paragraphs:
 
 ### Current task
 - Jira issue key, feature slug, and one-line goal from the issue.
-- Which Plan/Implement/Validate phase this session is starting in.
+- Which stage this session is starting in: Implement, Revise, or Ship.
 
 ### Product context
 - The problem and desired outcome this task serves, from the Jira issue and
@@ -80,5 +80,6 @@ Report back concisely — headers and short bullets, not prose paragraphs:
   anything they flagged as assumed or unresolved.
 
 ### Open questions
-- Anything ambiguous enough to raise with the Product Owner Agent (Codex),
-  per `agent/collaboration-workflow.md`, before proceeding.
+- Anything ambiguous enough to flag to the user before proceeding, per
+  `agent/collaboration-workflow.md` — Claude Code has no direct channel to
+  Codex, so the user decides whether it needs a trip back to Codex.
