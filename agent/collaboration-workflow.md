@@ -49,9 +49,11 @@ evidence say once the user brings a stage to it.
    from the Jira issue using agent/templates/ui-design-brief.md. Product
    Owner approval happens directly between the user and Codex. Small
    mechanical UI changes and backend tasks do not require this stage.
-3. **Implement (Claude Code):** in a fresh session, load the Jira issue (and
-   approved design brief, if any), create a task branch/worktree as needed,
-   and complete the smallest scoped increment. Use
+3. **Implement (Claude Code):** in a fresh session (`/implement <issue-key>`),
+   transition the Jira issue from To Do to In Progress, create an isolated
+   worktree with the EnterWorktree tool on branch
+   `task/<issue-key>-<feature-slug>`, and load the issue (and approved design
+   brief, if any). Complete the smallest scoped increment. Use
    agent/templates/implementation-plan.md when complexity warrants it.
    Fix implementation and test failures within this stage. Run ./verify.sh,
    exercise the primary flow, and capture wide/narrow UI evidence when relevant.
@@ -76,23 +78,27 @@ evidence say once the user brings a stage to it.
 
 ## Commands
 
-The Claude Code command is /prime (load context). Plain requests such as
-“implement WAP-5” or “ship PR 30” select a single Claude Code stage
-(Implement, Revise, Ship); include the Jira key or PR in the request.
-Additional short commands can be added as needed; these names do not imply
-that /implement or /ship slash commands already exist. Frame, Design
-approval, Review, and Accept are requested by the user directly in Codex's
-own session, not through a Claude Code command.
+Claude Code commands are /prime (load context) and /implement <issue-key>
+(run the Implement stage: transition the issue, create the worktree, and
+implement it — see .claude/commands/implement.md). Plain requests such as
+“revise WAP-5” or “ship PR 30” select a single Claude Code stage (Revise,
+Ship); include the Jira key or PR in the request. Additional short commands
+can be added as needed; these names do not imply that /ship already exists.
+Frame, Design approval, Review, and Accept are requested by the user
+directly in Codex's own session, not through a Claude Code command.
 Report the result or any required question to the user when a stage ends.
 
 ## Delivery rules
 
 Every task ships on its own branch and PR from main. Use
-task/<NNN>-<feature-slug> for numbered tasks, or
-codex/<feature-slug> for explicit repository changes. Preserve existing dirty
-work. Only one agent edits a feature; parallel work requires isolated worktrees
-and explicit ownership. Before handoff, resolve conflicts and check migration
-version collisions against main when applicable.
+task/<issue-key>-<feature-slug> (lowercase issue key, e.g.
+task/wap-123-emergency-fund-runway) for Jira-driven feature work,
+codex/<feature-slug> for explicit repository changes not tied to an issue, or
+the legacy task/<NNN>-<feature-slug> only for pre-existing numbered tasks.
+Preserve existing dirty work. Only one agent edits a feature; parallel work
+requires isolated worktrees and explicit ownership. Before handoff, resolve
+conflicts and check migration version collisions against main when
+applicable.
 
 The implementation stage includes authorization to push and open/update a PR.
 Review includes authorization to comment on the Jira issue and push any

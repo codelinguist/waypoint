@@ -118,8 +118,10 @@ If a new long-lived architectural or product decision is made, add it to `docs/d
   conversation. Only one agent edits a feature at a time; concurrent tasks
   require separate worktrees with explicit ownership.
 - Ship each task through its own branch and PR, never directly to main.
-  Use `task/<NNN>-<feature-slug>` for numbered tasks or
-  `codex/<feature-slug>` for an explicitly requested repository change.
+  Use `task/<issue-key>-<feature-slug>` (lowercase issue key) for Jira-driven
+  feature work, `codex/<feature-slug>` for an explicitly requested repository
+  change not tied to an issue, or the legacy `task/<NNN>-<feature-slug>` only
+  for pre-existing numbered tasks.
 - The implementation stage includes verification, pushing the branch, and
   opening/updating its PR. Codex may commit and push completed review findings
   and acceptance records to that task branch without asking again.

@@ -24,7 +24,7 @@ For repository-wide and backend work, Claude Code:
 - keeps domain logic separate from transport/UI concerns per `AGENTS.md`
 - runs relevant unit, integration, type, and lint checks
 - updates `agent/implementation-log.md` after coding
-- pushes the task branch (`task/<NNN>-<feature-slug>`) and opens the PR,
+- pushes the task branch (`task/<issue-key>-<feature-slug>`) and opens the PR,
   without asking first — the user has standing-authorized this; it does not
   extend to merging
 
