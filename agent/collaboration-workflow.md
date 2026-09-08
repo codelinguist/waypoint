@@ -95,14 +95,16 @@ evidence say once the user brings a stage to it.
 
 ## Commands
 
-Claude Code commands are /prime (load context) and /implement <issue-key>
-(run the Implement stage: transition the issue, create the worktree, and
-implement it — see .claude/commands/implement.md). Plain requests such as
-“revise WAP-5” or “ship PR 30” select a single Claude Code stage (Revise,
-Ship); include the Jira key or PR in the request. Additional short commands
-can be added as needed; these names do not imply that /ship already exists.
-Frame, Design approval, Review, and Accept are requested by the user
-directly in Codex's own session, not through a Claude Code command.
+Claude Code commands are /prime (load context), /implement <issue-key> (run
+the Implement stage: transition the issue, create the worktree, and
+implement it — see .claude/commands/implement.md), and
+/ship <issue-key or PR> (run the Ship stage: verify acceptance and the
+required check, merge, and close out the issue — see
+.claude/commands/ship.md). A plain request such as “revise WAP-5” selects
+the Revise stage instead; include the Jira key or PR in the request.
+Additional short commands can be added as needed. Frame, Design approval,
+Review, and Accept are requested by the user directly in Codex's own
+session, not through a Claude Code command.
 Report the result or any required question to the user when a stage ends.
 
 ## Delivery rules
