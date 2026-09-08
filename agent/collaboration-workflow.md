@@ -61,11 +61,20 @@ evidence say once the user brings a stage to it.
    issue from In Progress to Review — the PR is what needs attention now, not
    the coding. Report the PR and evidence; do not invoke review automatically.
 4. **Review (Codex, direct):** inspect the current PR diff, relevant code,
-   tests, the Jira issue, and evidence. Record BLOCKING, RECOMMENDED, or
-   OPTIONAL findings with concrete evidence and acceptance conditions as a
-   comment on the Jira issue. Use agent/templates/ui-visual-review.md for UI
-   evidence. Record ACCEPTED only when all acceptance criteria are supported
-   — leave the issue in Review; Ship is the only stage that moves it to Done.
+   tests, the Jira issue, and evidence. This is read-only — no code edits, no
+   re-running the app, since verification already happened in Implement — so
+   it needs no worktree or local branch checkout: get the diff with
+   `gh pr diff <number>` and read specific files at that revision with
+   `git show origin/<branch>:<path>` (or `gh api`) directly from the main
+   clone, without switching what branch it has checked out. That makes
+   reviewing several issues in parallel safe by default — each review just
+   targets a different PR/branch with no shared mutable state to collide
+   over; nothing needs isolating the way Implement's worktree isolates
+   concurrent code changes. Record BLOCKING, RECOMMENDED, or OPTIONAL
+   findings with concrete evidence and acceptance conditions as a comment on
+   the Jira issue. Use agent/templates/ui-visual-review.md for UI evidence.
+   Record ACCEPTED only when all acceptance criteria are supported — leave
+   the issue in Review; Ship is the only stage that moves it to Done.
    Otherwise record RETURNED with unmet criteria and move the issue back to
    In Progress, since it needs more implementation work before it's
    reviewable again. Either way, record the reviewed revision.
