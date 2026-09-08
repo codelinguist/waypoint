@@ -41,6 +41,11 @@ Read:
 8. `docs/product/roadmap.md`
 9. Your assigned Jira issue (see `agent/collaboration-workflow.md`)
 
+In `docs/decisions/decisions.md`, read every `Accepted` decision in full;
+a `Superseded` decision only needs its one-line status pointer to whatever
+replaced it — its original reasoning stays there for history but is not
+required reading.
+
 Also read `agent/collaboration-workflow.md` for the branching and pull-request
 mechanics that apply to every task. UI work additionally follows its design
 approval and visual-review gates.

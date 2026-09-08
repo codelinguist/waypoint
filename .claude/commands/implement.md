@@ -16,9 +16,12 @@ instead of guessing.
 ## Steps
 
 1. **Fetch the issue.** Use the Atlassian MCP tools to read the issue's
-   summary, description, and comments in full — outcome, scope, non-goals,
-   acceptance criteria, and any linked design brief
-   (`agent/ui/<feature-slug>/design-brief.md`) mentioned there. If the
+   summary and description in full — outcome, scope, non-goals, acceptance
+   criteria, and any linked design brief
+   (`agent/ui/<feature-slug>/design-brief.md`) mentioned there. Since this
+   command only picks up a To Do issue (step 2 stops otherwise), there's
+   normally no review history yet; if comments already exist, read the most
+   recent round in full and skim earlier ones for their outcome only. If the
    Atlassian MCP tools aren't available or aren't authenticated, stop and
    tell the user rather than guessing at the spec.
 2. **Check status.** If the issue isn't in To Do, report its actual status

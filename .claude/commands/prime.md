@@ -23,11 +23,16 @@ before coding:
 4. `docs/product/principles.md`
 5. `docs/domain/financial-model.md`
 6. `docs/architecture/architecture.md`
-7. `docs/decisions/decisions.md`
+7. `docs/decisions/decisions.md` — every `Accepted` decision in full; for a
+   `Superseded` one, its one-line status pointer is enough
 8. `docs/product/roadmap.md`
-9. Your assigned Jira issue, in full including its comments (if you weren't
-   pointed at a specific one, ask which issue this session is for;
-   pre-existing work may instead point at a legacy `agent/tasks/*.md` file)
+9. Your assigned Jira issue: description in full, plus comments from the
+   current round (since its last status change) in full. For an issue with
+   several closed Review/Revise rounds behind it, skim earlier comments for
+   their outcome only — read one in full only if this session specifically
+   needs the reasoning behind an earlier finding. If you weren't pointed at a
+   specific issue, ask which one this session is for; pre-existing work may
+   instead point at a legacy `agent/tasks/*.md` file.
 
 ### 2. Read collaboration mechanics
 

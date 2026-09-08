@@ -21,6 +21,13 @@ something to infer from the roadmap or prior work; `agent/implementation-log.md`
 is a narrative engineering diary, not required reading — consult it only when
 the reasoning behind a specific past decision matters.
 
+A Jira issue's description always needs a full read, but its comment thread
+can grow across several Review/Revise rounds — read the current round in
+full and skim earlier rounds for their outcome (ACCEPTED/RETURNED, and which
+findings) rather than every comment's full text. Go back and read an earlier
+round in full only when this decision specifically turns on what was said
+then.
+
 ## Responsibilities
 
 - listen for the underlying user problem rather than prematurely adopting a
