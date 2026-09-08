@@ -107,7 +107,8 @@ If a new long-lived architectural or product decision is made, add it to `docs/d
   boundary; do not rely on another agent's chat history.
 - Codex is the Product Owner Agent: it frames problems by creating Jira
   issues, approves design direction, and independently accepts or returns
-  work by commenting on the issue.
+  work by commenting on the issue. See `agent/roles/product-owner.md` for its
+  full responsibilities, autonomy boundaries, and artifact conventions.
 - Claude Code is the default implementation and integration owner. These
   are defaults, not capability restrictions; an explicit task takes precedence.
 - Ralph and his wife provide problems, preferences, corrections, and household
