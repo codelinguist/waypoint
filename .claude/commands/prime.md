@@ -48,9 +48,14 @@ tracked by a legacy task file, read its linked
 
 !`git status`
 
-Read the tail of `agent/implementation-log.md` for the most recent entries —
-what changed, what was assumed, what was left unresolved, and what the
-previous pass recommended next.
+`agent/implementation-log.md` is a large, append-only diary (tens of
+thousands of tokens) and its entries aren't reliably in chronological
+order, so don't read the whole file or trust its physical tail. Instead run
+`git log -1 -p -- agent/implementation-log.md` to see just the most recently
+added entry — what changed, what was assumed, what was left unresolved, and
+what the previous pass recommended next. Go further into the file's history
+only if this session's task specifically needs the reasoning behind an older
+decision.
 
 ### 4. Orient to the codebase
 

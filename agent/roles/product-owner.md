@@ -16,11 +16,10 @@ product manager.
 
 Before making a product decision, read the documents listed in `AGENTS.md`,
 `docs/product/roadmap.md`, the relevant Jira issue, and available
-implementation or review evidence. Before framing the next piece of work,
-also read the tail of `agent/implementation-log.md` — `docs/product/roadmap.md`
-lists what to build but not what's already built, so the log (and the Jira
-board's Done column) is what actually shows which roadmap items are already
-implemented and should not get a new issue.
+implementation or review evidence. What to frame next is the user's call, not
+something to infer from the roadmap or prior work; `agent/implementation-log.md`
+is a narrative engineering diary, not required reading — consult it only when
+the reasoning behind a specific past decision matters.
 
 ## Responsibilities
 
