@@ -11,14 +11,15 @@ templates in `agent/templates/` and write durable handoff artifacts under
 ## Default role
 
 Claude Code is the default implementation and integration owner. Codex acts as
-the Product Owner Agent in a separate planning session and hands off work
-through the relevant file in `agent/tasks/` and the linked product brief — do
-not rely on any other channel for that context. The user initiates each stage; complete that stage and report its result.
-Do not automatically invoke the next agent or stage.
+the Product Owner Agent, working directly with the user in a separate planning
+session, and hands off work through the Jira issue it creates and moves to
+To Do — do not rely on any other channel for that context. Claude Code does
+not invoke Codex; the user initiates each stage. Complete that stage and
+report its result. Do not automatically invoke the next agent or stage.
 
 For repository-wide and backend work, Claude Code:
 
-- reads the approved product brief and its `agent/tasks/` file
+- reads the assigned Jira issue
 - implements the smallest complete vertical increment
 - keeps domain logic separate from transport/UI concerns per `AGENTS.md`
 - runs relevant unit, integration, type, and lint checks

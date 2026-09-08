@@ -33,36 +33,42 @@ Load checked-in artifacts rather than another agent's reasoning transcript.
 
 ## Stages
 
-1. **Frame:** investigate the user problem against docs/product/roadmap.md,
-   docs/decisions/decisions.md, and the other product docs required by
-   AGENTS.md. Define the outcome, scope, non-goals, and testable acceptance
-   criteria using the checklist in agent/templates/product-brief.md, create a
-   Jira issue with that content, and move it to To Do. Hand the issue key
-   back to the user.
-2. **Design (material UI work):** explore distinct directions using
-   agent/templates/ui-design-brief.md. Obtain Product Owner approval in a
-   separately requested review before implementation. Small mechanical UI
-   changes and backend tasks do not require this stage.
-3. **Implement:** in a fresh session, load the Jira issue (and approved
-   design brief, if any), create a task branch/worktree as needed, and
-   complete the smallest scoped increment. Use
+Frame, Design approval, Review, and Accept are Codex's stages and happen
+directly between the user and Codex in Codex's own session — Claude Code is
+not invoked for them and does not run `codex exec` on the user's behalf.
+Claude Code picks up work from whatever the Jira issue and repository
+evidence say once the user brings a stage to it.
+
+1. **Frame (Codex, direct):** investigate the user problem against
+   docs/product/roadmap.md, docs/decisions/decisions.md, and the other
+   product docs required by AGENTS.md. Define the outcome, scope, non-goals,
+   and testable acceptance criteria using the checklist in
+   agent/templates/product-brief.md, create a Jira issue with that content,
+   and move it to To Do.
+2. **Design (material UI work):** Claude Code explores distinct directions
+   from the Jira issue using agent/templates/ui-design-brief.md. Product
+   Owner approval happens directly between the user and Codex. Small
+   mechanical UI changes and backend tasks do not require this stage.
+3. **Implement (Claude Code):** in a fresh session, load the Jira issue (and
+   approved design brief, if any), create a task branch/worktree as needed,
+   and complete the smallest scoped increment. Use
    agent/templates/implementation-plan.md when complexity warrants it.
    Fix implementation and test failures within this stage. Run ./verify.sh,
    exercise the primary flow, and capture wide/narrow UI evidence when relevant.
    Update the implementation log, push, and open the PR. Report the PR and
    evidence; do not invoke review automatically.
-4. **Review:** in an independent session, inspect the current PR diff, relevant
-   code, tests, the Jira issue, and evidence. Record BLOCKING, RECOMMENDED, or
+4. **Review (Codex, direct):** inspect the current PR diff, relevant code,
+   tests, the Jira issue, and evidence. Record BLOCKING, RECOMMENDED, or
    OPTIONAL findings with concrete evidence and acceptance conditions as a
    comment on the Jira issue. Use agent/templates/ui-visual-review.md for UI
    evidence. Record ACCEPTED only when all acceptance criteria are supported,
-   otherwise RETURNED with unmet criteria. Record the reviewed revision;
-   commit and push any repository review evidence (e.g. UI screenshots), but
-   do not edit implementation code or launch fixes.
-5. **Revise:** when requested, resolve accepted review findings on the same
-   branch, verify affected behavior and ./verify.sh, update evidence, and push.
-   Return for another user-requested independent review. Material scope/design
-   changes need the Jira issue updated and re-approved.
+   otherwise RETURNED with unmet criteria, as a comment on the Jira issue,
+   recording the reviewed revision.
+5. **Revise (Claude Code):** when requested, resolve accepted review findings
+   (read from the Jira issue's comments) on the same branch, verify affected
+   behavior and ./verify.sh, update evidence, and push. Return for another
+   user-requested independent review. Material scope/design changes need the
+   Jira issue updated and re-approved by Codex.
 6. **Ship:** only on an explicit user request, verify acceptance applies to the
    current implementation and the required verify check is green on the current
    PR head. Merge the intended PR and record completion. A later code change
@@ -70,18 +76,14 @@ Load checked-in artifacts rather than another agent's reasoning transcript.
 
 ## Commands
 
-Existing Claude Code commands are /prime (load context) and /codex frame,
-/codex design, /codex review, /codex accept, or /codex resume (invoke the Product
-Owner for one stage). Include the task, Jira key, or PR in the request. Plain
-requests such as “implement WAP-5” or “ship PR 30” also select a single stage.
+The Claude Code command is /prime (load context). Plain requests such as
+“implement WAP-5” or “ship PR 30” select a single Claude Code stage
+(Implement, Revise, Ship); include the Jira key or PR in the request.
 Additional short commands can be added as needed; these names do not imply
-that /implement or /ship slash commands already exist.
-
-For a requested independent Codex invocation, use codex exec with normal
-workspace-write sandboxing and a prompt referencing checked-in artifacts.
-Have the reviewer inspect the PR diff with gh pr diff or git diff; do not
-rely on parsing a magic verdict line. Never bypass permissions for convenience.
-Report the result or any required question to the user when the stage ends.
+that /implement or /ship slash commands already exist. Frame, Design
+approval, Review, and Accept are requested by the user directly in Codex's
+own session, not through a Claude Code command.
+Report the result or any required question to the user when a stage ends.
 
 ## Delivery rules
 

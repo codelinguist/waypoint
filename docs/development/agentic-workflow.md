@@ -4,10 +4,12 @@ The workflow is user-initiated and command-driven. The user selects a task and
 stage; the agent retrieves context and completes that stage with the structure
 in [the collaboration workflow](../../agent/collaboration-workflow.md).
 
-Use /prime to load context and /codex frame, design, review, or accept to
-request a Product Owner stage in Claude Code. Implementation, revision, and
-shipping can be requested in plain language with a task/Jira key or PR.
-Dedicated commands for these stages can be introduced as small follow-ups.
+Use /prime to load context in Claude Code. Frame, design approval, review,
+and accept are Codex's stages and happen directly between the user and
+Codex in Codex's own session — Claude Code does not invoke Codex for them.
+Implementation, revision, and shipping are Claude Code's stages and can be
+requested in plain language with a Jira key or PR. Dedicated commands for
+these stages can be introduced as small follow-ups.
 
 The Frame stage's concrete output is now a Jira issue: Codex writes the
 outcome, scope, non-goals, and acceptance criteria directly into the issue

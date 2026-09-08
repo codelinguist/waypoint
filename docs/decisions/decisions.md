@@ -269,3 +269,25 @@ to choose the next feature.
 **Tradeoff:** Per-feature specification history now lives partly outside git,
 in Jira, rather than being fully versioned in the repository. Frame, review,
 and accept require Codex to have working Jira write access to complete.
+
+
+---
+
+## D018 — Codex stages run directly with the user, not via a Claude Code command
+
+**Status:** Accepted — 2026-09-09, requested by Ralph
+
+Remove the `/codex` Claude Code command. Frame, design approval, review, and
+accept are Codex's stages and now happen directly between the user and Codex
+in Codex's own session; Claude Code no longer runs `codex exec` on the user's
+behalf for any stage. Claude Code picks up work from the Jira issue and
+repository evidence once the user brings a stage to it, and keeps owning
+Implement, Revise, and (on request) Ship.
+
+**Reason:** Routing every Codex stage through a Claude Code command added an
+indirection the user didn't need once they could work with Codex directly;
+removing it is a further cut of the process overhead addressed by D017.
+
+**Tradeoff:** Claude Code has no automated way to trigger or verify a Codex
+stage — it relies on the user reporting that Frame/Design/Review/Accept
+happened and on reading the resulting Jira issue and comments.
