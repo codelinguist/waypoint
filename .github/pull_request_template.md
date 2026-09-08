@@ -28,6 +28,4 @@ Codex currently authenticate to GitHub as the same account, this review is
 not an independent formal GitHub approval — the product brief's recorded
 acceptance is the durable approval record. Merge only after the brief is
 marked `ACCEPTED` and the required `verify` check is green; neither agent
-merges past a failed or missing required check. A task run through
-`agent/automation/orchestrator.sh` merges automatically the moment both hold
-— see `agent/collaboration-workflow.md` -> "Automated pipeline".
+merges past a failed or missing required check. Shipping also requires an explicit user request; acceptance and CI do not trigger a merge.

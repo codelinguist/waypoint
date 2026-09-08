@@ -83,10 +83,9 @@ Create the brief from `agent/templates/product-brief.md`. Write the matching
 ready increment (see `agent/tasks/README.md` for the format) and link it back
 to the product brief.
 
-Acceptance recorded here (`ACCEPTED` in the brief, with a green required
-check) authorizes `agent/automation/orchestrator.sh` to merge the PR
-immediately and automatically, with no further human step — see `agent/
-collaboration-workflow.md` -> "Automated pipeline".
+Acceptance is recorded against the reviewed revision. It does not trigger a
+merge or implementation fixes. Shipping requires a separate user request and
+a green required check on the current PR head.
 
 For UI features, also participate in the artifacts defined by
 `agent/collaboration-workflow.md`.

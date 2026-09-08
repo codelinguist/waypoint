@@ -2409,3 +2409,27 @@ questions or shared-rule changes.
   preview of the bounded launch plan without starting a worker or changing Jira.
 - A direct smoke run marked `WAP-5` eligible under the pilot allowlist; no process,
   worktree, or PR was created.
+
+
+## 2026-09-09 — Remove unattended development orchestration
+
+- Removed scheduled dispatch, worker/review prompts, Jira preview admission and
+  receiver code, and their dedicated tests. Preserved historical briefs/task
+  records and ignored local state, logs, and credentials.
+- Rewrote active workflow/agent instructions and existing command references
+  around user-selected stages. Preserved CI, financial-domain protections,
+  independent acceptance, and design/visual review gates. No application edits.
+- D016 records the user-requested workflow decision. No household assumptions.
+- Verification: git diff --check and active-reference inspection pass. No new
+  tests for deletions/documentation. ./verify.sh attempted under the only
+  installed JDK (26); Docker access and JVM test-agent limitations prevent a
+  green local suite. Required CI remains mandatory before merge.
+- Preserved pre-existing dirty coordinator work in Git stash before switching
+  from codex/jira-durable-coordinator to main and creating the cleanup branch.
+- Runtime inspection found an empty crontab and no matching retired pipeline
+  or tunnel processes. External Jira rules/other installations are unverified.
+- Next task: add minimal implementation/revision/shipping commands based on
+  the retained stage contracts, when requested. No automatic dispatch roadmap.
+- System evolution: updated AGENTS.md, CLAUDE.md, collaboration workflow,
+  task lifecycle guide, PR template, command references, and development guide
+  to remove contradictory automatic advancement authority.

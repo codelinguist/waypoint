@@ -221,3 +221,23 @@ planning capability. Read-only delivery preserves household authority.
 **Tradeoff:** The first page has no data-entry flow, requires an existing configured
 household, and does not include broader cash-flow, goals or scenario views. Design
 approval, independent acceptance and the required verification gate remain mandatory.
+
+
+---
+
+## D016 — User-initiated development stages
+
+**Status:** Accepted — 2026-09-09, requested by Ralph
+
+Replace unattended task pickup, worker dispatch, automatic review/fix loops,
+and automatic merging with short user-initiated stages. Agents complete the
+selected stage autonomously using repository instructions and durable briefs.
+Jira readiness and repository status are context, not execution triggers.
+Keep independent acceptance, deterministic verification, and required CI.
+Shipping requires an explicit user request in addition to acceptance and CI.
+
+**Reason:** Reduce coordination infrastructure and retain user judgment at
+meaningful boundaries without requiring long, repetitive prompts.
+
+**Tradeoff:** The user initiates each stage. Further stage commands can be
+added incrementally; background orchestration is not part of this workflow.

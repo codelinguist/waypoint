@@ -13,6 +13,6 @@ backend/target/
 # Environment
 .env
 
-# Automated pipeline run state (agent/automation/orchestrator.sh)
+# Retired pipeline state: preserve ignored credentials and historical logs
 agent/automation/state/
 agent/automation/logs/
