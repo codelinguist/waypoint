@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.waypoint.household.Household;
@@ -153,16 +154,32 @@ class PlanningAssumptionServiceTest {
     @Test
     void rejectsSupersedingAnAlreadySupersededAssumption() {
         UUID householdId = UUID.randomUUID();
+        PlanningAssumption prior = mock(PlanningAssumption.class);
+        when(prior.getName()).thenReturn("Future monthly income");
+        when(prior.getSupersededById()).thenReturn(UUID.randomUUID());
+        when(householdRepository.existsById(householdId)).thenReturn(true);
+        when(planningAssumptionRepository.findByIdAndHousehold_Id(any(), any())).thenReturn(Optional.of(prior));
+
+        assertThatThrownBy(() -> service.supersedeAssumption(
+                householdId, UUID.randomUUID(), "Future monthly income", "160000", "PHP/month", null,
+                LocalDate.now(), null, LocalDate.now().plusMonths(6)))
+                .isInstanceOf(AssumptionAlreadySupersededException.class);
+    }
+
+    @Test
+    void rejectsSupersedingWhenConcurrentRequestWinsTheConditionalUpdate() {
+        UUID householdId = UUID.randomUUID();
         Household household = new Household("Ralph Household", "PHP");
         PlanningAssumption prior = new PlanningAssumption(
                 household, "Future monthly income", "150000", "PHP/month", null,
                 LocalDate.now(), null, LocalDate.now().plusMonths(6));
-        PlanningAssumption alreadyReplacedWith = new PlanningAssumption(
-                household, "Future monthly income", "155000", "PHP/month", null,
-                LocalDate.now(), null, LocalDate.now().plusMonths(6));
-        prior.supersedeWith(alreadyReplacedWith);
         when(householdRepository.existsById(householdId)).thenReturn(true);
         when(planningAssumptionRepository.findByIdAndHousehold_Id(any(), any())).thenReturn(Optional.of(prior));
+        when(planningAssumptionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        // Simulates a concurrent transaction having already claimed the link between our
+        // in-memory pre-check (which still sees the prior version as unsuperseded) and our
+        // own conditional update: the database-level guard is what must catch this race.
+        when(planningAssumptionRepository.linkSupersessionIfNotAlreadySuperseded(any(), any())).thenReturn(0);
 
         assertThatThrownBy(() -> service.supersedeAssumption(
                 householdId, UUID.randomUUID(), "Future monthly income", "160000", "PHP/month", null,
@@ -203,7 +220,7 @@ class PlanningAssumptionServiceTest {
     }
 
     @Test
-    void supersedingAtomicallyLinksPriorVersionToReplacement() {
+    void supersedingLinksPriorVersionToReplacementWhenConditionalUpdateSucceeds() {
         UUID householdId = UUID.randomUUID();
         Household household = new Household("Ralph Household", "PHP");
         PlanningAssumption prior = new PlanningAssumption(
@@ -212,6 +229,7 @@ class PlanningAssumptionServiceTest {
         when(householdRepository.existsById(householdId)).thenReturn(true);
         when(planningAssumptionRepository.findByIdAndHousehold_Id(any(), any())).thenReturn(Optional.of(prior));
         when(planningAssumptionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(planningAssumptionRepository.linkSupersessionIfNotAlreadySuperseded(any(), any())).thenReturn(1);
 
         PlanningAssumption replacement = service.supersedeAssumption(
                 householdId, UUID.randomUUID(), "Future monthly income", "160000", "PHP/month", "Raise confirmed",
@@ -219,8 +237,6 @@ class PlanningAssumptionServiceTest {
 
         assertThat(replacement.getValue()).isEqualTo("160000");
         assertThat(replacement.getSupersededById()).isNull();
-        assertThatThrownBy(() -> prior.supersedeWith(replacement))
-                .as("prior version should already be linked to the replacement")
-                .isInstanceOf(AssumptionAlreadySupersededException.class);
+        verify(planningAssumptionRepository).linkSupersessionIfNotAlreadySuperseded(any(), any());
     }
 }

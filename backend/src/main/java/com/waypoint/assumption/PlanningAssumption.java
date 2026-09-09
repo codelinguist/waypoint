@@ -92,28 +92,6 @@ public class PlanningAssumption {
         this.sourceType = SourceType.MANUAL_ENTRY;
     }
 
-    /**
-     * Links this version to the assumption that replaces it. Only ever
-     * called once, from within the same transaction that creates the
-     * replacement, so history stays append-only.
-     */
-    void supersedeWith(PlanningAssumption replacement) {
-        if (this.supersededBy != null) {
-            throw new AssumptionAlreadySupersededException(this.id);
-        }
-        this.supersededBy = replacement;
-    }
-
-    public boolean isActiveAsOf(LocalDate asOf) {
-        if (supersededBy != null) {
-            return false;
-        }
-        if (effectiveFrom.isAfter(asOf)) {
-            return false;
-        }
-        return effectiveUntil == null || !effectiveUntil.isBefore(asOf);
-    }
-
     public UUID getId() {
         return id;
     }

@@ -7,10 +7,20 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.waypoint.household.Household;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -19,6 +29,8 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -41,6 +53,12 @@ class PlanningAssumptionApiIntegrationTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private PlanningAssumptionRepository planningAssumptionRepository;
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
 
     @Test
     void createsAndRetrievesAssumptionAsManualEntryWithNoSupersession() throws Exception {
@@ -111,10 +129,30 @@ class PlanningAssumptionApiIntegrationTest {
     }
 
     @Test
+    void rejectsOversizedValue() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+
+        createAssumption(householdId, "Future monthly income", "x".repeat(1001), "PHP/month", null,
+                LocalDate.now().toString(), null, LocalDate.now().plusMonths(6).toString())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_FAILED"));
+    }
+
+    @Test
     void rejectsBlankValueType() throws Exception {
         String householdId = createHouseholdId("Ralph Household", "PHP");
 
         createAssumption(householdId, "Future monthly income", "150000", "  ", null,
+                LocalDate.now().toString(), null, LocalDate.now().plusMonths(6).toString())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_FAILED"));
+    }
+
+    @Test
+    void rejectsOversizedValueType() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+
+        createAssumption(householdId, "Future monthly income", "150000", "x".repeat(101), null,
                 LocalDate.now().toString(), null, LocalDate.now().plusMonths(6).toString())
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("VALIDATION_FAILED"));
@@ -271,6 +309,29 @@ class PlanningAssumptionApiIntegrationTest {
     }
 
     @Test
+    void activeAsOfExcludesSupersededVersionEvenWhenStillTemporallyInWindow() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+        LocalDate today = LocalDate.now();
+
+        String priorBody = createAssumption(householdId, "Future monthly income", "150000", "PHP/month", null,
+                today.minusMonths(1).toString(), null, today.plusMonths(6).toString())
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String priorId = objectMapper.readTree(priorBody).get("id").asText();
+
+        // The prior version's own effective window still covers "today" — only its
+        // supersession, not its dates, must be what removes it from the active view.
+        supersedeAssumption(householdId, priorId, "Future monthly income", "160000", "PHP/month", null,
+                today.minusMonths(1).toString(), null, today.plusMonths(6).toString())
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/households/{h}/assumptions?activeOnly=true&asOf={d}", householdId, today))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].value").value("160000"));
+    }
+
+    @Test
     void activeAsOfDoesNotConsultSystemClockAndUsesSuppliedDateInstead() throws Exception {
         String householdId = createHouseholdId("Ralph Household", "PHP");
         LocalDate today = LocalDate.now();
@@ -315,6 +376,75 @@ class PlanningAssumptionApiIntegrationTest {
     }
 
     @Test
+    void concurrentSupersessionAttemptsResultInExactlyOneWinnerAndNoOrphanReplacement() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+        String priorBody = createAssumption(householdId, "Future monthly income", "150000", "PHP/month", null,
+                LocalDate.now().toString(), null, LocalDate.now().plusMonths(6).toString())
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        UUID priorId = UUID.fromString(objectMapper.readTree(priorBody).get("id").asText());
+        UUID householdUuid = UUID.fromString(householdId);
+
+        CyclicBarrier bothReadUnsuperseded = new CyclicBarrier(2);
+        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        // Reimplements the two logical phases of PlanningAssumptionService.supersedeAssumption
+        // (read-and-check, then build+save+conditionally-link) as two independent, real
+        // transactions, forced to overlap at the "both still see the prior as unsuperseded"
+        // point via the barrier. This exercises the exact race R1 identified: the database
+        // conditional update — not the in-memory pre-check — must be what resolves it.
+        Callable<Boolean> attemptSupersede = () -> transactionTemplate.execute(status -> {
+            PlanningAssumption prior = planningAssumptionRepository.findByIdAndHousehold_Id(priorId, householdUuid)
+                    .orElseThrow();
+            boolean alreadySuperseded = prior.getSupersededById() != null;
+            Household household = prior.getHousehold();
+            String priorName = prior.getName();
+            awaitBarrier(bothReadUnsuperseded);
+            if (alreadySuperseded) {
+                status.setRollbackOnly();
+                return false;
+            }
+            PlanningAssumption replacement = new PlanningAssumption(household, priorName, "160000", "PHP/month", null,
+                    LocalDate.now(), null, LocalDate.now().plusMonths(6));
+            planningAssumptionRepository.save(replacement);
+            int linked = planningAssumptionRepository.linkSupersessionIfNotAlreadySuperseded(
+                    priorId, replacement.getId());
+            if (linked == 0) {
+                status.setRollbackOnly();
+                return false;
+            }
+            return true;
+        });
+
+        List<Future<Boolean>> results = executor.invokeAll(List.of(attemptSupersede, attemptSupersede));
+        executor.shutdown();
+        long winners = 0;
+        for (Future<Boolean> result : results) {
+            if (Boolean.TRUE.equals(result.get(10, TimeUnit.SECONDS))) {
+                winners++;
+            }
+        }
+        assertThat(winners).isEqualTo(1);
+
+        // No orphan replacement: history holds exactly the prior version and the one winner.
+        mockMvc.perform(get("/api/households/{h}/assumptions", householdId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+
+        String priorAfterBody = mockMvc.perform(get("/api/households/{h}/assumptions/{a}", householdId, priorId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.supersededBy").exists())
+                .andReturn().getResponse().getContentAsString();
+        String winnerId = objectMapper.readTree(priorAfterBody).get("supersededBy").asText();
+
+        mockMvc.perform(get("/api/households/{h}/assumptions?activeOnly=true&asOf={d}", householdId, LocalDate.now()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(winnerId));
+    }
+
+    @Test
     void rejectsSupersedingAnAlreadySupersededAssumption() throws Exception {
         String householdId = createHouseholdId("Ralph Household", "PHP");
 
@@ -332,6 +462,11 @@ class PlanningAssumptionApiIntegrationTest {
                 LocalDate.now().toString(), null, LocalDate.now().plusMonths(6).toString())
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("ASSUMPTION_ALREADY_SUPERSEDED"));
+
+        // Confirms the rejected attempt's replacement was never persisted: history still
+        // holds only the prior version and the one earlier, successful replacement.
+        mockMvc.perform(get("/api/households/{h}/assumptions", householdId))
+                .andExpect(jsonPath("$.length()").value(2));
     }
 
     @Test
@@ -370,6 +505,13 @@ class PlanningAssumptionApiIntegrationTest {
                 LocalDate.now().toString(), null, LocalDate.now().plusMonths(6).toString())
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("PLANNING_ASSUMPTION_NOT_FOUND"));
+
+        mockMvc.perform(get("/api/households/{h}/assumptions/{a}", householdOneId, priorId))
+                .andExpect(jsonPath("$.supersededBy").doesNotExist());
+        mockMvc.perform(get("/api/households/{h}/assumptions", householdOneId))
+                .andExpect(jsonPath("$.length()").value(1));
+        mockMvc.perform(get("/api/households/{h}/assumptions", householdTwoId))
+                .andExpect(jsonPath("$.length()").value(0));
     }
 
     @Test
@@ -408,6 +550,14 @@ class PlanningAssumptionApiIntegrationTest {
                 .andExpect(status().isMethodNotAllowed());
         mockMvc.perform(delete("/api/households/{h}/assumptions/{a}", householdId, priorId))
                 .andExpect(status().isMethodNotAllowed());
+    }
+
+    private static void awaitBarrier(CyclicBarrier barrier) {
+        try {
+            barrier.await(5, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private String createHouseholdId(String name, String baseCurrency) throws Exception {

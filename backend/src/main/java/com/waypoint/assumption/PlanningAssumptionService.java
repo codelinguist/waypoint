@@ -102,8 +102,16 @@ public class PlanningAssumptionService {
                 effectiveUntil,
                 reviewDate
         );
-        priorVersion.supersedeWith(replacement);
-        return planningAssumptionRepository.save(replacement);
+        planningAssumptionRepository.save(replacement);
+
+        int linked = planningAssumptionRepository.linkSupersessionIfNotAlreadySuperseded(
+                priorVersion.getId(), replacement.getId());
+        if (linked == 0) {
+            // A concurrent request won the race to supersede the same prior version between our
+            // read above and this conditional update; roll back this transaction's replacement.
+            throw new AssumptionAlreadySupersededException(assumptionId);
+        }
+        return replacement;
     }
 
     private void requireHousehold(UUID householdId) {

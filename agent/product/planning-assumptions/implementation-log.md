@@ -94,3 +94,61 @@ cd backend && ./mvnw --batch-mode -q compile
 
 Typed assumption values (numeric/date with unit) and wiring assumptions into
 a future `Plan` version, per the product brief's open questions.
+
+## Revision — independent review R1/R2 (2026-09-10)
+
+[PR #30](https://github.com/codelinguist/waypoint/pull/30) review returned two
+findings ([WAP-7 comment](https://codelinguistics.atlassian.net/browse/WAP-7)):
+
+- **R1 (BLOCKING):** the prior supersede implementation read the prior version,
+  then mutated its `supersededBy` field in memory and relied on JPA dirty
+  checking to flush it at commit. Two overlapping requests could both read the
+  prior version as unsuperseded and both commit a link, with the last write
+  winning — leaving one replacement orphaned as unsuperseded/active with no
+  history entry pointing back to it.
+- **R2 (RECOMMENDED):** claimed test coverage (oversized value/valueType,
+  superseded-exclusion from active queries, unchanged row counts after
+  cross-household/already-superseded failures) didn't actually have dedicated
+  assertions.
+
+### Fix
+
+Replaced the in-memory mutation with a conditional native `UPDATE ...
+WHERE superseded_by_id IS NULL` (`PlanningAssumptionRepository
+.linkSupersessionIfNotAlreadySuperseded`, `flushAutomatically = true` so the
+replacement's INSERT is visible first). PostgreSQL's row lock on that UPDATE
+is what actually resolves the race: the losing transaction's UPDATE blocks
+until the winner commits, then re-evaluates the predicate and matches zero
+rows, so the service throws `AssumptionAlreadySupersededException` and the
+loser's own replacement INSERT rolls back with it. The prior in-memory
+pre-check stays as a fast path for the ordinary sequential case; the
+conditional UPDATE is the actual guarantee. Removed the now-unused
+`PlanningAssumption.supersedeWith` (in-memory mutator) and the dead,
+never-called `isActiveAsOf` entity method.
+
+### Tests added
+
+- `PlanningAssumptionApiIntegrationTest
+  .concurrentSupersessionAttemptsResultInExactlyOneWinnerAndNoOrphanReplacement`
+  — a deterministic PostgreSQL regression. Two real, independent transactions
+  (via `TransactionTemplate` on separate threads) each read the prior version,
+  synchronize on a `CyclicBarrier` so both observe it as unsuperseded, then
+  race to build+save a replacement and call the conditional update. Asserts
+  exactly one thread reports success, history holds exactly 2 rows (no orphan
+  replacement from the loser), the prior's `supersededBy` points at the
+  winner, and the active-as-of view returns exactly the winner.
+- R2 gaps closed: `rejectsOversizedValue`, `rejectsOversizedValueType`,
+  `activeAsOfExcludesSupersededVersionEvenWhenStillTemporallyInWindow`; added
+  row-count assertions to `rejectsSupersedingAnAlreadySupersededAssumption`
+  and `rejectsSupersedingAssumptionFromAnotherHousehold` confirming the
+  rejected attempt's replacement was never persisted.
+- Unit tests updated for the new repository method: replaced the
+  `supersedeWith`-based already-superseded test with a mocked
+  `PlanningAssumption` (fast in-memory path), and added
+  `rejectsSupersedingWhenConcurrentRequestWinsTheConditionalUpdate` covering
+  the case where the in-memory pre-check passes but the conditional update
+  reports zero rows (the actual race outcome).
+
+`./verify.sh`: `Tests run: 472, Failures: 0, Errors: 0` — `BUILD SUCCESS`. The
+new concurrency regression test was additionally run in isolation 8 times
+back-to-back with no failures to check for flakiness before pushing.
