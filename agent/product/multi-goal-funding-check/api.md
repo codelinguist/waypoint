@@ -198,6 +198,3 @@ documented contract exactly:
 - 51 `goals` entries → `400 VALIDATION_FAILED`,
   `"goals must contain at most 50 entries"`.
 - A non-JSON body → `400 MALFORMED_REQUEST`.
-
-See `agent/implementation-log.md` (feature-local, this directory) for the
-full verification record.
