@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direction B — Split view (populated)</title>
+<link rel="stylesheet" href="../shared.css">
+<style>
+  .page { max-width: 1100px; }
+  .chip-row {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    margin-bottom: 24px;
+  }
+  .chip {
+    flex: 0 0 auto;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 10px 16px;
+  }
+  .chip .code { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .chip .value { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 720px) {
+    .columns { grid-template-columns: 1fr; }
+  }
+  .column h2 {
+    font-size: 1.1rem;
+    margin: 0 0 12px;
+  }
+  .currency-group { margin-bottom: 22px; }
+  .currency-group h3 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+    margin: 0 0 8px;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+  }
+  ul.record-list { list-style: none; margin: 0; padding: 0; }
+  ul.record-list li {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .record-name { font-weight: 600; overflow-wrap: anywhere; }
+  .record-meta { font-size: 0.8rem; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 2px; }
+  .record-amount { font-variant-numeric: tabular-nums; font-weight: 600; float: right; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="app-header">
+    <h1>Sample Household (Design Evidence)</h1>
+    <button class="refresh-btn" type="button">Refresh</button>
+  </header>
+  <p class="status-line" role="status" aria-live="polite">Retrieved Sep 10, 2026, 2:32 PM UTC</p>
+
+  <div class="chip-row" aria-label="Net worth by currency">
+    <div class="chip"><div class="code">PHP net worth</div><div class="value negative">4,935,000.00</div></div>
+    <div class="chip"><div class="code">USD net worth</div><div class="value positive">4,500.50</div></div>
+    <div class="chip"><div class="code">JPY net worth</div><div class="value positive">100,000,000,041,999,999.99</div></div>
+  </div>
+
+  <div class="columns">
+    <section class="column" aria-labelledby="assets-h">
+      <h2 id="assets-h">Assets</h2>
+
+      <div class="currency-group">
+        <h3>PHP</h3>
+        <ul class="record-list">
+          <li><span class="record-amount">185,000.00</span><div class="record-name">Primary Checking Account</div><div class="record-meta"><span class="badge">Cash</span><span class="badge">Liquid</span><time datetime="2026-09-08">Sep 8, 2026</time></div></li>
+          <li><span class="record-amount">3,000,000.00</span><div class="record-name">Urban Residential Lot &mdash; Riverside Heights Subdivision Phase 2 Block 14 Lot 9</div><div class="record-meta"><span class="badge">Real estate</span><span class="badge">Illiquid</span><time datetime="2026-06-01">Jun 1, 2026</time></div></li>
+          <li><span class="record-amount">0.00</span><div class="record-name">Legacy Startup Equity (Pre-Series A)</div><div class="record-meta"><span class="badge">Business equity</span><span class="badge">Illiquid</span><time datetime="2026-01-15">Jan 15, 2026</time><span>est. 500,000.00</span></div></li>
+        </ul>
+      </div>
+
+      <div class="currency-group">
+        <h3>USD</h3>
+        <ul class="record-list">
+          <li><span class="record-amount">12,500.50</span><div class="record-name">US Brokerage Account</div><div class="record-meta"><span class="badge">Investment</span><span class="badge">Liquid</span><time datetime="2026-09-01">Sep 1, 2026</time></div></li>
+        </ul>
+      </div>
+
+      <div class="currency-group">
+        <h3>JPY</h3>
+        <ul class="record-list">
+          <li><span class="record-amount">42,000,000.00</span><div class="record-name">Tokyo Condominium Unit</div><div class="record-meta"><span class="badge">Real estate</span><span class="badge">Illiquid</span><time datetime="2026-05-01">May 1, 2026</time></div></li>
+          <li><span class="record-amount">99,999,999,999,999,999.99</span><div class="record-name">Precision Reserve Test Holding</div><div class="record-meta"><span class="badge">Investment</span><span class="badge">Liquid</span><time datetime="2026-09-09">Sep 9, 2026</time></div></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="column" aria-labelledby="liabilities-h">
+      <h2 id="liabilities-h">Liabilities</h2>
+
+      <div class="currency-group">
+        <h3>PHP</h3>
+        <ul class="record-list">
+          <li><span class="record-amount">190,000.00</span><div class="record-name">Credit Card</div><div class="record-meta"><span class="badge">Credit card</span><time datetime="2026-09-05">Sep 5, 2026</time></div></li>
+          <li><span class="record-amount">7,450,000.00</span><div class="record-name">Home Mortgage</div><div class="record-meta"><span class="badge">Mortgage</span><time datetime="2026-09-01">Sep 1, 2026</time></div></li>
+          <li><span class="record-amount">480,000.00</span><div class="record-name">Business Loan</div><div class="record-meta"><span class="badge">Business loan</span><time datetime="2026-08-30">Aug 30, 2026</time></div></li>
+        </ul>
+      </div>
+
+      <div class="currency-group">
+        <h3>USD</h3>
+        <ul class="record-list">
+          <li><span class="record-amount">8,000.00</span><div class="record-name">US Personal Line of Credit</div><div class="record-meta"><span class="badge">Personal loan</span><time datetime="2026-09-02">Sep 2, 2026</time></div></li>
+        </ul>
+      </div>
+
+      <div class="currency-group">
+        <h3>JPY</h3>
+        <p class="record-meta" style="padding: 10px 0;">No liabilities recorded in JPY.</p>
+      </div>
+    </section>
+  </div>
+
+  <footer class="evidence-note">
+    Direction B &mdash; inventory-first split view. Every record is always visible in its column; totals live only in the top chip row, so reconciling a chip to its rows means scanning both columns. Below ~720px the columns stack (Assets, then Liabilities), each still fully expanded.
+  </footer>
+</div>
+</body>
+</html>

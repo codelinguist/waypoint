@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direction C — Unified ledger (populated)</title>
+<link rel="stylesheet" href="../shared.css">
+<style>
+  .page { max-width: 1100px; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+  .toolbar select, .toolbar input {
+    font: inherit;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+  }
+  table.ledger { font-size: 0.85rem; }
+  table.ledger th { position: sticky; top: 0; background: var(--surface); }
+  tr.group-header th, tr.group-header td {
+    background: #eef1f4;
+    font-weight: 700;
+    border-bottom: 2px solid var(--border);
+  }
+  tr.subtotal td {
+    font-weight: 700;
+    border-top: 2px solid var(--border);
+    border-bottom: 3px double var(--border);
+  }
+  td.kind-asset .badge { border-color: var(--positive); color: var(--positive); }
+  td.kind-liability .badge { border-color: var(--negative); color: var(--negative); }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="app-header">
+    <h1>Sample Household (Design Evidence)</h1>
+    <button class="refresh-btn" type="button">Refresh</button>
+  </header>
+  <p class="status-line" role="status" aria-live="polite">Retrieved Sep 10, 2026, 2:32 PM UTC</p>
+
+  <div class="toolbar">
+    <label class="sr-only" for="currency-filter">Filter by currency</label>
+    <select id="currency-filter"><option>All currencies</option><option>PHP</option><option>USD</option><option>JPY</option></select>
+    <label class="sr-only" for="kind-filter">Filter by kind</label>
+    <select id="kind-filter"><option>Assets &amp; liabilities</option><option>Assets only</option><option>Liabilities only</option></select>
+  </div>
+
+  <div class="table-scroll">
+  <table class="ledger">
+    <caption class="sr-only">All recorded assets and liabilities, grouped by currency</caption>
+    <thead>
+      <tr>
+        <th scope="col">Kind</th>
+        <th scope="col">Name</th>
+        <th scope="col">Type</th>
+        <th scope="col" class="amount">Value</th>
+        <th scope="col">Date</th>
+        <th scope="col">Source</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="group-header"><td colspan="6">PHP</td></tr>
+      <tr><td class="kind-asset"><span class="badge">Asset</span></td><td>Primary Checking Account</td><td>Cash</td><td class="amount">185,000.00</td><td><time datetime="2026-09-08">Sep 8, 2026</time></td><td>Manual</td></tr>
+      <tr><td class="kind-asset"><span class="badge">Asset</span></td><td>Urban Residential Lot &mdash; Riverside Heights Subdivision Phase 2 Block 14 Lot 9</td><td>Real estate</td><td class="amount">3,000,000.00</td><td><time datetime="2026-06-01">Jun 1, 2026</time></td><td>Manual</td></tr>
+      <tr><td class="kind-asset"><span class="badge">Asset</span></td><td>Legacy Startup Equity (Pre-Series A)</td><td>Business equity</td><td class="amount">0.00</td><td><time datetime="2026-01-15">Jan 15, 2026</time></td><td>Manual</td></tr>
+      <tr><td class="kind-liability"><span class="badge">Liability</span></td><td>Credit Card</td><td>Credit card</td><td class="amount">190,000.00</td><td><time datetime="2026-09-05">Sep 5, 2026</time></td><td>Imported</td></tr>
+      <tr><td class="kind-liability"><span class="badge">Liability</span></td><td>Home Mortgage</td><td>Mortgage</td><td class="amount">7,450,000.00</td><td><time datetime="2026-09-01">Sep 1, 2026</time></td><td>Manual</td></tr>
+      <tr><td class="kind-liability"><span class="badge">Liability</span></td><td>Business Loan</td><td>Business loan</td><td class="amount">480,000.00</td><td><time datetime="2026-08-30">Aug 30, 2026</time></td><td>Manual</td></tr>
+      <tr class="subtotal"><td colspan="3">PHP net worth</td><td class="amount negative">4,935,000.00</td><td colspan="2"></td></tr>
+
+      <tr class="group-header"><td colspan="6">USD</td></tr>
+      <tr><td class="kind-asset"><span class="badge">Asset</span></td><td>US Brokerage Account</td><td>Investment</td><td class="amount">12,500.50</td><td><time datetime="2026-09-01">Sep 1, 2026</time></td><td>Imported</td></tr>
+      <tr><td class="kind-liability"><span class="badge">Liability</span></td><td>US Personal Line of Credit</td><td>Personal loan</td><td class="amount">8,000.00</td><td><time datetime="2026-09-02">Sep 2, 2026</time></td><td>Manual</td></tr>
+      <tr class="subtotal"><td colspan="3">USD net worth</td><td class="amount positive">4,500.50</td><td colspan="2"></td></tr>
+
+      <tr class="group-header"><td colspan="6">JPY</td></tr>
+      <tr><td class="kind-asset"><span class="badge">Asset</span></td><td>Tokyo Condominium Unit</td><td>Real estate</td><td class="amount">42,000,000.00</td><td><time datetime="2026-05-01">May 1, 2026</time></td><td>Manual</td></tr>
+      <tr><td class="kind-asset"><span class="badge">Asset</span></td><td>Precision Reserve Test Holding</td><td>Investment</td><td class="amount">99,999,999,999,999,999.99</td><td><time datetime="2026-09-09">Sep 9, 2026</time></td><td>Manual</td></tr>
+      <tr class="subtotal"><td colspan="3">JPY net worth</td><td class="amount positive">100,000,000,041,999,999.99</td><td colspan="2"></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <footer class="evidence-note">
+    Direction C &mdash; single unified ledger, assets and liabilities together, grouped by currency with a subtotal row per group. Headline net worth is not shown until the reader reaches each group's subtotal row; below ~600px the table requires horizontal scrolling within its own container (not the page) to stay readable, since collapsing to a stacked-card layout would abandon the tabular structure this direction is built around.
+  </footer>
+</div>
+</body>
+</html>

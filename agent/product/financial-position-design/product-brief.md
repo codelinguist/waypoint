@@ -45,5 +45,8 @@ Explore and approve separately from implementation to preserve the mandated fres
 ## Feature acceptance
 
 - Acceptance status: PENDING
-- Evidence: None yet.
-- Unmet criteria: Exploration and recorded approval.
+- Evidence: Exploration complete — `agent/ui/financial-position/design-brief.md`
+  (three directions, Direction A recommended) and
+  `agent/ui/financial-position/evidence/` (14 wide/narrow screenshots across
+  all three directions plus five states for the recommended direction).
+- Unmet criteria: Recorded Product Owner selection and `APPROVED` status.
