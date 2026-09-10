@@ -79,10 +79,12 @@ evidence say once the user brings a stage to it.
    unmet criteria and move the issue back to In Progress, since it needs
    more implementation work before it's reviewable again. Either way, record
    the reviewed revision.
-5. **Revise (Claude Code):** when requested, resolve accepted review findings
-   (read from the Jira issue's comments) on the same branch — the issue
-   should already be In Progress from Review's RETURNED verdict; move it
-   there if it somehow isn't. Verify affected behavior and ./verify.sh,
+5. **Revise (Claude Code):** when requested, re-enter the issue's worktree
+   with `EnterWorktree path: .claude/worktrees/<issue-key>` (lowercase)
+   before doing anything else, then resolve accepted review findings (read
+   from the Jira issue's comments) on the same branch — the issue should
+   already be In Progress from Review's RETURNED verdict; move it there if
+   it somehow isn't. Verify affected behavior and ./verify.sh,
    update evidence, push, and transition the issue back to Review. Return for
    another user-requested independent review. Material scope/design changes
    need the Jira issue updated and re-approved by Codex.
