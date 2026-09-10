@@ -27,29 +27,38 @@ Build a long-lived household financial operating system that combines:
 9. Do not add infrastructure until required by a concrete feature.
 10. This is initially a private household product, not a generic SaaS platform.
 
-## Before coding
+## Context loading
 
-Read:
+Use progressive disclosure. Load the smallest authoritative set for the current
+stage, then open supporting material when the issue, diff, or a concrete finding
+makes it relevant.
 
-1. `docs/product/vision.md`
-2. `docs/product/user-zero.md`
-3. `docs/product/problems.md`
-4. `docs/product/jobs-to-be-done.md`
-5. `docs/product/principles.md`
-6. `docs/domain/financial-model.md`
-7. `docs/architecture/architecture.md`
-8. `docs/decisions/decisions.md`
-9. `docs/product/roadmap.md`
-10. Your assigned Jira issue (see `agent/collaboration-workflow.md`)
+Always read this file and the applicable stage in
+`agent/collaboration-workflow.md`. For Jira work, read the issue description in
+full. Then load context by stage:
 
-In `docs/decisions/decisions.md`, read every `Accepted` decision in full;
-a `Superseded` decision only needs its one-line status pointer to whatever
-replaced it — its original reasoning stays there for history but is not
-required reading.
+- **Frame:** read the full product set (`vision.md`, `user-zero.md`,
+  `problems.md`, `jobs-to-be-done.md`, `principles.md`, and `roadmap.md`),
+  `docs/domain/financial-model.md`, `docs/architecture/architecture.md`, and
+  every Accepted decision in `docs/decisions/decisions.md`.
+- **Design:** read the issue, approved or proposed design artifacts, relevant
+  product documents, and decisions selected through the decision index. UI work
+  also follows its design approval and visual-review gates.
+- **Implement and Revise:** read the issue, current-round review findings when
+  revising, affected code and contracts, and decisions selected through the
+  decision index. Open product, domain, or architecture documents only when the
+  work changes or depends on their rules.
+- **Review and Accept:** read the issue, current PR diff and affected code,
+  tests, current-round findings, and available evidence. Scan the decision index
+  and read in full only decisions whose trigger matches the change or a finding.
+  Open other product, domain, or architecture documents only when a specific
+  acceptance criterion or finding turns on them.
+- **Ship:** read the current acceptance record, PR revision, required check
+  status, and the Ship stage. Load other context only to resolve a discrepancy.
 
-Also read `agent/collaboration-workflow.md` for the branching and pull-request
-mechanics that apply to every task. UI work additionally follows its design
-approval and visual-review gates.
+A Superseded decision needs only its index entry and status pointer unless its
+history is directly relevant. Do not load an entire document merely because it
+is listed as durable context elsewhere.
 
 ## Implementation style
 
@@ -97,10 +106,13 @@ Record what matters in its durable home rather than a task log:
 Your assigned Jira issue holds the active task's scope and acceptance
 criteria; do not treat it as a log — the Jira issue's comment history and
 git history are the record of past tasks. Pre-existing
-`agent/tasks/<NNN>-<feature-slug>.md` files and the retired
-`agent/implementation-log.md` (archived at
-`agent/archive/implementation-log-pre-2026-09-09.md`) are historical records
-only; new feature work does not create entries in either.
+`agent/tasks/<NNN>-<feature-slug>.md` files are historical records only.
+`agent/implementation-log.md` was retired and later removed outright (its
+history remains in git history if ever needed) because a running log —
+root or feature-local — is pure token-cost overhead: new feature work must
+not create `agent/implementation-log.md` or a feature-local
+`agent/product/<slug>/implementation-log.md`. The durable per-feature
+contract belongs in `agent/product/<slug>/api.md` (or equivalent).
 
 If a new long-lived architectural or product decision is made, add it to `docs/decisions/decisions.md`.
 

@@ -8,7 +8,8 @@ repair loop, or automatic merge.
 
 ## Context and ownership
 
-Read AGENTS.md and its required documents. Resolve the requested Jira issue
+Read AGENTS.md and follow its stage-specific context policy. Resolve the
+requested Jira issue
 (or, for work predating this workflow, its legacy `agent/tasks` file).
 Retrieve available issue context when asked to work on it; do not scan for
 work to start. If access is unavailable, report the missing context without
@@ -17,8 +18,9 @@ inventing requirements.
 The Jira issue, code, and evidence are the handoff boundary for feature work.
 Its column does not authorize execution — the user still initiates each
 stage. Durable cross-feature documentation (`docs/product/roadmap.md`,
-`docs/decisions/decisions.md`, and the other docs required by AGENTS.md)
-stays in the repository and is what Codex reads to decide what to frame next;
+`docs/decisions/decisions.md`, and the product/domain docs indexed by AGENTS.md)
+stays in the repository and is loaded when the current stage or evidence calls
+for it;
 only the per-feature specification moved to Jira. Existing `agent/product/`
 briefs and `agent/tasks/` files are retained as historical records; do not
 create new ones.
@@ -39,9 +41,9 @@ not invoked for them and does not run `codex exec` on the user's behalf.
 Claude Code picks up work from whatever the Jira issue and repository
 evidence say once the user brings a stage to it.
 
-1. **Frame (Codex, direct):** investigate the user problem against
-   docs/product/roadmap.md, docs/decisions/decisions.md, and the other
-   product docs required by AGENTS.md. Define the outcome, scope, non-goals,
+1. **Frame (Codex, direct):** load the full framing context specified by
+   AGENTS.md and investigate the user problem against it. Define the outcome,
+   scope, non-goals,
    and testable acceptance criteria using the checklist in
    agent/templates/product-brief.md, create a Jira issue with that content,
    and move it to To Do.
@@ -57,11 +59,17 @@ evidence say once the user brings a stage to it.
    agent/templates/implementation-plan.md when complexity warrants it.
    Fix implementation and test failures within this stage. Run ./verify.sh,
    exercise the primary flow, and capture wide/narrow UI evidence when relevant.
-   Update the implementation log, push, and open the PR, then transition the
+   Record durable evidence in the Jira issue or relevant feature contract, push,
+   and open the PR, then transition the
    issue from In Progress to Review — the PR is what needs attention now, not
    the coding. Report the PR and evidence; do not invoke review automatically.
-4. **Review (Codex, direct):** inspect the current PR diff, relevant code,
-   tests, the Jira issue, and evidence. This is read-only — no code edits, no
+4. **Review (Codex, direct):** start with the Jira issue, current PR diff and
+   revision, affected code and tests, current-round findings, and available
+   evidence. Use the decision index and concrete findings to select any deeper
+   product, domain, or architecture context. For a repeat review, inspect the
+   delta from the previously reviewed revision and re-open unchanged code only
+   when that delta or an unresolved finding requires it. This is read-only — no
+   code edits, no
    re-running the app, since verification already happened in Implement — so
    it needs no worktree or local branch checkout: get the diff with
    `gh pr diff <number>` and read specific files at that revision with
@@ -79,10 +87,12 @@ evidence say once the user brings a stage to it.
    unmet criteria and move the issue back to In Progress, since it needs
    more implementation work before it's reviewable again. Either way, record
    the reviewed revision.
-5. **Revise (Claude Code):** when requested, resolve accepted review findings
-   (read from the Jira issue's comments) on the same branch — the issue
-   should already be In Progress from Review's RETURNED verdict; move it
-   there if it somehow isn't. Verify affected behavior and ./verify.sh,
+5. **Revise (Claude Code):** when requested, re-enter the issue's worktree
+   with `EnterWorktree path: .claude/worktrees/<issue-key>` (lowercase)
+   before doing anything else, then resolve accepted review findings (read
+   from the Jira issue's comments) on the same branch — the issue should
+   already be In Progress from Review's RETURNED verdict; move it there if
+   it somehow isn't. Verify affected behavior and ./verify.sh,
    update evidence, push, and transition the issue back to Review. Return for
    another user-requested independent review. Material scope/design changes
    need the Jira issue updated and re-approved by Codex.

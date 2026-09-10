@@ -30,11 +30,13 @@ instead of guessing.
 3. **Transition it.** Move the issue from To Do to In Progress.
 4. **Create the worktree.** Derive `<feature-slug>` from the issue summary
    (short, kebab-case). If this session is already inside a worktree, ask
-   before switching. Otherwise use EnterWorktree to create one on branch
+   before switching. Otherwise use EnterWorktree with `name: <issue-key>`
+   (lowercase) to create one at `.claude/worktrees/<issue-key>` on branch
    `task/<issue-key>-<feature-slug>` (lowercase the issue key), branched from
-   `main`.
-5. **Load context.** Read `AGENTS.md` and its required documents (or run
-   `/prime`) before writing any code.
+   `main` — the deterministic path is what lets Revise find it again later
+   without a lookup.
+5. **Load context.** Read `AGENTS.md` and use its Implement-stage progressive
+   disclosure policy (or run `/prime`) before writing any code.
 6. **Implement.** Complete the smallest complete vertical increment scoped by
    the issue's acceptance criteria. Use
    `agent/templates/implementation-plan.md` when the task is complex enough
@@ -51,5 +53,5 @@ instead of guessing.
 
 ## After implementing
 
-Leave the worktree in place (don't call ExitWorktree) — Revise reuses the
-same branch and worktree when the user brings back review findings.
+Leave the worktree in place (don't call ExitWorktree) — Revise re-enters it
+at `.claude/worktrees/<issue-key>` when the user brings back review findings.
