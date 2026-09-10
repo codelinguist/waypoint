@@ -34,13 +34,19 @@ guessing.
 6. **Close out the issue.** Transition the Jira issue from Acceptance to
    Done.
 7. **Clean up the worktree, if any.** Find a worktree for this issue's branch
-   with `git worktree list` (look for `task/<issue-key>-...`). This command
-   normally runs in a different session than the one that created the
-   worktree via EnterWorktree, so use `git worktree remove <path>` directly
-   rather than the ExitWorktree tool, which only acts on worktrees the
-   current session created. Only remove it if it isn't locked and has no
-   uncommitted changes; then delete the now-merged local branch with
-   `git branch -d <branch>`. If the worktree is locked, dirty, or doesn't
-   exist, skip this step and say so — don't force it.
+   with `git worktree list` (look for `task/<issue-key>-...`). If this
+   session entered that worktree itself earlier on via EnterWorktree (e.g.
+   during Implement or Revise), use `ExitWorktree` with `action: "remove"`
+   and `discard_changes: true` — it unlocks and removes its own worktree and
+   branch in one step, which plain `git worktree remove` cannot do while the
+   lock it holds is in place. `discard_changes` is safe here because the
+   branch's commits are already captured in the squash merge you just made.
+   Otherwise this command is running in a different session than the one
+   that created the worktree, so use `git worktree remove <path>` directly
+   (ExitWorktree only acts on worktrees the current session created), then
+   delete the now-merged local branch with `git branch -d <branch>`. Only
+   remove it that way if it isn't locked and has no uncommitted changes — if
+   it's locked by another session, dirty, or doesn't exist, skip this step
+   and say so; don't force it.
 8. **Report.** Tell the user the merge commit, the issue's new status, and
    whether a worktree was cleaned up.
