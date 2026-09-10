@@ -27,6 +27,7 @@ their history is directly relevant.
 | D016 | Development stages are user-initiated | automation, stage transitions, dispatch, review loops, or merging |
 | D017 | Jira is the per-feature specification | briefs, issue lifecycle, review records, or task artifacts |
 | D018 | Codex stages run directly with the user | Codex/Claude ownership, commands, or stage invocation |
+| D019 | Bounded balance replacement is an append-only audit, not event sourcing | balance/value updates, revision concurrency, or audit history on canonical records |
 
 ## D001 — Structured financial state is canonical
 
@@ -319,3 +320,35 @@ removing it is a further cut of the process overhead addressed by D017.
 **Tradeoff:** Claude Code has no automated way to trigger or verify a Codex
 stage — it relies on the user reporting that Frame/Design/Review/Accept
 happened and on reading the resulting Jira issue and comments.
+
+---
+
+## D019 — Bounded balance replacement is an append-only audit, not event sourcing
+
+**Status:** Accepted — 2026-09-11, WAP-17
+
+A canonical record that needs an auditable value correction (first
+implemented for `Liability.outstandingBalance`) keeps its current row as the
+single source of the present value, gains a `@Version`-backed `revision`
+column for optimistic concurrency, and gets an immutable, append-only history
+table (e.g. `liability_balance_history`) written in the same transaction as
+the current-row replacement. A caller reads the current revision, submits a
+replacement with that `expectedRevision`, and gets a structured 409 if the
+row has moved on — whether from a genuinely stale read or a losing
+concurrent submission (the losing transaction's optimistic-lock flush fails
+before its audit row is inserted, so exactly one audit row is ever appended
+per accepted change).
+
+**Reason:** The domain needs traceable, conflict-safe corrections (a wrong
+balance, a data-entry fix) without inventing payment/interest semantics or a
+general event-sourced ledger the product doesn't otherwise need. Reusing
+Hibernate's standard optimistic-locking mechanism for the revision check
+keeps the guarantee correct under real concurrent writes rather than only
+under sequential ones.
+
+**Tradeoff:** Only the fields explicitly modeled as before/after audit
+columns are historized; this is not a generic changelog and does not capture
+every column on the parent row. Extending the pattern to another canonical
+field (e.g. an asset's estimated value) means repeating the same three
+pieces — version column, audit table, expected-revision contract — rather
+than reusing shared infrastructure, which is deliberate: see D007.

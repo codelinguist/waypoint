@@ -1,9 +1,12 @@
 package com.waypoint.household.web;
 
 import com.waypoint.household.Liability;
+import com.waypoint.household.LiabilityBalanceHistory;
 import com.waypoint.household.LiabilityService;
 import com.waypoint.household.web.dto.CreateLiabilityRequest;
+import com.waypoint.household.web.dto.LiabilityBalanceHistoryResponse;
 import com.waypoint.household.web.dto.LiabilityResponse;
+import com.waypoint.household.web.dto.RecordLiabilityBalanceRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -57,5 +60,34 @@ public class LiabilityController {
                 .map(LiabilityResponse::from)
                 .toList();
         return ResponseEntity.ok(liabilities);
+    }
+
+    @PostMapping("/{liabilityId}/balances")
+    public ResponseEntity<LiabilityBalanceHistoryResponse> recordBalance(
+            @PathVariable UUID householdId,
+            @PathVariable UUID liabilityId,
+            @Valid @RequestBody RecordLiabilityBalanceRequest request
+    ) {
+        LiabilityBalanceHistory history = liabilityService.recordBalance(
+                householdId,
+                liabilityId,
+                request.outstandingBalance(),
+                request.balanceAsOf(),
+                request.reason(),
+                request.expectedRevision()
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(LiabilityBalanceHistoryResponse.from(history));
+    }
+
+    @GetMapping("/{liabilityId}/balances")
+    public ResponseEntity<List<LiabilityBalanceHistoryResponse>> listBalanceHistory(
+            @PathVariable UUID householdId,
+            @PathVariable UUID liabilityId
+    ) {
+        List<LiabilityBalanceHistoryResponse> history = liabilityService.listBalanceHistory(householdId, liabilityId)
+                .stream()
+                .map(LiabilityBalanceHistoryResponse::from)
+                .toList();
+        return ResponseEntity.ok(history);
     }
 }
