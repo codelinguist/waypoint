@@ -79,7 +79,7 @@
     <button class="refresh-btn" type="button">Refresh</button>
   </header>
   <p class="status-line" role="status" aria-live="polite">Retrieved Sep 10, 2026, 2:32 PM UTC</p>
-  <p class="explainer">Net worth = assets &minus; liabilities, using each record's <strong>planning value</strong> (never its estimated value). Retrieving this page does not change a record's own valuation or balance date &mdash; each record below keeps its own date.</p>
+  <p class="explainer">Net worth is recorded asset <strong>planning values</strong> minus outstanding liability balances. Records keep their own valuation or balance dates; refreshing does not update those dates.</p>
 
   <!-- PHP: expanded, ordinary mixed currency -->
   <section class="card" aria-labelledby="php-heading">
@@ -250,13 +250,13 @@
         <div class="net-worth-label">Net worth</div>
         <div class="net-worth positive"><span class="sr-only">positive</span>100,000,000,041,999,999.99 JPY</div>
       </div>
-      <button class="toggle-btn" type="button" aria-expanded="false" aria-controls="jpy-records">Show 2 records</button>
+      <button class="toggle-btn" type="button" aria-expanded="true" aria-controls="jpy-records">Hide 2 records</button>
     </div>
     <div class="totals-row">
       <span>Assets total <span class="amount">100,000,000,041,999,999.99</span></span>
       <span>Liabilities total <span class="amount">0.00</span> <span class="badge">no liabilities recorded</span></span>
     </div>
-    <div class="records" id="jpy-records" hidden>
+    <div class="records" id="jpy-records">
       <h4>Assets (2)</h4>
       <div class="table-scroll" tabindex="0" role="region" aria-label="JPY assets, scrollable">
       <table class="stackable">
@@ -332,7 +332,7 @@
   </section>
 
   <footer class="evidence-note">
-    Direction A &mdash; expanded-record evidence (not the default state; compare <code>populated-collapsed.html</code>). PHP and EUR start expanded here to show ordinary mixed-currency records and the liabilities-only case (explicit "No assets recorded" line, not a fabricated zero-row table) side by side; USD and JPY stay collapsed for contrast. Below 700px, each record becomes a stacked card (name as title, other fields as labeled rows) instead of a horizontally scrolling table row.
+    Direction A &mdash; expanded-record evidence (not the default state; compare <code>populated-collapsed.html</code>). PHP, JPY and EUR start expanded here to show ordinary mixed-currency records, an extreme exact-decimal amount (JPY's precision-test row), and the liabilities-only case (explicit "No assets recorded" line, not a fabricated zero-row table); USD stays collapsed for contrast. Below 700px, each record becomes a stacked card (name as title, other fields as labeled rows) instead of a horizontally scrolling table row.
   </footer>
 </div>
 <script>
