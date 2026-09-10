@@ -27,9 +27,20 @@ import org.springframework.stereotype.Service;
  * input invariants so it rejects invalid values whether it is called
  * directly or through the HTTP layer, which applies the same rules
  * independently via request validation.
+ *
+ * <p>Every result carries {@value #CURRENT_AMOUNT_ASSUMPTION} verbatim: this
+ * calculation trusts each goal's {@code currentAmount} as caller-supplied
+ * input and never verifies asset backing or detects the same savings being
+ * counted toward more than one goal, so that assumption must never be left
+ * implicit.
  */
 @Service
 public class MultiGoalFundingCheckCalculator {
+
+    static final String CURRENT_AMOUNT_ASSUMPTION =
+            "Each goal's currentAmount is assumed to already be separately earmarked for that "
+                    + "specific goal. This calculation does not verify asset backing and cannot detect "
+                    + "the same savings being counted toward more than one goal.";
 
     private static final int MAX_INTEGER_DIGITS = 17;
     private static final int MAX_FRACTION_DIGITS = 2;
@@ -76,6 +87,7 @@ public class MultiGoalFundingCheckCalculator {
         return new MultiGoalFundingCheckResult(
                 normalizedCurrency,
                 normalizedBudget,
+                CURRENT_AMOUNT_ASSUMPTION,
                 List.copyOf(goalResults),
                 totalRequiredMonthlyContribution,
                 budgetMinusRequired,

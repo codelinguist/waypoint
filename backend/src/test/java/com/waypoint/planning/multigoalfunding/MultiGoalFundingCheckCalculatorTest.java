@@ -15,6 +15,48 @@ class MultiGoalFundingCheckCalculatorTest {
             new MultiGoalFundingCheckCalculator(new GoalContributionCalculator());
 
     @Test
+    void alwaysReturnsTheCurrentAmountEarmarkingAssumption() {
+        MultiGoalFundingCheckResult result = calculator.calculate(
+                "PHP",
+                new BigDecimal("100"),
+                List.of(new GoalFundingInput("g1", new BigDecimal("100"), BigDecimal.ZERO, 1)));
+
+        assertThat(result.currentAmountAssumption())
+                .isEqualTo(MultiGoalFundingCheckCalculator.CURRENT_AMOUNT_ASSUMPTION)
+                .containsIgnoringCase("earmarked")
+                .containsIgnoringCase("does not verify asset backing");
+    }
+
+    @Test
+    void returnsTheCurrentAmountEarmarkingAssumptionEvenWhenEveryGoalIsAlreadyFunded() {
+        MultiGoalFundingCheckResult result = calculator.calculate(
+                "PHP",
+                BigDecimal.ZERO,
+                List.of(new GoalFundingInput("g1", new BigDecimal("100"), new BigDecimal("150"), 12)));
+
+        assertThat(result.currentAmountAssumption())
+                .isEqualTo(MultiGoalFundingCheckCalculator.CURRENT_AMOUNT_ASSUMPTION);
+        assertThat(result.status()).isEqualTo(MultiGoalFundingStatus.FITS);
+    }
+
+    @Test
+    void sumsAggregateContributionsBeyondSeventeenDigitsWithoutTruncation() {
+        MultiGoalFundingCheckResult result = calculator.calculate(
+                "PHP",
+                BigDecimal.ZERO,
+                List.of(
+                        new GoalFundingInput("g1", new BigDecimal("50000000000000000.00"), BigDecimal.ZERO, 1),
+                        new GoalFundingInput("g2", new BigDecimal("60000000000000000.00"), BigDecimal.ZERO, 1)
+                ));
+
+        assertThat(result.totalRequiredMonthlyContribution()).isEqualByComparingTo("110000000000000000.00");
+        assertThat(result.budgetMinusRequired()).isEqualByComparingTo("-110000000000000000.00");
+        assertThat(result.shortfall()).isEqualByComparingTo("110000000000000000.00");
+        assertThat(result.unallocatedBudget()).isEqualByComparingTo("0");
+        assertThat(result.status()).isEqualTo(MultiGoalFundingStatus.SHORTFALL);
+    }
+
+    @Test
     void computesShortfallForTheDocumentedTwoGoalExample() {
         MultiGoalFundingCheckResult result = calculator.calculate(
                 "PHP",

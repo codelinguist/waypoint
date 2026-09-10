@@ -8,6 +8,7 @@ import java.util.List;
 public record MultiGoalFundingCheckResponse(
         String currency,
         BigDecimal availableMonthlyBudget,
+        String currentAmountAssumption,
         List<GoalFundingResultResponse> goalResults,
         BigDecimal totalRequiredMonthlyContribution,
         BigDecimal budgetMinusRequired,
@@ -19,6 +20,7 @@ public record MultiGoalFundingCheckResponse(
         return new MultiGoalFundingCheckResponse(
                 result.currency(),
                 result.availableMonthlyBudget(),
+                result.currentAmountAssumption(),
                 result.goalResults().stream().map(GoalFundingResultResponse::from).toList(),
                 result.totalRequiredMonthlyContribution(),
                 result.budgetMinusRequired(),

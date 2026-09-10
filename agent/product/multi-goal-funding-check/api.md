@@ -31,6 +31,7 @@ convention, not a recommended household allocation policy or an optimizer.
 |----------------------------------------|---------|
 | `currency`                              | Echoed, normalized to uppercase. |
 | `availableMonthlyBudget`                | Echoed. |
+| `currentAmountAssumption`               | Fixed disclosure string, always present verbatim (see below). |
 | `goalResults`                           | Per-goal results, in caller order. |
 | `goalResults[].reference`               | Echoed from the matching request goal. |
 | `goalResults[].*`                       | Same fields and conventions as the [goal-contribution calculator](../goal-contribution-calculator/api.md) response (`targetAmount`, `currentAmount`, `contributionMonths`, `remainingAmount`, `monthlyContribution`, `totalContributions`, `projectedAmount`, `amountAboveTarget`, `status`). |
@@ -43,6 +44,19 @@ convention, not a recommended household allocation policy or an optimizer.
 Already-funded goals (`currentAmount >= targetAmount`) contribute `0.00` to
 `totalRequiredMonthlyContribution` while retaining their own
 `ALREADY_FUNDED` status in `goalResults`.
+
+`currentAmountAssumption` is always exactly:
+
+> Each goal's currentAmount is assumed to already be separately earmarked
+> for that specific goal. This calculation does not verify asset backing
+> and cannot detect the same savings being counted toward more than one
+> goal.
+
+This calculation trusts every goal's `currentAmount` as caller-supplied and
+never checks it against a real account or asset — nothing prevents a caller
+from citing the same savings as `currentAmount` for two different goals, so
+that assumption is returned on every response, including an already-funded
+or `FITS` result, rather than left implicit.
 
 ## Examples
 
@@ -67,6 +81,7 @@ Response (`200 OK`):
 {
   "currency": "PHP",
   "availableMonthlyBudget": 120.00,
+  "currentAmountAssumption": "Each goal's currentAmount is assumed to already be separately earmarked for that specific goal. This calculation does not verify asset backing and cannot detect the same savings being counted toward more than one goal.",
   "goalResults": [
     {
       "reference": "education",
@@ -117,7 +132,7 @@ Request:
 
 Response (`200 OK`): `totalRequiredMonthlyContribution: 100.00`,
 `budgetMinusRequired: 0.00`, `shortfall: 0.00`, `unallocatedBudget: 0.00`,
-`status: "FITS"`.
+`status: "FITS"`, and the same `currentAmountAssumption` as above.
 
 ### Already-funded goal, zero budget
 
@@ -136,7 +151,9 @@ Request:
 Response (`200 OK`): `goalResults[0].status: "ALREADY_FUNDED"`,
 `goalResults[0].monthlyContribution: 0.00`,
 `totalRequiredMonthlyContribution: 0.00`, `status: "FITS"` (a zero budget is
-valid whenever nothing is required).
+valid whenever nothing is required), and the same `currentAmountAssumption`
+as above — the disclosure applies regardless of status, since an
+already-funded goal's `currentAmount` is exactly as unverified as any other.
 
 ### Validation error — duplicate reference
 
@@ -180,11 +197,12 @@ validation runs.
 The primary examples above and the following edge cases were exercised
 against a running instance of the application (`./mvnw spring-boot:run`
 against a throwaway local `postgres:16-alpine` container, matching
-`docker-compose.yml`'s connection settings) on 2026-09-10 and matched the
-documented contract exactly:
+`docker-compose.yml`'s connection settings) on 2026-09-10 and 2026-09-11
+and matched the documented contract exactly:
 
 - Two-goal shortfall, budget-exactly-equal `FITS`, and already-funded
-  goal with zero budget (`200`, matching the examples above verbatim).
+  goal with zero budget (`200`, matching the examples above verbatim,
+  including `currentAmountAssumption` on every one of them).
 - Duplicate `reference` → `400 VALIDATION_FAILED`,
   `"duplicate goal reference: dup"`.
 - Empty `goals` array → `400 VALIDATION_FAILED`,
@@ -198,3 +216,9 @@ documented contract exactly:
 - 51 `goals` entries → `400 VALIDATION_FAILED`,
   `"goals must contain at most 50 entries"`.
 - A non-JSON body → `400 MALFORMED_REQUEST`.
+- Two goals each with a `targetAmount` of `50000000000000000.00` and
+  `60000000000000000.00` (17 integer digits each, individually valid) with
+  a `0` budget → `200`, `totalRequiredMonthlyContribution:
+  110000000000000000.00` (18 integer digits), `shortfall:
+  110000000000000000.00`, confirming the aggregate sum is not truncated to
+  the 17-digit per-input limit.

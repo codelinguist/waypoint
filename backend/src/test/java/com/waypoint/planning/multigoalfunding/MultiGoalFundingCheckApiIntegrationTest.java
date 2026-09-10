@@ -81,6 +81,47 @@ class MultiGoalFundingCheckApiIntegrationTest {
     }
 
     @Test
+    void returnsTheCurrentAmountEarmarkingAssumptionAlongsideAShortfallResult() throws Exception {
+        Map<String, Object> payload = request("PHP", "120", List.of(
+                goal("education", "100", "0", 3), goal("travel", "200", "0", 2)));
+
+        calculate(payload)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentAmountAssumption")
+                        .value(MultiGoalFundingCheckCalculator.CURRENT_AMOUNT_ASSUMPTION));
+    }
+
+    @Test
+    void returnsTheCurrentAmountEarmarkingAssumptionAlongsideAnAlreadyFundedFitsResult() throws Exception {
+        Map<String, Object> payload = request("PHP", "0", List.of(goal("g1", "100", "150", 12)));
+
+        calculate(payload)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("FITS"))
+                .andExpect(jsonPath("$.currentAmountAssumption")
+                        .value(MultiGoalFundingCheckCalculator.CURRENT_AMOUNT_ASSUMPTION));
+    }
+
+    @Test
+    void sumsAggregateContributionsBeyondSeventeenDigitsWithoutTruncation() throws Exception {
+        Map<String, Object> payload = request("PHP", "0", List.of(
+                goal("g1", "50000000000000000.00", "0", 1),
+                goal("g2", "60000000000000000.00", "0", 1)));
+
+        String body = calculate(payload)
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Asserted on the raw JSON text (not a jsonPath/double comparison) so this
+        // proves the exact serialized decimal, not a double-precision approximation.
+        org.assertj.core.api.Assertions.assertThat(body)
+                .contains("\"totalRequiredMonthlyContribution\":110000000000000000.00")
+                .contains("\"budgetMinusRequired\":-110000000000000000.00")
+                .contains("\"shortfall\":110000000000000000.00")
+                .contains("\"status\":\"SHORTFALL\"");
+    }
+
+    @Test
     void zeroBudgetIsValid() throws Exception {
         Map<String, Object> payload = request("PHP", "0", List.of(goal("g1", "100", "0", 10)));
 

@@ -12,6 +12,7 @@ import java.util.List;
  *
  * @param currency                       normalized (uppercase) three-letter currency code echoed from the request
  * @param availableMonthlyBudget         echoed available monthly budget
+ * @param currentAmountAssumption        fixed disclosure that every goal's {@code currentAmount} is assumed separately earmarked and unverified
  * @param goalResults                    per-goal results, in caller order
  * @param totalRequiredMonthlyContribution sum of every goal's rounded monthly contribution
  * @param budgetMinusRequired            {@code availableMonthlyBudget - totalRequiredMonthlyContribution}, may be negative
@@ -22,6 +23,7 @@ import java.util.List;
 public record MultiGoalFundingCheckResult(
         String currency,
         BigDecimal availableMonthlyBudget,
+        String currentAmountAssumption,
         List<GoalFundingCheckItemResult> goalResults,
         BigDecimal totalRequiredMonthlyContribution,
         BigDecimal budgetMinusRequired,
