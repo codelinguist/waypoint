@@ -33,4 +33,14 @@ guessing.
    this repo's existing merge history.
 6. **Close out the issue.** Transition the Jira issue from Acceptance to
    Done.
-7. **Report.** Tell the user the merge commit, and the issue's new status.
+7. **Clean up the worktree, if any.** Find a worktree for this issue's branch
+   with `git worktree list` (look for `task/<issue-key>-...`). This command
+   normally runs in a different session than the one that created the
+   worktree via EnterWorktree, so use `git worktree remove <path>` directly
+   rather than the ExitWorktree tool, which only acts on worktrees the
+   current session created. Only remove it if it isn't locked and has no
+   uncommitted changes; then delete the now-merged local branch with
+   `git branch -d <branch>`. If the worktree is locked, dirty, or doesn't
+   exist, skip this step and say so — don't force it.
+8. **Report.** Tell the user the merge commit, the issue's new status, and
+   whether a worktree was cleaned up.

@@ -41,9 +41,8 @@ instead of guessing.
    to leave real ambiguity about where things go.
 7. **Verify.** Run `./verify.sh`, exercise the primary flow, and capture
    wide/narrow UI evidence when the issue includes UI work.
-8. **Ship the increment.** Update `agent/implementation-log.md`, push the
-   branch, and open the PR — reference the issue key in the PR title and
-   link it in the description.
+8. **Ship the increment.** Push the branch and open the PR — reference the
+   issue key in the PR title and link it in the description.
 9. **Move the issue to Review.** The PR is now what needs attention, not the
    coding — transition the issue from In Progress to Review.
 10. **Report.** Tell the user the PR, the evidence gathered, and the issue's
