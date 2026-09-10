@@ -25,8 +25,14 @@ For repository-wide and backend work, Claude Code:
 - runs relevant unit, integration, type, and lint checks
 - updates `agent/implementation-log.md` after coding
 - pushes the task branch (`task/<issue-key>-<feature-slug>`) and opens the PR,
-  without asking first — the user has standing-authorized this; it does not
-  extend to merging
+  without asking first — the user has standing-authorized this
+- merges only within the Ship stage (`/ship <issue-key or PR>`), gated by that
+  stage's own explicit-request requirement and its verification gates
+  (Acceptance status, a current-revision ACCEPTED comment, and a green
+  required check) — not by the push/PR authorization above. A scoped
+  `Bash(gh pr merge:*)` permission rule in `.claude/settings.json` lets that
+  merge run without an additional confirmation prompt once those gates pass;
+  it authorizes nothing outside the Ship stage's own checks
 
 For UI features, Claude Code additionally:
 
