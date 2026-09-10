@@ -91,7 +91,10 @@ evidence say once the user brings a stage to it.
    green on the current PR head. Merge the intended PR, move the Jira issue
    from Acceptance to Done, and record completion. A later code change
    invalidates stale acceptance. Do not bypass missing, pending, or failed
-   checks.
+   checks. Afterward, remove the issue's worktree (if one exists, isn't
+   locked, and has no uncommitted changes) and its now-merged local branch —
+   Ship is the point nothing will reuse them, since Revise no longer applies
+   once the issue is Done.
 
 ## Commands
 
@@ -137,7 +140,9 @@ Product acceptance cannot approve household data changes or financial decisions.
 
 ## System evolution
 
-Update agent/implementation-log.md with changes, verification, decisions,
-assumptions, unresolved questions, and the next useful task. When a finding
-reveals a missing rule or template, record and make a small explicit correction.
-Historical logs describe prior workflows; this document governs current work.
+When a finding reveals a missing or wrong rule or template, make a small
+explicit correction directly to the affected doc (this file, AGENTS.md, a
+role file, or a template) rather than logging it for later. A new long-lived
+architectural or product decision goes in `docs/decisions/decisions.md`.
+Historical logs under `agent/archive/` describe prior workflows; this
+document governs current work.

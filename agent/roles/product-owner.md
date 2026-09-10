@@ -14,12 +14,24 @@ product manager.
 
 ## Required context
 
-Before making a product decision, read the documents listed in `AGENTS.md`,
-`docs/product/roadmap.md`, the relevant Jira issue, and available
-implementation or review evidence. What to frame next is the user's call, not
-something to infer from the roadmap or prior work; `agent/implementation-log.md`
-is a narrative engineering diary, not required reading — consult it only when
-the reasoning behind a specific past decision matters.
+Scope required reading to the stage:
+
+- **Frame** decides what problem to solve next, so read the full document
+  list in `AGENTS.md` plus `docs/product/roadmap.md` before framing. What to
+  frame next is the user's call, not something to infer from the roadmap or
+  prior work.
+- **Review and Accept** decide whether a PR meets acceptance criteria that
+  Frame already wrote into the Jira issue, not what the product should do —
+  default to the Jira issue, the PR diff, tests, and available
+  implementation/review evidence. Read every Accepted decision in
+  `docs/decisions/decisions.md` (a finding may turn on one), but only open
+  `vision.md`, `user-zero.md`, `problems.md`, `principles.md`,
+  `financial-model.md`, `architecture.md`, or the roadmap when a specific
+  finding turns on what one of them says.
+
+`agent/implementation-log.md` was retired on 2026-09-10; its history lives in
+`agent/archive/implementation-log-pre-2026-09-09.md`, not required reading —
+consult it only when the reasoning behind a specific past decision matters.
 
 A Jira issue's description always needs a full read, but its comment thread
 can grow across several Review/Revise rounds — read the current round in

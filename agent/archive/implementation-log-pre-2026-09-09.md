@@ -1,4 +1,12 @@
-# Implementation Log
+# Implementation log archive — pre-2026-09-09
+
+Entries from before the 2026-09-09 pivot to user-initiated, Jira-driven
+stages (#28, #29). Most of this documents the scheduled orchestrator,
+cron dispatch, and Jira preview/admission tooling that were removed in
+that pivot and are no longer part of the workflow — see
+`agent/collaboration-workflow.md` for the current process. Kept for
+historical record only; not required reading. Consult it only when the
+reasoning behind a specific past decision matters.
 
 ## 2026-09-06 — Cron token validation false negative
 
@@ -2263,35 +2271,6 @@ product brief, implemented and PR'd directly.
 
 - Continue Task 001: scaffold the Java backend and Household aggregate.
 
-## Template for future entries
-
-### YYYY-MM-DD — Task XXX
-
-**Changed**
-
-- ...
-
-**Tests**
-
-- ...
-
-**Decisions**
-
-- ...
-
-**Assumptions**
-
-- ...
-
-**Open questions**
-
-- ...
-
-**Recommended next task**
-
-- ...
-
-
 ### 2026-09-06 — First financial-position frontend framing
 
 **Changed:** Added the parent financial-position product brief; queued design-only
@@ -2409,6 +2388,45 @@ questions or shared-rule changes.
   preview of the bounded launch plan without starting a worker or changing Jira.
 - A direct smoke run marked `WAP-5` eligible under the pilot allowlist; no process,
   worktree, or PR was created.
+
+
+# Implementation Log
+
+Entries before 2026-09-09 (the pivot to user-initiated, Jira-driven stages —
+see D016/D017) were archived to
+`agent/archive/implementation-log-pre-2026-09-09.md`; most of that history
+documents the scheduled orchestrator and Jira preview/admission tooling that
+were removed in that pivot. This file starts fresh from the current
+workflow. Not required reading for a product decision — consult it only
+when the reasoning behind a specific past decision matters.
+
+## Template for future entries
+
+### YYYY-MM-DD — Task XXX
+
+**Changed**
+
+- ...
+
+**Tests**
+
+- ...
+
+**Decisions**
+
+- ...
+
+**Assumptions**
+
+- ...
+
+**Open questions**
+
+- ...
+
+**Recommended next task**
+
+- ...
 
 
 ## 2026-09-09 — Remove unattended development orchestration

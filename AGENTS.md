@@ -34,12 +34,13 @@ Read:
 1. `docs/product/vision.md`
 2. `docs/product/user-zero.md`
 3. `docs/product/problems.md`
-4. `docs/product/principles.md`
-5. `docs/domain/financial-model.md`
-6. `docs/architecture/architecture.md`
-7. `docs/decisions/decisions.md`
-8. `docs/product/roadmap.md`
-9. Your assigned Jira issue (see `agent/collaboration-workflow.md`)
+4. `docs/product/jobs-to-be-done.md`
+5. `docs/product/principles.md`
+6. `docs/domain/financial-model.md`
+7. `docs/architecture/architecture.md`
+8. `docs/decisions/decisions.md`
+9. `docs/product/roadmap.md`
+10. Your assigned Jira issue (see `agent/collaboration-workflow.md`)
 
 In `docs/decisions/decisions.md`, read every `Accepted` decision in full;
 a `Superseded` decision only needs its one-line status pointer to whatever
@@ -83,22 +84,23 @@ The AI may not:
 
 ## After coding
 
-Update `agent/implementation-log.md` with:
+Record what matters in its durable home rather than a task log:
 
-- what changed
-- tests added
-- architectural decisions made
-- any assumptions introduced
-- unresolved questions
-- recommended next task
-- any rule, template, or doc that should change because of what this task
-  revealed (see `agent/collaboration-workflow.md` -> "System evolution")
+- a new long-lived architectural or product decision goes in
+  `docs/decisions/decisions.md`
+- a missing or wrong rule, template, or doc that this task revealed gets
+  corrected directly (see `agent/collaboration-workflow.md` ->
+  "System evolution")
+- an unresolved question or assumption worth a human decision goes on the
+  Jira issue as a comment
 
 Your assigned Jira issue holds the active task's scope and acceptance
-criteria; do not treat it as a log — `agent/implementation-log.md`, the Jira
-issue's comment history, and git history are the record of past tasks.
-Pre-existing `agent/tasks/<NNN>-<feature-slug>.md` files are retained as
-historical records only; new feature work does not create them.
+criteria; do not treat it as a log — the Jira issue's comment history and
+git history are the record of past tasks. Pre-existing
+`agent/tasks/<NNN>-<feature-slug>.md` files and the retired
+`agent/implementation-log.md` (archived at
+`agent/archive/implementation-log-pre-2026-09-09.md`) are historical records
+only; new feature work does not create entries in either.
 
 If a new long-lived architectural or product decision is made, add it to `docs/decisions/decisions.md`.
 

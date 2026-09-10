@@ -23,7 +23,6 @@ For repository-wide and backend work, Claude Code:
 - implements the smallest complete vertical increment
 - keeps domain logic separate from transport/UI concerns per `AGENTS.md`
 - runs relevant unit, integration, type, and lint checks
-- updates `agent/implementation-log.md` after coding
 - pushes the task branch (`task/<issue-key>-<feature-slug>`) and opens the PR,
   without asking first — the user has standing-authorized this
 - merges only within the Ship stage (`/ship <issue-key or PR>`), gated by that
