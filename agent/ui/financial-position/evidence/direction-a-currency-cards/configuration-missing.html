@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direction A — Missing configuration</title>
+<link rel="stylesheet" href="../shared.css">
+</head>
+<body>
+<div class="page">
+  <header class="app-header">
+    <h1>Financial position</h1>
+  </header>
+
+  <div class="config-state">
+    <p><strong>No household is configured for this app instance.</strong></p>
+    <p>Set the <code>HOUSEHOLD_ID</code> environment variable to an existing household's ID and restart the app.</p>
+  </div>
+
+  <footer class="evidence-note">
+    Direction A &mdash; missing/invalid configuration state, shown before any household name is known (so no card layout, no household-scoped heading). Distinct from <code>configuration-not-found.html</code>: this is a local setup problem (no ID configured at all), not an unknown household.
+  </footer>
+</div>
+</body>
+</html>

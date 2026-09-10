@@ -102,6 +102,79 @@ td.amount, th.amount { text-align: right; font-variant-numeric: tabular-nums; wh
 
 .table-scroll { overflow-x: auto; }
 
+/* A table-scroll that is also a keyboard-focusable scroll region (tabindex="0"
+   + aria-label in markup) gets its own visible focus ring, distinct from the
+   button/link ring, so keyboard users can tell the region itself is focused
+   before scrolling it with arrow keys. R1/VR-001. */
+.table-scroll[tabindex]:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -3px;
+}
+
+/* Below this width, record tables reflow from a horizontal grid into one
+   stacked card per record: each <tr> becomes a block, each <td> a labeled
+   row via its data-label attribute. This replaces horizontal scrolling (and
+   the cramped, letter-by-letter name wrapping it caused) with normal
+   word-wrapped text at full available width. R1/VR-001. Threshold (700px)
+   is chosen so a 1280px window at 200% browser zoom (700px is decoupled from a
+   specific viewport; the browser layout viewport is ~640 CSS px at that zoom)
+   also gets the stacked layout rather than a squeezed horizontal one. */
+@media (max-width: 700px) {
+  table.stackable { display: block; width: 100%; }
+  table.stackable thead { display: none; }
+  table.stackable tbody, table.stackable tr { display: block; width: 100%; }
+  table.stackable tr {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+  }
+  table.stackable tr:last-child { margin-bottom: 0; }
+  table.stackable td {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    white-space: normal;
+  }
+  table.stackable td:last-child { border-bottom: none; }
+  table.stackable td.amount { text-align: right; }
+  table.stackable td[data-label]::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--text-muted);
+    flex: 0 0 auto;
+  }
+  table.stackable td.record-title {
+    display: block;
+    font-weight: 700;
+    font-size: 1rem;
+    padding-bottom: 8px;
+    margin-bottom: 4px;
+    border-bottom: 2px solid var(--border);
+  }
+}
+
+.net-worth-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.explainer {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 0 0 20px;
+}
+
 .badge {
   display: inline-block;
   font-size: 0.75rem;
