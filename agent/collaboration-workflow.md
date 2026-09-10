@@ -91,7 +91,10 @@ evidence say once the user brings a stage to it.
    green on the current PR head. Merge the intended PR, move the Jira issue
    from Acceptance to Done, and record completion. A later code change
    invalidates stale acceptance. Do not bypass missing, pending, or failed
-   checks.
+   checks. Afterward, remove the issue's worktree (if one exists, isn't
+   locked, and has no uncommitted changes) and its now-merged local branch —
+   Ship is the point nothing will reuse them, since Revise no longer applies
+   once the issue is Done.
 
 ## Commands
 
