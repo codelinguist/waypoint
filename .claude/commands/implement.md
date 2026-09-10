@@ -35,8 +35,8 @@ instead of guessing.
    `task/<issue-key>-<feature-slug>` (lowercase the issue key), branched from
    `main` — the deterministic path is what lets Revise find it again later
    without a lookup.
-5. **Load context.** Read `AGENTS.md` and its required documents (or run
-   `/prime`) before writing any code.
+5. **Load context.** Read `AGENTS.md` and use its Implement-stage progressive
+   disclosure policy (or run `/prime`) before writing any code.
 6. **Implement.** Complete the smallest complete vertical increment scoped by
    the issue's acceptance criteria. Use
    `agent/templates/implementation-plan.md` when the task is complex enough
