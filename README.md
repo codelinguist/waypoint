@@ -351,7 +351,8 @@ real, ephemeral PostgreSQL container (Flyway migrations included).
 Every pull request targeting `main` runs `./verify.sh` in GitHub Actions
 (`.github/workflows/verify.yml`) as the required `verify` status check.
 `main` branch protection requires that check to pass before merge; see
-`agent/implementation-log.md` for the settings read-back evidence. See
+`agent/archive/implementation-log-pre-2026-09-09.md` for the settings
+read-back evidence. See
 `agent/collaboration-workflow.md` -> "Branching and pull requests" for how
 this fits the task-branch/PR/review/acceptance workflow.
 
@@ -363,5 +364,6 @@ accepted. Task 003 (automated delivery gates: `verify.sh`, the required CI
 check, and branch protection) is implemented and accepted. Phase 4
 (Financial Position Snapshots) is implemented and pending Product Owner
 acceptance. Phase 5 (Household Financial Goals) is implemented and pending
-Product Owner acceptance. See `agent/implementation-log.md` for the current
-state and next recommended task.
+Product Owner acceptance. See `docs/product/roadmap.md` and the project's
+Jira board for current state; what to work on next is a user decision, not
+something to infer from prior history.
