@@ -347,3 +347,40 @@ without a second product.
 genuinely separate agent (D014 already notes GitHub can't provide this
 either, since both agents share one account) — the fresh-subagent read is a
 mitigation, not a full substitute.
+
+---
+
+## D021 — Conditional bulk-update revisions guard auditable in-place corrections
+
+**Status:** Accepted — 2026-09-11, implemented for WAP-16 (asset valuation
+updates)
+
+When a feature lets a trusted caller explicitly replace a canonical
+record's current value while preserving one identity and an immutable
+before/after audit trail, guard it with a plain `revision` counter column
+(not JPA `@Version`) advanced only by a single atomic
+`UPDATE ... SET revision = revision + 1 WHERE revision = :expectedRevision`
+statement, executed as a repository bulk `@Modifying @Query`. A caller
+supplies the revision it last read; zero rows updated means the revision
+was stale — whether from a real concurrent writer or a replayed old
+request — and the caller gets a structured conflict. The audit row is
+appended only after that statement reports success, inside the same
+transaction, so the replacement and the audit append commit or roll back
+together.
+
+**Reason:** JPA's `@Version` was tried first and rejected: Hibernate's
+default dirty checking treats an update as a no-op (skipping the UPDATE and
+the version bump entirely) whenever every field's new value equals its
+currently-loaded value — which broke an explicit same-values resubmission
+(e.g. a deliberate same-date confirmation) that must still count as a
+distinct accepted change. Forcing the bump instead via JPA's
+`OPTIMISTIC_FORCE_INCREMENT` lock mode combined with real field changes
+then double-incremented the version, corrupting the revision sequence. A
+single explicit conditional bulk statement sidesteps both failure modes and
+makes the optimistic-concurrency check and the revision advance one atomic
+fact instead of two ORM-mediated ones.
+
+**Tradeoff:** The entity's `revision` field is a plain, unmanaged column —
+callers must go through the dedicated conditional update method rather than
+mutating and saving the entity normally, and Hibernate's ordinary
+dirty-checking machinery is bypassed entirely for this one field/operation.
