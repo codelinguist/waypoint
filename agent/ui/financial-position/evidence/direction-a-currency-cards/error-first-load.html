@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direction A — First-load failure, no prior data</title>
+<link rel="stylesheet" href="../shared.css">
+</head>
+<body>
+<div class="page">
+  <header class="app-header">
+    <h1>Sample Household (Design Evidence)</h1>
+  </header>
+
+  <div class="empty-state" role="alert">
+    <p><strong>Could not load financial position.</strong></p>
+    <p>The server could not be reached. No figures are shown below because none have loaded yet.</p>
+    <p><button class="refresh-btn" type="button">Retry</button></p>
+  </div>
+
+  <footer class="evidence-note">
+    Direction A &mdash; first-load failure: distinct from <code>error-refresh-failed.html</code>, which dims and retains a prior successful result. Here there is no prior result to retain, so nothing is shown but the failure message and a retry action &mdash; no card, no currency, no zero total is fabricated to fill the space.
+  </footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direction A — Currency cards (loading)</title>
+<link rel="stylesheet" href="../shared.css">
+<style>
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+  .skel-line { height: 1em; margin-bottom: 10px; }
+  .skel-title { width: 90px; height: 0.75em; }
+  .skel-amount { width: 220px; height: 1.75em; margin-top: 6px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="app-header">
+    <h1>Sample Household (Design Evidence)</h1>
+    <button class="refresh-btn" type="button" disabled>Refresh</button>
+  </header>
+  <p class="status-line" role="status" aria-live="polite">Loading financial position&hellip;</p>
+
+  <section class="card" aria-hidden="true">
+    <div class="skeleton skel-line skel-title"></div>
+    <div class="skeleton skel-line skel-amount"></div>
+    <div class="skeleton skel-line" style="width: 60%;"></div>
+  </section>
+  <section class="card" aria-hidden="true">
+    <div class="skeleton skel-line skel-title"></div>
+    <div class="skeleton skel-line skel-amount"></div>
+    <div class="skeleton skel-line" style="width: 60%;"></div>
+  </section>
+  <section class="card" aria-hidden="true">
+    <div class="skeleton skel-line skel-title"></div>
+    <div class="skeleton skel-line skel-amount"></div>
+    <div class="skeleton skel-line" style="width: 60%;"></div>
+  </section>
+  <section class="card" aria-hidden="true">
+    <div class="skeleton skel-line skel-title"></div>
+    <div class="skeleton skel-line skel-amount"></div>
+    <div class="skeleton skel-line" style="width: 60%;"></div>
+  </section>
+
+  <footer class="evidence-note">
+    Direction A — loading state. No prior data exists yet, so nothing implies a value (no flashed zero/blank totals). Screen-reader users hear "Loading financial position" via the status line; skeleton cards are aria-hidden.
+  </footer>
+</div>
+</body>
+</html>

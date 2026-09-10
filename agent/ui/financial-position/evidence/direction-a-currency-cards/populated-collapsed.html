@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direction A — Currency cards (collapsed default)</title>
+<link rel="stylesheet" href="../shared.css">
+<style>
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .card-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px 20px;
+  }
+  .currency-code {
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+  .net-worth { font-size: 1.75rem; font-weight: 700; overflow-wrap: anywhere; }
+  .totals-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 28px;
+    margin: 10px 0 0;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+  .totals-row .amount { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 600; }
+  .toggle-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .toggle-btn:hover { background: #eef3f9; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="app-header">
+    <h1>Sample Household (Design Evidence)</h1>
+    <button class="refresh-btn" type="button">Refresh</button>
+  </header>
+  <p class="status-line" role="status" aria-live="polite">Retrieved Sep 10, 2026, 2:32 PM UTC</p>
+  <p class="explainer">Net worth is recorded asset <strong>planning values</strong> minus outstanding liability balances. Records keep their own valuation or balance dates; refreshing does not update those dates.</p>
+
+  <section class="card" aria-labelledby="php-heading">
+    <div class="card-head">
+      <div>
+        <div class="currency-code" id="php-heading">PHP</div>
+        <div class="net-worth-label">Net worth</div>
+        <div class="net-worth negative"><span class="sr-only">negative</span>4,935,000.00 PHP</div>
+      </div>
+      <button class="toggle-btn" type="button" aria-expanded="false" aria-controls="php-records">Show 6 records</button>
+    </div>
+    <div class="totals-row">
+      <span>Assets total <span class="amount">3,185,000.00</span></span>
+      <span>Liabilities total <span class="amount">8,120,000.00</span></span>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="usd-heading">
+    <div class="card-head">
+      <div>
+        <div class="currency-code" id="usd-heading">USD</div>
+        <div class="net-worth-label">Net worth</div>
+        <div class="net-worth positive"><span class="sr-only">positive</span>4,500.50 USD</div>
+      </div>
+      <button class="toggle-btn" type="button" aria-expanded="false" aria-controls="usd-records">Show 2 records</button>
+    </div>
+    <div class="totals-row">
+      <span>Assets total <span class="amount">12,500.50</span></span>
+      <span>Liabilities total <span class="amount">8,000.00</span></span>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="jpy-heading">
+    <div class="card-head">
+      <div>
+        <div class="currency-code" id="jpy-heading">JPY</div>
+        <div class="net-worth-label">Net worth</div>
+        <div class="net-worth positive"><span class="sr-only">positive</span>100,000,000,041,999,999.99 JPY</div>
+      </div>
+      <button class="toggle-btn" type="button" aria-expanded="false" aria-controls="jpy-records">Show 2 records</button>
+    </div>
+    <div class="totals-row">
+      <span>Assets total <span class="amount">100,000,000,041,999,999.99</span></span>
+      <span>Liabilities total <span class="amount">0.00</span> <span class="badge">no liabilities recorded</span></span>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="eur-heading">
+    <div class="card-head">
+      <div>
+        <div class="currency-code" id="eur-heading">EUR</div>
+        <div class="net-worth-label">Net worth</div>
+        <div class="net-worth negative"><span class="sr-only">negative</span>3,200.00 EUR</div>
+      </div>
+      <button class="toggle-btn" type="button" aria-expanded="false" aria-controls="eur-records">Show 1 record</button>
+    </div>
+    <div class="totals-row">
+      <span>Assets total <span class="amount">0.00</span> <span class="badge">no assets recorded</span></span>
+      <span>Liabilities total <span class="amount">3,200.00</span></span>
+    </div>
+  </section>
+
+  <footer class="evidence-note">
+    Direction A &mdash; the actual collapsed default: every card starts collapsed, so the first screen is four short headlines regardless of record count. Includes a liabilities-only currency (EUR: explicit empty asset side, zero asset total, negative net worth) alongside the assets-only currency (JPY) already shown. Compare against <code>populated-expanded.html</code> for the record-inspection view of the same data.
+  </footer>
+</div>
+</body>
+</html>

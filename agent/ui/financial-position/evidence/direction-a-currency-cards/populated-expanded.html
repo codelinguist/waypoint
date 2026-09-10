@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direction A — Currency cards (expanded records)</title>
+<link rel="stylesheet" href="../shared.css">
+<style>
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 20px 8px;
+    margin-bottom: 20px;
+  }
+  .card-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px 20px;
+  }
+  .currency-code {
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+  .net-worth { font-size: 1.75rem; font-weight: 700; overflow-wrap: anywhere; }
+  .totals-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 28px;
+    margin: 10px 0 14px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+  .totals-row .amount { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 600; }
+  .toggle-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .toggle-btn:hover { background: #eef3f9; }
+  .records {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .records[hidden] { display: none; }
+  .records h4 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    margin: 0 0 8px;
+  }
+  .records h4:not(:first-child) { margin-top: 18px; }
+  .no-records-side {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    padding: 8px 0;
+  }
+  .note {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 2px 0 0;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="app-header">
+    <h1>Sample Household (Design Evidence)</h1>
+    <button class="refresh-btn" type="button">Refresh</button>
+  </header>
+  <p class="status-line" role="status" aria-live="polite">Retrieved Sep 10, 2026, 2:32 PM UTC</p>
+  <p class="explainer">Net worth is recorded asset <strong>planning values</strong> minus outstanding liability balances. Records keep their own valuation or balance dates; refreshing does not update those dates.</p>
+
+  <!-- PHP: expanded, ordinary mixed currency -->
+  <section class="card" aria-labelledby="php-heading">
+    <div class="card-head">
+      <div>
+        <div class="currency-code" id="php-heading">PHP</div>
+        <div class="net-worth-label">Net worth</div>
+        <div class="net-worth negative"><span class="sr-only">negative</span>4,935,000.00 PHP</div>
+      </div>
+      <button class="toggle-btn" type="button" aria-expanded="true" aria-controls="php-records">Hide 6 records</button>
+    </div>
+    <div class="totals-row">
+      <span>Assets total <span class="amount">3,185,000.00</span></span>
+      <span>Liabilities total <span class="amount">8,120,000.00</span></span>
+    </div>
+
+    <div class="records" id="php-records">
+      <h4>Assets (3)</h4>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="PHP assets, scrollable">
+      <table class="stackable">
+        <caption class="sr-only">PHP assets</caption>
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Type</th>
+            <th scope="col">Liquidity</th>
+            <th scope="col" class="amount">Planning value</th>
+            <th scope="col" class="amount">Estimated value</th>
+            <th scope="col">Valued</th>
+            <th scope="col">Source</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="record-title">Primary Checking Account</td>
+            <td data-label="Type"><span class="badge">Cash</span></td>
+            <td data-label="Liquidity"><span class="badge">Liquid</span></td>
+            <td class="amount" data-label="Planning value">185,000.00</td>
+            <td class="amount" data-label="Estimated value">185,000.00</td>
+            <td data-label="Valued"><time datetime="2026-09-08">Sep 8, 2026</time></td>
+            <td data-label="Source"><span class="badge">Manual</span></td>
+          </tr>
+          <tr>
+            <td class="record-title">Urban Residential Lot &mdash; Riverside Heights Subdivision Phase 2 Block 14 Lot 9</td>
+            <td data-label="Type"><span class="badge">Real estate</span></td>
+            <td data-label="Liquidity"><span class="badge">Illiquid</span></td>
+            <td class="amount" data-label="Planning value">3,000,000.00</td>
+            <td class="amount" data-label="Estimated value">3,200,000.00</td>
+            <td data-label="Valued"><time datetime="2026-06-01">Jun 1, 2026</time></td>
+            <td data-label="Source"><span class="badge">Manual</span></td>
+          </tr>
+          <tr>
+            <td class="record-title">Legacy Startup Equity (Pre-Series A)</td>
+            <td data-label="Type"><span class="badge">Business equity</span></td>
+            <td data-label="Liquidity"><span class="badge">Illiquid</span></td>
+            <td class="amount" data-label="Planning value">0.00</td>
+            <td class="amount" data-label="Estimated value">500,000.00</td>
+            <td data-label="Valued"><time datetime="2026-01-15">Jan 15, 2026</time></td>
+            <td data-label="Source"><span class="badge">Manual</span></td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note">Planning value differs from estimated value when a record is held conservatively &mdash; e.g. unlisted equity is planned at 0.00 until a credible valuation exists.</p>
+
+      <h4>Liabilities (3)</h4>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="PHP liabilities, scrollable">
+      <table class="stackable">
+        <caption class="sr-only">PHP liabilities</caption>
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Type</th>
+            <th scope="col" class="amount">Outstanding balance</th>
+            <th scope="col">Balance as of</th>
+            <th scope="col">Source</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="record-title">Credit Card</td>
+            <td data-label="Type"><span class="badge">Credit card</span></td>
+            <td class="amount" data-label="Outstanding balance">190,000.00</td>
+            <td data-label="Balance as of"><time datetime="2026-09-05">Sep 5, 2026</time></td>
+            <td data-label="Source"><span class="badge">Imported</span></td>
+          </tr>
+          <tr>
+            <td class="record-title">Home Mortgage</td>
+            <td data-label="Type"><span class="badge">Mortgage</span></td>
+            <td class="amount" data-label="Outstanding balance">7,450,000.00</td>
+            <td data-label="Balance as of"><time datetime="2026-09-01">Sep 1, 2026</time></td>
+            <td data-label="Source"><span class="badge">Manual</span></td>
+          </tr>
+          <tr>
+            <td class="record-title">Business Loan</td>
+            <td data-label="Type"><span class="badge">Business loan</span></td>
+            <td class="amount" data-label="Outstanding balance">480,000.00</td>
+            <td data-label="Balance as of"><time datetime="2026-08-30">Aug 30, 2026</time></td>
+            <td data-label="Source"><span class="badge">Manual</span></td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- USD: collapsed, for contrast -->
+  <section class="card" aria-labelledby="usd-heading">
+    <div class="card-head">
+      <div>
+        <div class="currency-code" id="usd-heading">USD</div>
+        <div class="net-worth-label">Net worth</div>
+        <div class="net-worth positive"><span class="sr-only">positive</span>4,500.50 USD</div>
+      </div>
+      <button class="toggle-btn" type="button" aria-expanded="false" aria-controls="usd-records">Show 2 records</button>
+    </div>
+    <div class="totals-row">
+      <span>Assets total <span class="amount">12,500.50</span></span>
+      <span>Liabilities total <span class="amount">8,000.00</span></span>
+    </div>
+    <div class="records" id="usd-records" hidden>
+      <h4>Assets (1)</h4>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="USD assets, scrollable">
+      <table class="stackable">
+        <caption class="sr-only">USD assets</caption>
+        <thead>
+          <tr><th scope="col">Name</th><th scope="col">Type</th><th scope="col">Liquidity</th><th scope="col" class="amount">Planning value</th><th scope="col" class="amount">Estimated value</th><th scope="col">Valued</th><th scope="col">Source</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="record-title">US Brokerage Account</td>
+            <td data-label="Type"><span class="badge">Investment</span></td>
+            <td data-label="Liquidity"><span class="badge">Liquid</span></td>
+            <td class="amount" data-label="Planning value">12,500.50</td>
+            <td class="amount" data-label="Estimated value">12,500.50</td>
+            <td data-label="Valued"><time datetime="2026-09-01">Sep 1, 2026</time></td>
+            <td data-label="Source"><span class="badge">Imported</span></td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+      <h4>Liabilities (1)</h4>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="USD liabilities, scrollable">
+      <table class="stackable">
+        <caption class="sr-only">USD liabilities</caption>
+        <thead>
+          <tr><th scope="col">Name</th><th scope="col">Type</th><th scope="col" class="amount">Outstanding balance</th><th scope="col">Balance as of</th><th scope="col">Source</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="record-title">US Personal Line of Credit</td>
+            <td data-label="Type"><span class="badge">Personal loan</span></td>
+            <td class="amount" data-label="Outstanding balance">8,000.00</td>
+            <td data-label="Balance as of"><time datetime="2026-09-02">Sep 2, 2026</time></td>
+            <td data-label="Source"><span class="badge">Manual</span></td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- JPY: collapsed, assets-only currency, for contrast -->
+  <section class="card" aria-labelledby="jpy-heading">
+    <div class="card-head">
+      <div>
+        <div class="currency-code" id="jpy-heading">JPY</div>
+        <div class="net-worth-label">Net worth</div>
+        <div class="net-worth positive"><span class="sr-only">positive</span>100,000,000,041,999,999.99 JPY</div>
+      </div>
+      <button class="toggle-btn" type="button" aria-expanded="true" aria-controls="jpy-records">Hide 2 records</button>
+    </div>
+    <div class="totals-row">
+      <span>Assets total <span class="amount">100,000,000,041,999,999.99</span></span>
+      <span>Liabilities total <span class="amount">0.00</span> <span class="badge">no liabilities recorded</span></span>
+    </div>
+    <div class="records" id="jpy-records">
+      <h4>Assets (2)</h4>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="JPY assets, scrollable">
+      <table class="stackable">
+        <caption class="sr-only">JPY assets</caption>
+        <thead>
+          <tr><th scope="col">Name</th><th scope="col">Type</th><th scope="col">Liquidity</th><th scope="col" class="amount">Planning value</th><th scope="col" class="amount">Estimated value</th><th scope="col">Valued</th><th scope="col">Source</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="record-title">Tokyo Condominium Unit</td>
+            <td data-label="Type"><span class="badge">Real estate</span></td>
+            <td data-label="Liquidity"><span class="badge">Illiquid</span></td>
+            <td class="amount" data-label="Planning value">42,000,000.00</td>
+            <td class="amount" data-label="Estimated value">45,000,000.00</td>
+            <td data-label="Valued"><time datetime="2026-05-01">May 1, 2026</time></td>
+            <td data-label="Source"><span class="badge">Manual</span></td>
+          </tr>
+          <tr>
+            <td class="record-title">Precision Reserve Test Holding</td>
+            <td data-label="Type"><span class="badge">Investment</span></td>
+            <td data-label="Liquidity"><span class="badge">Liquid</span></td>
+            <td class="amount" data-label="Planning value">99,999,999,999,999,999.99</td>
+            <td class="amount" data-label="Estimated value">99,999,999,999,999,999.99</td>
+            <td data-label="Valued"><time datetime="2026-09-09">Sep 9, 2026</time></td>
+            <td data-label="Source"><span class="badge">Manual</span></td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note">Synthetic row exercising the read model's exact-decimal transport at extreme scale (no float coercion, no truncation).</p>
+      <h4>Liabilities</h4>
+      <p class="no-records-side">No liabilities recorded in JPY.</p>
+    </div>
+  </section>
+
+  <!-- EUR: expanded, liabilities-only currency (explicit empty asset side) -->
+  <section class="card" aria-labelledby="eur-heading">
+    <div class="card-head">
+      <div>
+        <div class="currency-code" id="eur-heading">EUR</div>
+        <div class="net-worth-label">Net worth</div>
+        <div class="net-worth negative"><span class="sr-only">negative</span>3,200.00 EUR</div>
+      </div>
+      <button class="toggle-btn" type="button" aria-expanded="true" aria-controls="eur-records">Hide 1 record</button>
+    </div>
+    <div class="totals-row">
+      <span>Assets total <span class="amount">0.00</span> <span class="badge">no assets recorded</span></span>
+      <span>Liabilities total <span class="amount">3,200.00</span></span>
+    </div>
+    <div class="records" id="eur-records">
+      <h4>Assets</h4>
+      <p class="no-records-side">No assets recorded in EUR.</p>
+
+      <h4>Liabilities (1)</h4>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="EUR liabilities, scrollable">
+      <table class="stackable">
+        <caption class="sr-only">EUR liabilities</caption>
+        <thead>
+          <tr><th scope="col">Name</th><th scope="col">Type</th><th scope="col" class="amount">Outstanding balance</th><th scope="col">Balance as of</th><th scope="col">Source</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="record-title">European Consolidation Loan</td>
+            <td data-label="Type"><span class="badge">Personal loan</span></td>
+            <td class="amount" data-label="Outstanding balance">3,200.00</td>
+            <td data-label="Balance as of"><time datetime="2026-08-15">Aug 15, 2026</time></td>
+            <td data-label="Source"><span class="badge">Manual</span></td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </section>
+
+  <footer class="evidence-note">
+    Direction A &mdash; expanded-record evidence (not the default state; compare <code>populated-collapsed.html</code>). PHP, JPY and EUR start expanded here to show ordinary mixed-currency records, an extreme exact-decimal amount (JPY's precision-test row), and the liabilities-only case (explicit "No assets recorded" line, not a fabricated zero-row table); USD stays collapsed for contrast. Below 700px, each record becomes a stacked card (name as title, other fields as labeled rows) instead of a horizontally scrolling table row.
+  </footer>
+</div>
+<script>
+  document.querySelectorAll('.toggle-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var target = document.getElementById(btn.getAttribute('aria-controls'));
+      var expanded = btn.getAttribute('aria-expanded') === 'true';
+      btn.setAttribute('aria-expanded', String(!expanded));
+      target.hidden = expanded;
+      var count = target.querySelectorAll('tbody tr').length;
+      btn.textContent = (expanded ? 'Show ' : 'Hide ') + count + ' record' + (count === 1 ? '' : 's');
+    });
+  });
+</script>
+</body>
+</html>

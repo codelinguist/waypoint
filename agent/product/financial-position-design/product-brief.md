@@ -39,11 +39,14 @@ Explore and approve separately from implementation to preserve the mandated fres
 
 - Task: agent/tasks/020-financial-position-design.md
 - Ownership: agent/product/financial-position-design/** and agent/ui/financial-position/** only.
-- Record commands, assumptions, decisions, limitations and system-evolution findings in the feature-local implementation-log.md; shared-prose consolidation is deferred.
+- Record durable decisions in `docs/decisions/decisions.md`, unresolved questions as a Jira comment, and evidence in this brief and the PR description — not a feature-local implementation-log.md, which is retired for token cost (root and feature-local alike).
 - Follow-up: Queue the UI implementation using the parent implementation-task-draft.md only after both prerequisites merge. Choose the next unused task number at that time.
 
 ## Feature acceptance
 
 - Acceptance status: PENDING
-- Evidence: None yet.
-- Unmet criteria: Exploration and recorded approval.
+- Evidence: Exploration complete — `agent/ui/financial-position/design-brief.md`
+  (three directions, Direction A recommended) and
+  `agent/ui/financial-position/evidence/` (14 wide/narrow screenshots across
+  all three directions plus five states for the recommended direction).
+- Unmet criteria: Recorded Product Owner selection and `APPROVED` status.

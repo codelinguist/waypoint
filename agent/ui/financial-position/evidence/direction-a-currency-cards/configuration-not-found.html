@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direction A — Configured household not found</title>
+<link rel="stylesheet" href="../shared.css">
+</head>
+<body>
+<div class="page">
+  <header class="app-header">
+    <h1>Financial position</h1>
+  </header>
+
+  <div class="config-state">
+    <p><strong>No household was found for the configured ID.</strong></p>
+    <p>The app is configured to use household <code>a3f9c2d1-7b44-4e6a-9c11-5f2d8e0b6a77</code>, but no household with that ID exists. Check the <code>HOUSEHOLD_ID</code> environment variable and restart the app.</p>
+  </div>
+
+  <footer class="evidence-note">
+    Direction A &mdash; configured-but-unknown-household state (server 404), distinct from <code>configuration-missing.html</code>'s "nothing configured" case: this message names the specific ID that was configured, since the fix is different (correct the ID vs. set one at all).
+  </footer>
+</div>
+</body>
+</html>
