@@ -1,5 +1,33 @@
 # Product and Architecture Decisions
 
+## Decision index
+
+Use this index to select context. Read an Accepted decision in full when its
+trigger matches the current work or a concrete finding. Frame still reads every
+Accepted decision. Superseded decisions need only their status pointer unless
+their history is directly relevant.
+
+| ID | Constraint | Read in full when work touches |
+| --- | --- | --- |
+| D001 | Structured financial state is canonical | persistence, imports, AI memory, or financial state |
+| D002 | The LLM is not the calculation engine | calculations, projections, scenarios, or AI arithmetic |
+| D003 | Facts and assumptions are distinct | financial values, provenance, certainty, or planning inputs |
+| D004 | Recommendations and decisions are distinct | AI proposals, approvals, recommendations, or household policy |
+| D005 | Scenario state is non-destructive | scenarios, previews, simulations, or canonical writes |
+| D006 | Initial product is private and household-specific | tenancy, generalization, internationalization, or product scope |
+| D007 | Modular monolith first | services, deployment boundaries, queues, or distributed infrastructure |
+| D008 | Superseded by D011 and D012 | historical Python-backend rationale only |
+| D009 | PostgreSQL is canonical persistence | databases, persistence, migrations, or storage |
+| D010 | Preserve historical plans and snapshots | plans, snapshots, overwrites, or historical comparison |
+| D011 | Java owns the core application and REST API | backend ownership, APIs, transactions, or core calculations |
+| D012 | Python is for specialized analytics | Python, forecasting, optimization, ML, NLP, or service boundaries |
+| D013 | Docker Compose is the standard local environment | local startup, containers, or runtime topology |
+| D014 | `./verify.sh` and CI gate merges | verification, CI, checks, PR acceptance, or merge readiness |
+| D015 | Early financial-position frontend slice | financial-position API/UI, net worth, or monetary transport |
+| D016 | Development stages are user-initiated | automation, stage transitions, dispatch, review loops, or merging |
+| D017 | Jira is the per-feature specification | briefs, issue lifecycle, review records, or task artifacts |
+| D018 | Codex stages run directly with the user | Codex/Claude ownership, commands, or stage invocation |
+
 ## D001 — Structured financial state is canonical
 
 **Status:** Accepted
