@@ -53,11 +53,10 @@ tracked by a legacy task file, read its linked
 
 !`git status`
 
-`agent/implementation-log.md` is retired (root and any feature-local
-`agent/product/<slug>/implementation-log.md` alike) — do not create one for
-any task. Its pre-2026-09-09 history is not preserved in the repository;
-rely on git history and `docs/decisions/decisions.md` for the reasoning
-behind older decisions.
+`agent/implementation-log.md` was retired and later removed outright (its
+history remains in git history if ever needed) because a running log is
+pure token-cost overhead — nothing to read there, and do not recreate it,
+root or feature-local.
 
 ### 4. Orient to the codebase
 
