@@ -53,14 +53,10 @@ tracked by a legacy task file, read its linked
 
 !`git status`
 
-`agent/implementation-log.md` is a large, append-only diary (tens of
-thousands of tokens) and its entries aren't reliably in chronological
-order, so don't read the whole file or trust its physical tail. Instead run
-`git log -1 -p -- agent/implementation-log.md` to see just the most recently
-added entry — what changed, what was assumed, what was left unresolved, and
-what the previous pass recommended next. Go further into the file's history
-only if this session's task specifically needs the reasoning behind an older
-decision.
+The retired `agent/implementation-log.md` (history now in
+`agent/archive/implementation-log-pre-2026-09-09.md`) is not required
+reading — go there only if this session's task specifically needs the
+reasoning behind an older decision.
 
 ### 4. Orient to the codebase
 
@@ -86,8 +82,8 @@ Report back concisely — headers and short bullets, not prose paragraphs:
   `docs/architecture/architecture.md` that bear directly on this task.
 
 ### Recent activity
-- What the last few commits and the implementation log say changed, and
-  anything they flagged as assumed or unresolved.
+- What the last few commits say changed, and anything they flagged as
+  assumed or unresolved.
 
 ### Open questions
 - Anything ambiguous enough to flag to the user before proceeding, per
