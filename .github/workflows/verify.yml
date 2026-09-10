@@ -26,5 +26,12 @@ jobs:
           java-version: '21'
           cache: maven
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
       - name: Run canonical verification (./verify.sh)
         run: ./verify.sh
