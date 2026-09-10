@@ -96,11 +96,11 @@ Record what matters in its durable home rather than a task log:
 
 Your assigned Jira issue holds the active task's scope and acceptance
 criteria; do not treat it as a log — the Jira issue's comment history and
-git history are the record of past tasks. Pre-existing
-`agent/tasks/<NNN>-<feature-slug>.md` files and the retired
-`agent/implementation-log.md` (archived at
-`agent/archive/implementation-log-pre-2026-09-09.md`) are historical records
-only; new feature work does not create entries in either.
+git history are the record of past tasks. `agent/implementation-log.md` and
+any feature-local `agent/product/<slug>/implementation-log.md` are retired
+for token cost; do not create either, root or feature-local, for any task.
+Pre-existing `agent/tasks/<NNN>-<feature-slug>.md` files are retained as
+historical records only.
 
 If a new long-lived architectural or product decision is made, add it to `docs/decisions/decisions.md`.
 

@@ -29,9 +29,11 @@ Scope required reading to the stage:
   `financial-model.md`, `architecture.md`, or the roadmap when a specific
   finding turns on what one of them says.
 
-`agent/implementation-log.md` was retired on 2026-09-10; its history lives in
-`agent/archive/implementation-log-pre-2026-09-09.md`, not required reading —
-consult it only when the reasoning behind a specific past decision matters.
+`agent/implementation-log.md` was retired on 2026-09-10 (root and any
+feature-local `agent/product/<slug>/implementation-log.md` alike — neither
+should be created for any task); its pre-2026-09-09 history is not preserved
+in the repository, so rely on git history and `docs/decisions/decisions.md`
+for the reasoning behind a specific past decision.
 
 A Jira issue's description always needs a full read, but its comment thread
 can grow across several Review/Revise rounds — read the current round in

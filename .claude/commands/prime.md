@@ -53,10 +53,11 @@ tracked by a legacy task file, read its linked
 
 !`git status`
 
-The retired `agent/implementation-log.md` (history now in
-`agent/archive/implementation-log-pre-2026-09-09.md`) is not required
-reading — go there only if this session's task specifically needs the
-reasoning behind an older decision.
+`agent/implementation-log.md` is retired (root and any feature-local
+`agent/product/<slug>/implementation-log.md` alike) — do not create one for
+any task. Its pre-2026-09-09 history is not preserved in the repository;
+rely on git history and `docs/decisions/decisions.md` for the reasoning
+behind older decisions.
 
 ### 4. Orient to the codebase
 

@@ -350,9 +350,8 @@ real, ephemeral PostgreSQL container (Flyway migrations included).
 
 Every pull request targeting `main` runs `./verify.sh` in GitHub Actions
 (`.github/workflows/verify.yml`) as the required `verify` status check.
-`main` branch protection requires that check to pass before merge; see
-`agent/archive/implementation-log-pre-2026-09-09.md` for the settings
-read-back evidence. See
+`main` branch protection requires that check to pass before merge (see D014
+in `docs/decisions/decisions.md`). See
 `agent/collaboration-workflow.md` -> "Branching and pull requests" for how
 this fits the task-branch/PR/review/acceptance workflow.
 
