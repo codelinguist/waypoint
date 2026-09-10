@@ -23,11 +23,17 @@ Scope required reading to the stage:
 - **Review and Accept** decide whether a PR meets acceptance criteria that
   Frame already wrote into the Jira issue, not what the product should do —
   default to the Jira issue, the PR diff, tests, and available
-  implementation/review evidence. Read every Accepted decision in
-  `docs/decisions/decisions.md` (a finding may turn on one), but only open
+  implementation/review evidence. Scan the decision index in
+  `docs/decisions/decisions.md`, then read in full only decisions whose trigger
+  matches the change or a concrete finding. Only open
   `vision.md`, `user-zero.md`, `problems.md`, `principles.md`,
   `financial-model.md`, `architecture.md`, or the roadmap when a specific
   finding turns on what one of them says.
+
+For repeat reviews, begin with the previous reviewed revision, unresolved
+findings, and the new commit delta. Re-read unchanged evidence only when the
+delta, a changed acceptance criterion, or an unresolved finding makes it
+relevant.
 
 `agent/implementation-log.md` was retired on 2026-09-10 and later removed
 outright — a running log, root or feature-local, is pure token-cost
