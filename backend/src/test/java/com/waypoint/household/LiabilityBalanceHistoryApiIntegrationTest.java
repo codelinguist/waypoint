@@ -435,6 +435,25 @@ class LiabilityBalanceHistoryApiIntegrationTest {
                 .andExpect(jsonPath("$.error").value("VALIDATION_FAILED"));
     }
 
+    @Test
+    void rejectsBalanceUpdateWithUnsupportedSourceTypeField() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+        String liabilityId = createLiabilityId(householdId, "Loan", "PERSONAL_LOAN", "500.00", "PHP",
+                LocalDate.now().toString());
+        String body = """
+                {
+                  "outstandingBalance": "400.00", "balanceAsOf": "%s", "reason": "Reason",
+                  "expectedRevision": 0, "sourceType": "IMPORTED"
+                }
+                """.formatted(LocalDate.now());
+
+        mockMvc.perform(post("/api/households/{h}/liabilities/{l}/balances", householdId, liabilityId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("MALFORMED_REQUEST"));
+    }
+
     private String createHouseholdId(String name, String baseCurrency) throws Exception {
         String body = objectMapper.writeValueAsString(new HashMap<>() {{
             put("name", name);

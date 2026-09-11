@@ -144,12 +144,47 @@ matching `docker-compose.yml`'s connection settings) on 2026-09-11:
 - Unknown `liabilityId` under a valid household → `404 LIABILITY_NOT_FOUND`.
 - A client-supplied `sourceType` field → `400 MALFORMED_REQUEST`.
 
-Automated coverage (`./verify.sh`, 757/757 passing) additionally proves,
-against real PostgreSQL:
+Automated coverage (`./verify.sh`, 767/767 passing) additionally proves,
+against real PostgreSQL, in `LiabilityBalanceHistoryApiIntegrationTest`:
 
 - Two concurrent submissions from the same revision resolve to exactly one
   `201` and one `409`, with exactly one audit row appended
-  (`LiabilityBalanceHistoryApiIntegrationTest.concurrentSubmissionsFromSameRevisionProduceExactlyOneSuccessAndOneConflict`).
+  (`concurrentSubmissionsFromSameRevisionProduceExactlyOneSuccessAndOneConflict`).
 - Deterministic revision ordering, zero-balance and balance-increase
   acceptance, excessive-fraction-scale rejection, and the empty-history
   state before any update.
+- The current-row replacement and its audit append are atomic: forcing the
+  audit insert to fail (a colliding `(liability_id, revision)` row hitting
+  the real unique constraint) *after* the parent row has already been
+  flushed at the new revision rolls back both sides of the transaction —
+  the liability's balance/date/revision are unchanged and no history row
+  exists (`rollsBackBalanceReplacementWhenAuditAppendFailsAfterParentFlush`).
+- A captured financial snapshot is unaffected by a later balance
+  replacement, the replacement itself creates no snapshot, and a snapshot
+  captured afterward reflects the replacement through the existing
+  current-source read
+  (`priorSnapshotUnaffectedByLaterBalanceReplacementAndFutureSnapshotReflectsIt`).
+- The maximum supported exact value (17 integer digits, 2 fraction digits)
+  round-trips through the history response as an exact string, with no
+  floating-point conversion
+  (`preservesMaximumExactMonetaryValueOnBalanceReplacement`).
+- Same-date, older-date, and newer-date corrections all preserve the
+  exact supplied date and are ordered by `revision`, never reordered by
+  source date (`preservesSameOlderAndNewerSuppliedDatesInRevisionOrder`).
+- Household, name, type, and currency are unchanged by a balance
+  replacement (`preservesLiabilityIdentityAcrossBalanceReplacement`).
+- An unknown `liabilityId` on update, and a cross-household read of another
+  household's balance history, both return `404 LIABILITY_NOT_FOUND`
+  (`returnsNotFoundForUnknownLiabilityOnBalanceUpdate`,
+  `returnsNotFoundWhenReadingBalanceHistoryForLiabilityInAnotherHousehold`).
+- A `reason` over 500 characters and a future `balanceAsOf` are both
+  rejected with `400 VALIDATION_FAILED`
+  (`rejectsReasonExceedingMaxLength`, `rejectsFutureBalanceAsOfDateOnUpdate`).
+- A client-supplied `sourceType` on this endpoint specifically is rejected
+  with `400 MALFORMED_REQUEST`
+  (`rejectsBalanceUpdateWithUnsupportedSourceTypeField`).
+
+Existing liability create/get/list compatibility (criterion 1) is covered
+by `AssetLiabilityApiIntegrationTest`, unchanged by this feature: field-level
+`jsonPath` assertions there (not full-body equality) are unaffected by the
+additive `revision` field on `LiabilityResponse`.
