@@ -19,18 +19,12 @@ They are both founders/users of the first version. The application should be bui
 
 ## Start here
 
-Read these documents in order:
-
-1. `AGENTS.md`
-2. `docs/product/vision.md`
-3. `docs/product/user-zero.md`
-4. `docs/product/problems.md`
-5. `docs/product/principles.md`
-6. `docs/domain/financial-model.md`
-7. `docs/architecture/architecture.md`
-8. `docs/decisions/decisions.md`
-9. `docs/product/roadmap.md`
-10. Your assigned Jira issue
+Agents start with `AGENTS.md`, then activate only the current stage file and
+the context it names. Do not treat this README as a mandatory full-document
+reading list. Humans seeking a full product orientation can continue through
+`docs/product/`, `docs/domain/financial-model.md`,
+`docs/architecture/architecture.md`, `docs/decisions/index.md`, and the
+roadmap.
 
 ## Agent collaboration workflow
 
@@ -352,8 +346,9 @@ Every pull request targeting `main` runs `./verify.sh` in GitHub Actions
 (`.github/workflows/verify.yml`) as the required `verify` status check.
 `main` branch protection requires that check to pass before merge (the
 settings read-back evidence lives in git history, not a checked-in log).
-See `agent/collaboration-workflow.md` -> "Branching and pull requests" for
-how this fits the task-branch/PR/review/acceptance workflow.
+See `agent/workflow/implement.md`, `agent/workflow/review.md`, and
+`agent/workflow/ship.md` for the stage-specific branch, review, and merge
+gates.
 
 ## Status
 
