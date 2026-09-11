@@ -1,9 +1,13 @@
+import { useState } from 'react';
 import { readHouseholdConfig } from './config';
 import { ConfigInvalid, ConfigMissing, ConfigNotFound } from './components/ConfigProblem';
 import { CurrencyCard } from './components/CurrencyCard';
 import { LoadingSkeleton } from './components/LoadingSkeleton';
+import { GoalsPage } from './GoalsPage';
 import { useFinancialPosition } from './hooks/useFinancialPosition';
 import { formatInstantUtc, formatTimeUtc } from './dates';
+
+type Section = 'financial-position' | 'goals';
 
 const EXPLAINER =
   'Net worth is recorded asset planning values minus outstanding liability balances. ' +
@@ -132,5 +136,35 @@ export function App() {
     );
   }
 
-  return <FinancialPositionPage householdId={config.householdId} />;
+  return <ConfiguredApp householdId={config.householdId} />;
+}
+
+function ConfiguredApp({ householdId }: { householdId: string }) {
+  const [section, setSection] = useState<Section>('financial-position');
+
+  return (
+    <>
+      <nav className="app-nav" aria-label="Sections">
+        <button
+          type="button"
+          aria-current={section === 'financial-position' ? 'page' : undefined}
+          onClick={() => setSection('financial-position')}
+        >
+          Financial position
+        </button>
+        <button
+          type="button"
+          aria-current={section === 'goals' ? 'page' : undefined}
+          onClick={() => setSection('goals')}
+        >
+          Goals
+        </button>
+      </nav>
+      {section === 'financial-position' ? (
+        <FinancialPositionPage householdId={householdId} />
+      ) : (
+        <GoalsPage householdId={householdId} />
+      )}
+    </>
+  );
 }
