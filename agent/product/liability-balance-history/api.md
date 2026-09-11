@@ -24,7 +24,7 @@ that revision is still current.
   exactly one `201` success and one `409`, with exactly one audit row
   appended for the winner. The losing request's optimistic-lock flush fails
   before its audit row would be inserted — see
-  [D019](../../../docs/decisions/decisions.md#d019--bounded-balance-replacement-is-an-append-only-audit-not-event-sourcing).
+  [D021](../../../docs/decisions/decisions.md#d021--bounded-balance-replacement-is-an-append-only-audit-not-event-sourcing).
 - A successful replacement always increments `revision` by exactly `1`, and
   the appended audit row's `revision` equals the liability's new `revision`.
 
@@ -51,7 +51,7 @@ Any other field (e.g. a client-supplied `sourceType`) is rejected as
 | `liabilityId`         | The liability this change belongs to. |
 | `householdId`         | The owning household. |
 | `currency`            | The liability's currency at the time of the change (never changes). |
-| `previousBalance`     | Exact prior `outstandingBalance`, as a two-decimal string (e.g. `"500.00"`), not a JSON number — see D019 and the exact-decimal rationale already used by the financial-position endpoint. |
+| `previousBalance`     | Exact prior `outstandingBalance`, as a two-decimal string (e.g. `"500.00"`), not a JSON number — see D021 and the exact-decimal rationale already used by the financial-position endpoint. |
 | `previousBalanceAsOf` | Exact prior `balanceAsOf`. |
 | `previousSourceType`  | Exact prior `sourceType`. |
 | `newBalance`          | The replacement balance, same string format as `previousBalance`. |

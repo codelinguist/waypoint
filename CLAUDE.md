@@ -1,53 +1,22 @@
-# Claude Code Instructions
+# Claude Code instructions
 
-Read and follow `AGENTS.md`; it is the shared source of repository instructions
-for every coding agent.
+Read `AGENTS.md`, classify the user's requested stage, and read only its linked
+`agent/workflow/*.md` file. Use `agent/collaboration-workflow.md` only when the
+stage is ambiguous or a cross-stage boundary matters.
 
-Read `agent/collaboration-workflow.md` for the branching and pull-request
-mechanics that apply to every task. For UI work, additionally use the
-templates in `agent/templates/` and write durable handoff artifacts under
-`agent/ui/<feature-slug>/`.
+Claude Code normally owns Implement, Revise, and Ship. Codex is the preferred
+agent for Frame, design approval, Review, and Accept, but Claude Code may
+perform any of these directly with the user on request, not only when Codex
+is unavailable (D020). These are role defaults, not permission to start
+another stage. Jira and checked-in artifacts—not another agent's chat—are the
+handoff boundary.
 
-## Default role
+When reviewing or accepting a PR for a ticket Claude Code itself implemented,
+delegate the actual review read to a fresh subagent with no memory of the
+implementation, and record its verdict rather than self-certifying from the
+implementing session.
 
-Claude Code is the default implementation and integration owner. Codex acts as
-the Product Owner Agent, working directly with the user in a separate planning
-session, and hands off work through the Jira issue it creates and moves to
-To Do — do not rely on any other channel for that context. Claude Code does
-not invoke Codex; the user initiates each stage. Complete that stage and
-report its result. Do not automatically invoke the next agent or stage.
-
-For repository-wide and backend work, Claude Code:
-
-- reads the assigned Jira issue
-- implements the smallest complete vertical increment
-- keeps domain logic separate from transport/UI concerns per `AGENTS.md`
-- runs relevant unit, integration, type, and lint checks
-- pushes the task branch (`task/<issue-key>-<feature-slug>`) and opens the PR,
-  without asking first — the user has standing-authorized this
-- merges only within the Ship stage (`/ship <issue-key or PR>`), gated by that
-  stage's own explicit-request requirement and its verification gates
-  (Acceptance status, a current-revision ACCEPTED comment, and a green
-  required check) — not by the push/PR authorization above. A scoped
-  `Bash(gh pr merge:*)` permission rule in `.claude/settings.json` lets that
-  merge run without an additional confirmation prompt once those gates pass;
-  it authorizes nothing outside the Ship stage's own checks
-
-For UI features, Claude Code additionally:
-
-- explores a small number of meaningfully different interface directions
-- explains information hierarchy and interaction tradeoffs
-- produces or refines the design brief using `agent/templates/ui-design-brief.md`
-- implements the direction Codex approves
-- renders representative wide and narrow layouts as evidence for Codex's
-  acceptance review
-
-Do not turn a draft design into an approved design, and do not self-approve
-scope changes discovered during implementation — status returns to `DRAFT`
-and Codex re-approves. Because Claude Code both designs and implements here,
-it does not also perform the independent visual-review gate; that check
-belongs to Codex during acceptance, using the rendered evidence.
-
-Claude Code may take on product-owner responsibilities only when the current
-task explicitly assigns that role. The shared financial-domain, testing, and
-approval constraints in `AGENTS.md` always apply.
+For UI work, activate the applicable templates in `agent/templates/` and keep
+durable design/evidence artifacts under `agent/ui/<feature-slug>/`. A draft is
+not approved until the Product Owner Agent records approval — do not
+self-approve as the implementer.

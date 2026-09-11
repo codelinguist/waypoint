@@ -19,18 +19,12 @@ They are both founders/users of the first version. The application should be bui
 
 ## Start here
 
-Read these documents in order:
-
-1. `AGENTS.md`
-2. `docs/product/vision.md`
-3. `docs/product/user-zero.md`
-4. `docs/product/problems.md`
-5. `docs/product/principles.md`
-6. `docs/domain/financial-model.md`
-7. `docs/architecture/architecture.md`
-8. `docs/decisions/decisions.md`
-9. `docs/product/roadmap.md`
-10. Your assigned Jira issue
+Agents start with `AGENTS.md`, then activate only the current stage file and
+the context it names. Do not treat this README as a mandatory full-document
+reading list. Humans seeking a full product orientation can continue through
+`docs/product/`, `docs/domain/financial-model.md`,
+`docs/architecture/architecture.md`, `docs/decisions/index.md`, and the
+roadmap.
 
 ## Agent collaboration workflow
 
@@ -317,6 +311,13 @@ derived on every read from the stored amounts, never stored themselves, so
 they can never drift out of sync. Goals are create/read-only in this
 increment (no update, delete, or contribution history).
 
+The read-only current financial position — a household's recorded asset and
+liability rows plus per-currency totals in one coherent read — is available
+at `GET /api/households/{householdId}/financial-position`; see
+`agent/product/current-financial-position/api.md` for the full contract
+(exact decimal-string monetary transport, no FX aggregation). This is what
+the frontend below consumes.
+
 ### Stopping and resetting
 
 ```bash
@@ -349,6 +350,8 @@ settings from environment variables, with local-friendly defaults. Copy
 | `DB_PASSWORD` | PostgreSQL password               | `waypoint` |
 | `DB_PORT`     | Host port mapped to PostgreSQL    | `5432`     |
 | `SERVER_PORT` | Host port mapped to the API       | `8080`     |
+| `FRONTEND_PORT` | Host port mapped to the frontend | `5173`   |
+| `HOUSEHOLD_ID` | Household the frontend displays (see "Frontend" below) | unset |
 
 ### Running on the host (optional, faster inner loop)
 
@@ -383,14 +386,116 @@ income-stream/obligation, and financial-snapshot services, and
 Testcontainers-backed integration tests that run the application against a
 real, ephemeral PostgreSQL container (Flyway migrations included).
 
+## Frontend
+
+The `frontend/` directory contains the first React/TypeScript page (Phase 9
+early slice, WAP-15): a private, read-only financial-position dashboard for
+one already-configured household. It follows the approved design in
+`agent/ui/financial-position/design-brief.md` (currency-first summary cards,
+expandable holdings) and consumes the backend endpoint described above.
+Record creation/editing, household creation/selection, authentication, and
+FX conversion are explicitly out of scope for this page.
+
+### Configuring the displayed household
+
+The frontend never creates or selects a household itself — an operator
+configures an existing one outside the ordinary product flow, via the
+`HOUSEHOLD_ID` environment variable (a household's `id`, returned when you
+create it — see the `curl -X POST .../api/households` example above). Leave
+it unset to see the app's own "no household is configured" state instead of
+a broken page; an ID that doesn't match any household shows a distinct
+"household not found" state naming the configured ID.
+
+### Run with Docker Compose
+
+The `frontend` service builds alongside `postgres` and `app` from the same
+root `docker compose up --build`:
+
+```bash
+cp .env.example .env               # first time only
+echo 'HOUSEHOLD_ID=<an existing household id>' >> .env
+docker compose up --build
+```
+
+The frontend is then served at `http://localhost:5173` (configurable via
+`FRONTEND_PORT`). It is a small nginx container serving the built static
+app and same-origin-proxying `/api/**` to the backend over the private
+Docker network — the browser only ever talks to one origin, so the backend
+needs no CORS configuration and is not given one.
+
+### Running on the host (optional, faster inner loop)
+
+The backend must still run somewhere reachable (for example via
+`docker compose up postgres app`). Then, from `frontend/`:
+
+```bash
+npm ci
+npm run dev
+```
+
+`npm run dev` proxies `/api` to `http://localhost:8080` by default
+(override with `VITE_BACKEND_URL`). Set the household id for local dev by
+editing the committed `frontend/public/config.js` directly — remember to
+revert it before committing, since it defaults to an empty household id
+(the missing-configuration state). In the built Docker image this file is
+regenerated at container startup from `HOUSEHOLD_ID` instead (see
+`frontend/docker/docker-entrypoint.sh`).
+
+### Frontend tests
+
+`./verify.sh` (and the required CI `verify` check) runs the frontend's
+clean install, type check, test suite (Vitest + React Testing Library —
+money-precision, multi-currency, empty/error/refresh-failure states, and
+request-race safety), and production build, alongside the full backend
+suite. Node's version is pinned in `frontend/.nvmrc` /
+`frontend/package.json#engines`; `frontend/package-lock.json` is committed.
+
+### Frontend E2E tests
+
+`frontend/e2e/` holds a real-Chromium Playwright suite (`npm run test:e2e`
+from `frontend/`, or `npx playwright test`), covering the same states
+through an actual browser rather than jsdom, plus keyboard-focus and
+200%-zoom-reflow-simulation checks. `frontend/e2e/evidence.spec.ts` captures
+the wide/narrow screenshots under
+`agent/ui/financial-position/evidence/implementation/`. This suite runs
+against mocked API routes and is not part of the required `verify` CI gate
+(no browser/Docker provisioning added there for it) — run it locally when
+touching the frontend UI.
+
+`frontend/e2e/real-backend-smoke.sh` is the one real-backend flow required
+by WAP-15's acceptance criteria: it builds and starts an **isolated,
+disposable** copy of the full stack (`docker-compose.test.yml`, an anonymous
+Postgres volume and separate host ports driven all the way through both
+compose files — never the shared `waypoint-postgres-data` volume or the
+ordinary dev ports, so it can run alongside an already-running ordinary
+stack), seeds one synthetic household with mixed-currency assets/liabilities
+through the real REST API, then starts the frontend configured for that
+exact household (the ordinary `docker-entrypoint.sh` runtime-config
+contract) and exercises it two ways: a `curl` check of the raw JSON through
+the real nginx-to-Spring proxy, and a real-Chromium Playwright check
+(`frontend/e2e/real-backend-smoke.spec.ts`, run under
+`frontend/playwright.smoke.config.ts`) that renders the actual React
+dashboard against that same real path and drives a refresh through it. Tears
+the isolated stack down (`down -v`) afterward. Run it from the repository
+root:
+
+```bash
+./frontend/e2e/real-backend-smoke.sh
+```
+
+Requires `docker`, `curl`, `jq`, and the frontend's npm dependencies and
+Playwright browsers installed (`npm ci && npx playwright install chromium`
+in `frontend/`).
+
 ## Continuous integration
 
 Every pull request targeting `main` runs `./verify.sh` in GitHub Actions
 (`.github/workflows/verify.yml`) as the required `verify` status check.
 `main` branch protection requires that check to pass before merge (the
 settings read-back evidence lives in git history, not a checked-in log).
-See `agent/collaboration-workflow.md` -> "Branching and pull requests" for
-how this fits the task-branch/PR/review/acceptance workflow.
+See `agent/workflow/implement.md`, `agent/workflow/review.md`, and
+`agent/workflow/ship.md` for the stage-specific branch, review, and merge
+gates.
 
 ## Status
 
