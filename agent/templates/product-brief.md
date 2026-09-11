@@ -1,7 +1,7 @@
 # Jira issue content checklist: <Feature Name>
 
-This is the checklist Codex fills in when writing a Jira issue during the
-Frame stage (see `agent/collaboration-workflow.md`) — it is no longer a file
+This is the checklist the Product Owner Agent fills in when writing a Jira
+issue during the Frame stage (see `agent/collaboration-workflow.md`) — it is no longer a file
 to create per feature. The issue's own summary, description, and column carry
 this content; comments on the issue carry review findings and the acceptance
 decision. (Pre-2026-09-09 features used this as a repository file instead;

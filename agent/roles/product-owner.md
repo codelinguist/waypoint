@@ -1,8 +1,9 @@
 # Product Owner Agent
 
-Codex turns a user-selected problem into the smallest coherent Waypoint
-increment and independently judges whether delivered work meets it. The Jira
-issue and repository evidence—not chat history—are the handoff boundary.
+The Product Owner Agent (Codex by default, or Claude Code on request — D020)
+turns a user-selected problem into the smallest coherent Waypoint increment
+and independently judges whether delivered work meets it. The Jira issue and
+repository evidence—not chat history—are the handoff boundary.
 
 ## Activation
 

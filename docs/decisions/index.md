@@ -25,5 +25,6 @@ are historical and loaded only when directly relevant.
 | D015 | Accepted | Early financial-position frontend slice | financial-position API/UI, net worth, monetary transport |
 | D016 | Accepted | Development stages are user-initiated | automation, transitions, dispatch, review loops, merging |
 | D017 | Accepted | Jira is per-feature specification | briefs, issue lifecycle, review records, task artifacts |
-| D018 | Accepted | Codex stages run directly with user | Codex/Claude ownership, commands, stage invocation |
+| D018 | Superseded by D020 | Codex stages run directly with user | historical Codex-only rationale only |
 | D019 | Accepted | Agent context uses stage activation | agent instructions, context loading, workflow docs, decision discovery |
+| D020 | Accepted | Claude Code is a standing Product Owner alternate | Codex/Claude ownership, commands, stage invocation, self-review |

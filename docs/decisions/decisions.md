@@ -280,7 +280,7 @@ and accept require Codex to have working Jira write access to complete.
 
 ## D018 — Codex stages run directly with the user, not via a Claude Code command
 
-**Status:** Accepted — 2026-09-09, requested by Ralph
+**Status:** Superseded by D020
 
 Remove the `/codex` Claude Code command. Frame, design approval, review, and
 accept are Codex's stages and now happen directly between the user and Codex
@@ -321,3 +321,29 @@ initial context and replay.
 **Tradeoff:** Correct stage classification and maintained links are now
 load-bearing. Critical invariants must remain global, and structural checks
 should catch missing stage files or stale decision pointers.
+
+
+---
+
+## D020 — Claude Code is a standing alternate for Codex's Product Owner stages
+
+**Status at authorship:** Accepted — 2026-09-11, requested by Ralph
+
+Codex remains the preferred agent for Frame, design approval, Review, and
+Accept, but Claude Code may perform any of these directly with the user on
+request — not only when Codex is unavailable. Claude Code still normally owns
+Implement, Revise, and Ship. When the same agent that implemented a ticket
+also reviews/accepts it, that agent delegates the actual review read (PR
+diff, evidence, acceptance criteria) to a fresh subagent with no memory of
+the implementation, and records its verdict — preserving a cold second read
+in place of true cross-agent independence.
+
+**Reason:** Restricting these stages to Codex's own session added friction
+without a corresponding safety benefit once the actual independence
+mechanism — a differently-scoped reviewing context — can be reproduced
+without a second product.
+
+**Tradeoff:** Same-agent review is a weaker independence guarantee than a
+genuinely separate agent (D014 already notes GitHub can't provide this
+either, since both agents share one account) — the fresh-subagent read is a
+mitigation, not a full substitute.

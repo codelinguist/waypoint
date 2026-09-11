@@ -1,6 +1,7 @@
 # Review and Accept
 
-Codex independently reviews without editing implementation code. Read the Jira
+The Product Owner Agent independently reviews without editing implementation
+code. Read the Jira
 issue, current PR diff and revision, affected code/tests, current-round
 findings, and available evidence. Scan `docs/decisions/index.md`; open only
 matching decision bodies or other product/domain/architecture material needed
@@ -19,4 +20,8 @@ revision and move the issue to Acceptance. Otherwise record RETURNED and move
 it to In Progress. Acceptance does not authorize fixes, canonical household
 data changes, or merge. Because implementation and review agents share a GitHub
 account, the Jira record—not a same-account GitHub approval—is the independent
-acceptance record. Report the verdict and stop.
+acceptance record. When the reviewing agent is the same agent that implemented
+this revision, delegate the actual review read above to a fresh subagent with
+no memory of the implementation, and record its verdict rather than
+self-certifying from the implementing session (D020). Report the verdict and
+stop.
