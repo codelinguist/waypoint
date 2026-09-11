@@ -1,0 +1,20 @@
+# Override used only for the isolated real-backend smoke flow
+# (frontend/e2e/real-backend-smoke.sh). Replaces the named, persistent
+# `waypoint-postgres-data` volume with an anonymous one scoped to this
+# compose run, and uses separate host ports so it can run alongside the
+# ordinary development stack without colliding with it. Never run this
+# against the household's real data — see README.md "Frontend E2E tests".
+services:
+  postgres:
+    volumes:
+      - /var/lib/postgresql/data
+    ports:
+      - "${TEST_DB_PORT:-15432}:5432"
+
+  app:
+    ports:
+      - "${TEST_SERVER_PORT:-18080}:8080"
+
+  frontend:
+    ports:
+      - "${TEST_FRONTEND_PORT:-15173}:80"
