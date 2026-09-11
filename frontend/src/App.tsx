@@ -1,9 +1,13 @@
+import { useState } from 'react';
 import { readHouseholdConfig } from './config';
 import { ConfigInvalid, ConfigMissing, ConfigNotFound } from './components/ConfigProblem';
 import { CurrencyCard } from './components/CurrencyCard';
+import { ForecastingPage } from './components/ForecastingPage';
 import { LoadingSkeleton } from './components/LoadingSkeleton';
 import { useFinancialPosition } from './hooks/useFinancialPosition';
 import { formatInstantUtc, formatTimeUtc } from './dates';
+
+type View = 'position' | 'forecasting';
 
 const EXPLAINER =
   'Net worth is recorded asset planning values minus outstanding liability balances. ' +
@@ -107,30 +111,68 @@ function FinancialPositionPage({ householdId }: { householdId: string }) {
   );
 }
 
+function AppNav({ view, onSelect }: { view: View; onSelect: (view: View) => void }) {
+  return (
+    <nav className="app-nav" aria-label="Sections">
+      <button type="button" aria-current={view === 'position' ? 'page' : undefined} onClick={() => onSelect('position')}>
+        Financial position
+      </button>
+      <button
+        type="button"
+        aria-current={view === 'forecasting' ? 'page' : undefined}
+        onClick={() => onSelect('forecasting')}
+      >
+        Forecasting
+      </button>
+    </nav>
+  );
+}
+
 export function App() {
+  const [view, setView] = useState<View>('position');
   const config = readHouseholdConfig();
+
+  if (view === 'forecasting') {
+    return (
+      <>
+        <AppNav view={view} onSelect={setView} />
+        <ForecastingPage />
+      </>
+    );
+  }
 
   if (config.status === 'missing') {
     return (
-      <div className="page">
-        <header className="app-header">
-          <h1>Financial position</h1>
-        </header>
-        <ConfigMissing />
-      </div>
+      <>
+        <AppNav view={view} onSelect={setView} />
+        <div className="page">
+          <header className="app-header">
+            <h1>Financial position</h1>
+          </header>
+          <ConfigMissing />
+        </div>
+      </>
     );
   }
 
   if (config.status === 'invalid') {
     return (
-      <div className="page">
-        <header className="app-header">
-          <h1>Financial position</h1>
-        </header>
-        <ConfigInvalid rawValue={config.rawValue} />
-      </div>
+      <>
+        <AppNav view={view} onSelect={setView} />
+        <div className="page">
+          <header className="app-header">
+            <h1>Financial position</h1>
+          </header>
+          <ConfigInvalid rawValue={config.rawValue} />
+        </div>
+      </>
     );
   }
 
-  return <FinancialPositionPage householdId={config.householdId} />;
+  return (
+    <>
+      <AppNav view={view} onSelect={setView} />
+      <FinancialPositionPage householdId={config.householdId} />
+    </>
+  );
 }
