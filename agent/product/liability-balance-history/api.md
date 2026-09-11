@@ -144,7 +144,7 @@ matching `docker-compose.yml`'s connection settings) on 2026-09-11:
 - Unknown `liabilityId` under a valid household → `404 LIABILITY_NOT_FOUND`.
 - A client-supplied `sourceType` field → `400 MALFORMED_REQUEST`.
 
-Automated coverage (`./verify.sh`, 767/767 passing) additionally proves,
+Automated coverage (`./verify.sh`, 800/800 passing) additionally proves,
 against real PostgreSQL, in `LiabilityBalanceHistoryApiIntegrationTest`:
 
 - Two concurrent submissions from the same revision resolve to exactly one
