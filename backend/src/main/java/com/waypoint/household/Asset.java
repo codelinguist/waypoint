@@ -57,6 +57,15 @@ public class Asset {
     @Column(name = "source_type", nullable = false, length = 16)
     private SourceType sourceType;
 
+    /**
+     * Advances by exactly one on every accepted valuation update, via the
+     * conditional bulk update in {@link AssetRepository#applyValuation}
+     * rather than ordinary JPA dirty checking, so a same-valued resubmission
+     * still counts as a distinct change instead of being silently skipped.
+     */
+    @Column(nullable = false)
+    private long revision;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -127,6 +136,10 @@ public class Asset {
 
     public SourceType getSourceType() {
         return sourceType;
+    }
+
+    public long getRevision() {
+        return revision;
     }
 
     public Instant getCreatedAt() {

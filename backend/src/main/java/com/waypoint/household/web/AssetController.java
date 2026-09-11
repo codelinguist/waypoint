@@ -3,7 +3,10 @@ package com.waypoint.household.web;
 import com.waypoint.household.Asset;
 import com.waypoint.household.AssetService;
 import com.waypoint.household.web.dto.AssetResponse;
+import com.waypoint.household.web.dto.AssetValuationHistoryResponse;
+import com.waypoint.household.web.dto.AssetValuationStateResponse;
 import com.waypoint.household.web.dto.CreateAssetRequest;
+import com.waypoint.household.web.dto.UpdateAssetValuationRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -56,5 +59,44 @@ public class AssetController {
                 .map(AssetResponse::from)
                 .toList();
         return ResponseEntity.ok(assets);
+    }
+
+    @GetMapping("/{assetId}/valuations")
+    public ResponseEntity<AssetValuationStateResponse> getCurrentValuation(
+            @PathVariable UUID householdId,
+            @PathVariable UUID assetId
+    ) {
+        Asset asset = assetService.getAsset(householdId, assetId);
+        return ResponseEntity.ok(AssetValuationStateResponse.from(asset));
+    }
+
+    @PostMapping("/{assetId}/valuations")
+    public ResponseEntity<AssetValuationStateResponse> updateValuation(
+            @PathVariable UUID householdId,
+            @PathVariable UUID assetId,
+            @Valid @RequestBody UpdateAssetValuationRequest request
+    ) {
+        Asset asset = assetService.updateValuation(
+                householdId,
+                assetId,
+                request.estimatedValue(),
+                request.planningValue(),
+                request.valuedAt(),
+                request.reason(),
+                request.expectedRevision()
+        );
+        return ResponseEntity.ok(AssetValuationStateResponse.from(asset));
+    }
+
+    @GetMapping("/{assetId}/valuations/history")
+    public ResponseEntity<List<AssetValuationHistoryResponse>> getValuationHistory(
+            @PathVariable UUID householdId,
+            @PathVariable UUID assetId
+    ) {
+        List<AssetValuationHistoryResponse> history = assetService.listValuationHistory(householdId, assetId)
+                .stream()
+                .map(AssetValuationHistoryResponse::from)
+                .toList();
+        return ResponseEntity.ok(history);
     }
 }
