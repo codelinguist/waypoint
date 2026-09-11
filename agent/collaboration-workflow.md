@@ -19,7 +19,9 @@ activation rules; each file above is canonical for that stage's procedure and
 delivery authority. A user request is required to cross to another stage.
 
 For feature work, the Jira issue, checked-in code, and recorded evidence are
-the handoff boundary. Codex normally owns Frame, design approval, Review, and
-Accept; Claude Code normally owns Implement, Revise, and Ship. An explicit
+the handoff boundary. Codex is the preferred agent for Frame, design
+approval, Review, and Accept; Claude Code may perform any of these directly
+with the user on request, not only when Codex is unavailable (D020). Claude
+Code normally owns Implement, Revise, and Ship regardless. An explicit
 request may override these defaults, but not the household approval or Ship
 gates in `AGENTS.md`.

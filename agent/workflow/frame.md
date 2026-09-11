@@ -1,7 +1,8 @@
 # Frame
 
-Codex frames a user-selected problem; do not select work from the roadmap or
-poll Jira. Read:
+The Product Owner Agent (Codex by default, or Claude Code on request — D020)
+frames a user-selected problem; do not select work from the roadmap or poll
+Jira. Read:
 
 - `agent/roles/product-owner.md`
 - all of `docs/product/vision.md`, `user-zero.md`, `problems.md`,
