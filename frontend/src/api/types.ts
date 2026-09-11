@@ -66,3 +66,70 @@ export interface ApiErrorBody {
   message: string;
   details: unknown[];
 }
+
+// Mirrors backend/src/main/java/com/waypoint/household/web/dto/{FinancialSnapshot*,
+// SnapshotAssetLineItem,SnapshotLiabilityLineItem,CurrencyTotals,
+// CurrencyTotalsDelta}Response.java exactly.
+//
+// Unlike FinancialPositionResponse above, these endpoints serialize money as
+// plain JSON numbers, not exact-decimal strings (an existing, unchanged
+// contract — see agent/product/current-financial-position/api.md). Use
+// ../snapshotMoney.ts to format these fields, never ../money.ts (which
+// throws on a non-string input).
+
+export interface SnapshotAssetLineItem {
+  id: string;
+  sourceAssetId: string;
+  name: string;
+  assetType: AssetType;
+  currency: string;
+  sourceDate: string;
+  value: number;
+}
+
+export interface SnapshotLiabilityLineItem {
+  id: string;
+  sourceLiabilityId: string;
+  name: string;
+  liabilityType: LiabilityType;
+  currency: string;
+  sourceDate: string;
+  value: number;
+}
+
+export interface SnapshotCurrencyTotals {
+  currency: string;
+  assetTotal: number;
+  liabilityTotal: number;
+  netWorth: number;
+}
+
+export interface FinancialSnapshot {
+  id: string;
+  householdId: string;
+  asOfDate: string;
+  capturedAt: string;
+  sourceType: SourceType;
+  assetLineItems: SnapshotAssetLineItem[];
+  liabilityLineItems: SnapshotLiabilityLineItem[];
+  totalsByCurrency: SnapshotCurrencyTotals[];
+}
+
+export interface FinancialSnapshotSummary {
+  id: string;
+  asOfDate: string;
+  capturedAt: string;
+}
+
+export interface SnapshotCurrencyTotalsDelta {
+  currency: string;
+  assetTotalDelta: number;
+  liabilityTotalDelta: number;
+  netWorthDelta: number;
+}
+
+export interface FinancialSnapshotComparison {
+  earlierSnapshot: FinancialSnapshotSummary;
+  laterSnapshot: FinancialSnapshotSummary;
+  currencyDeltas: SnapshotCurrencyTotalsDelta[];
+}

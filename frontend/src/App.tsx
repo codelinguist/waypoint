@@ -1,8 +1,12 @@
+import { useState } from 'react';
 import { readHouseholdConfig } from './config';
 import { ConfigInvalid, ConfigMissing, ConfigNotFound } from './components/ConfigProblem';
 import { CurrencyCard } from './components/CurrencyCard';
 import { LoadingSkeleton } from './components/LoadingSkeleton';
+import { SnapshotList } from './components/SnapshotList';
+import { SnapshotComparisonView } from './components/SnapshotComparisonView';
 import { useFinancialPosition } from './hooks/useFinancialPosition';
+import { useFinancialSnapshots } from './hooks/useFinancialSnapshots';
 import { formatInstantUtc, formatTimeUtc } from './dates';
 
 const EXPLAINER =
@@ -14,18 +18,18 @@ function FinancialPositionPage({ householdId }: { householdId: string }) {
 
   if (state.status === 'not-found') {
     return (
-      <div className="page">
+      <>
         <header className="app-header">
           <h1>Financial position</h1>
         </header>
         <ConfigNotFound householdId={state.householdId} />
-      </div>
+      </>
     );
   }
 
   if (state.status === 'loading') {
     return (
-      <div className="page">
+      <>
         <header className="app-header">
           <h1>Financial position</h1>
           <button className="refresh-btn" type="button" disabled>
@@ -36,13 +40,13 @@ function FinancialPositionPage({ householdId }: { householdId: string }) {
           Loading financial position&hellip;
         </p>
         <LoadingSkeleton />
-      </div>
+      </>
     );
   }
 
   if (state.status === 'error') {
     return (
-      <div className="page">
+      <>
         <header className="app-header">
           <h1>Financial position</h1>
         </header>
@@ -57,7 +61,7 @@ function FinancialPositionPage({ householdId }: { householdId: string }) {
             </button>
           </p>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -65,7 +69,7 @@ function FinancialPositionPage({ householdId }: { householdId: string }) {
   const isEmptyHousehold = data.totalsByCurrency.length === 0;
 
   return (
-    <div className="page">
+    <>
       <header className="app-header">
         <h1>{data.householdName}</h1>
         <button className="refresh-btn" type="button" onClick={refresh} disabled={refreshing}>
@@ -103,6 +107,114 @@ function FinancialPositionPage({ householdId }: { householdId: string }) {
           />
         ))
       )}
+    </>
+  );
+}
+
+function SnapshotsPage({ householdId }: { householdId: string }) {
+  const { state, retry } = useFinancialSnapshots(householdId);
+
+  if (state.status === 'not-found') {
+    return (
+      <>
+        <header className="app-header">
+          <h1>Snapshots</h1>
+        </header>
+        <ConfigNotFound householdId={state.householdId} />
+      </>
+    );
+  }
+
+  if (state.status === 'loading') {
+    return (
+      <>
+        <header className="app-header">
+          <h1>Snapshots</h1>
+        </header>
+        <p className="status-line" role="status" aria-live="polite">
+          Loading snapshots&hellip;
+        </p>
+        <LoadingSkeleton />
+      </>
+    );
+  }
+
+  if (state.status === 'error') {
+    return (
+      <>
+        <header className="app-header">
+          <h1>Snapshots</h1>
+        </header>
+        <div className="empty-state" role="alert">
+          <p>
+            <strong>Could not load snapshots.</strong>
+          </p>
+          <p>{state.message}</p>
+          <p>
+            <button className="refresh-btn" type="button" onClick={retry}>
+              Retry
+            </button>
+          </p>
+        </div>
+      </>
+    );
+  }
+
+  const { snapshots } = state;
+
+  return (
+    <>
+      <header className="app-header">
+        <h1>Snapshots</h1>
+      </header>
+      {snapshots.length === 0 ? (
+        <div className="empty-state">
+          <p>
+            <strong>No financial snapshots are recorded for this household yet.</strong>
+          </p>
+        </div>
+      ) : (
+        <>
+          <SnapshotList snapshots={snapshots} />
+          <SnapshotComparisonView householdId={householdId} snapshots={snapshots} />
+        </>
+      )}
+    </>
+  );
+}
+
+type Tab = 'position' | 'snapshots';
+
+function AppNav({ active, onChange }: { active: Tab; onChange: (tab: Tab) => void }) {
+  return (
+    <nav className="app-nav" aria-label="Sections">
+      <button
+        className="nav-tab"
+        type="button"
+        aria-current={active === 'position' ? 'page' : undefined}
+        onClick={() => onChange('position')}
+      >
+        Financial position
+      </button>
+      <button
+        className="nav-tab"
+        type="button"
+        aria-current={active === 'snapshots' ? 'page' : undefined}
+        onClick={() => onChange('snapshots')}
+      >
+        Snapshots
+      </button>
+    </nav>
+  );
+}
+
+function ConfiguredApp({ householdId }: { householdId: string }) {
+  const [tab, setTab] = useState<Tab>('position');
+
+  return (
+    <div className="page">
+      <AppNav active={tab} onChange={setTab} />
+      {tab === 'position' ? <FinancialPositionPage householdId={householdId} /> : <SnapshotsPage householdId={householdId} />}
     </div>
   );
 }
@@ -132,5 +244,5 @@ export function App() {
     );
   }
 
-  return <FinancialPositionPage householdId={config.householdId} />;
+  return <ConfiguredApp householdId={config.householdId} />;
 }
