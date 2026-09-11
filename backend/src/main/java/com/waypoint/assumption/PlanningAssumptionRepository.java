@@ -15,6 +15,8 @@ public interface PlanningAssumptionRepository extends JpaRepository<PlanningAssu
 
     List<PlanningAssumption> findByHousehold_IdOrderByNameAscCreatedAtAscIdAsc(UUID householdId);
 
+    List<PlanningAssumption> findByHousehold_IdAndSupersededByIsNull(UUID householdId);
+
     @Query("""
             SELECT a FROM PlanningAssumption a
             WHERE a.household.id = :householdId

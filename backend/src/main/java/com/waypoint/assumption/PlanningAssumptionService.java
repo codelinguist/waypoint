@@ -69,6 +69,18 @@ public class PlanningAssumptionService {
         return planningAssumptionRepository.findByHousehold_IdOrderByNameAscCreatedAtAscIdAsc(householdId);
     }
 
+    /**
+     * Every unsuperseded version for the household, regardless of temporal
+     * window — unlike {@link #listAssumptions}'s {@code activeOnly} mode,
+     * this deliberately includes not-yet-effective and already-expired
+     * versions so a review report can surface both dimensions independently.
+     */
+    @Transactional(readOnly = true)
+    public List<PlanningAssumption> listUnsupersededAssumptions(UUID householdId) {
+        requireHousehold(householdId);
+        return planningAssumptionRepository.findByHousehold_IdAndSupersededByIsNull(householdId);
+    }
+
     public PlanningAssumption supersedeAssumption(
             UUID householdId,
             UUID assumptionId,
