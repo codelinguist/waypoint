@@ -9,11 +9,13 @@ balance and its context are never lost. Identity, household, name, type, and
 currency are unaffected by a balance replacement.
 
 `GET /api/households/{householdId}/liabilities/{liabilityId}` (existing
-endpoint) now also returns `revision`, a `@Version`-backed optimistic-lock
-counter starting at `0` on creation. A caller reads the current `revision`
-and echoes it back as `expectedRevision` on the POST; the current row and an
-immutable audit row are appended atomically in one transaction only when
-that revision is still current.
+endpoint) now also returns `revision`, a plain counter column (not JPA
+`@Version` — see D021/D022) starting at `0` on creation and advanced only by
+a single atomic conditional `UPDATE ... WHERE revision = :expectedRevision`
+statement, never by ordinary entity dirty-checking. A caller reads the
+current `revision` and echoes it back as `expectedRevision` on the POST; the
+current row and an immutable audit row are appended atomically in one
+transaction only when that statement actually updates the row.
 
 ## Concurrency contract
 
@@ -22,9 +24,17 @@ that revision is still current.
   `409 LIABILITY_REVISION_CONFLICT` and appends nothing.
 - Two concurrent submissions starting from the same revision resolve to
   exactly one `201` success and one `409`, with exactly one audit row
-  appended for the winner. The losing request's optimistic-lock flush fails
-  before its audit row would be inserted — see
-  [D021](../../../docs/decisions/decisions.md#d021--bounded-balance-replacement-is-an-append-only-audit-not-event-sourcing).
+  appended for the winner. The losing request's conditional update statement
+  matches zero rows (PostgreSQL row locking guarantees exactly one of two
+  simultaneous callers wins), so it never reaches the audit append — see
+  [D021](../../../docs/decisions/decisions.md#d021--conditional-bulk-update-revisions-guard-auditable-in-place-corrections)
+  and
+  [D022](../../../docs/decisions/decisions.md#d022--bounded-balance-replacement-is-an-append-only-audit-not-event-sourcing).
+- A resubmission whose `outstandingBalance`/`balanceAsOf` are textually
+  identical to the liability's current values still counts as a distinct
+  accepted change (its own audit row and revision) rather than being
+  silently skipped — this is the specific defect the conditional bulk
+  update avoids that an ordinary JPA `@Version` field would not.
 - A successful replacement always increments `revision` by exactly `1`, and
   the appended audit row's `revision` equals the liability's new `revision`.
 
@@ -51,7 +61,7 @@ Any other field (e.g. a client-supplied `sourceType`) is rejected as
 | `liabilityId`         | The liability this change belongs to. |
 | `householdId`         | The owning household. |
 | `currency`            | The liability's currency at the time of the change (never changes). |
-| `previousBalance`     | Exact prior `outstandingBalance`, as a two-decimal string (e.g. `"500.00"`), not a JSON number — see D021 and the exact-decimal rationale already used by the financial-position endpoint. |
+| `previousBalance`     | Exact prior `outstandingBalance`, as a two-decimal string (e.g. `"500.00"`), not a JSON number — see D022 and the exact-decimal rationale already used by the financial-position endpoint. |
 | `previousBalanceAsOf` | Exact prior `balanceAsOf`. |
 | `previousSourceType`  | Exact prior `sourceType`. |
 | `newBalance`          | The replacement balance, same string format as `previousBalance`. |
@@ -144,7 +154,7 @@ matching `docker-compose.yml`'s connection settings) on 2026-09-11:
 - Unknown `liabilityId` under a valid household → `404 LIABILITY_NOT_FOUND`.
 - A client-supplied `sourceType` field → `400 MALFORMED_REQUEST`.
 
-Automated coverage (`./verify.sh`, 800/800 passing) additionally proves,
+Automated coverage (`./verify.sh`, 829/829 passing) additionally proves,
 against real PostgreSQL, in `LiabilityBalanceHistoryApiIntegrationTest`:
 
 - Two concurrent submissions from the same revision resolve to exactly one
@@ -153,12 +163,21 @@ against real PostgreSQL, in `LiabilityBalanceHistoryApiIntegrationTest`:
 - Deterministic revision ordering, zero-balance and balance-increase
   acceptance, excessive-fraction-scale rejection, and the empty-history
   state before any update.
+- A resubmission with the exact same `outstandingBalance`/`balanceAsOf` as
+  the liability's current values is still accepted as a distinct change,
+  with its own audit row and incremented revision
+  (`acceptsSameValueResubmissionAsADistinctAcceptedChange`) — the conditional
+  bulk update in `LiabilityRepository#applyBalance` was adopted specifically
+  because an earlier `@Version`-based draft skipped the row update (and thus
+  the revision advance) on an exact-value resubmission, since Hibernate's
+  default dirty checking treats a no-field-changed update as a no-op; this
+  test is the regression guard for that defect (see D021).
 - The current-row replacement and its audit append are atomic: forcing the
   audit insert to fail (a colliding `(liability_id, revision)` row hitting
-  the real unique constraint) *after* the parent row has already been
-  flushed at the new revision rolls back both sides of the transaction —
-  the liability's balance/date/revision are unchanged and no history row
-  exists (`rollsBackBalanceReplacementWhenAuditAppendFailsAfterParentFlush`).
+  the real unique constraint) *after* the conditional update has already
+  applied the new revision rolls back both sides of the transaction — the
+  liability's balance/date/revision are unchanged and no history row exists
+  (`rollsBackBalanceReplacementWhenAuditAppendFailsAfterParentFlush`).
 - A captured financial snapshot is unaffected by a later balance
   replacement, the replacement itself creates no snapshot, and a snapshot
   captured afterward reflects the replacement through the existing

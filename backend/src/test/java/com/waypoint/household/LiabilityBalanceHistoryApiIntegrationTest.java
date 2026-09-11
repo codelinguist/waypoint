@@ -61,6 +61,33 @@ class LiabilityBalanceHistoryApiIntegrationTest {
     private LiabilityBalanceHistoryRepository liabilityBalanceHistoryRepository;
 
     @Test
+    void acceptsSameValueResubmissionAsADistinctAcceptedChange() throws Exception {
+        String householdId = createHouseholdId("Ralph Household", "PHP");
+        String liabilityId = createLiabilityId(householdId, "Loan", "PERSONAL_LOAN", "500.00", "PHP",
+                "2026-01-01");
+
+        recordBalance(householdId, liabilityId, "400.00", "2026-02-01", "First payment", 0)
+                .andExpect(status().isCreated());
+
+        // Resubmit the exact same balance/date the liability now holds (e.g. a
+        // deliberate "confirmed still correct" re-entry). A same-valued update
+        // must still count as a distinct accepted change with its own audit
+        // row and revision, not be silently skipped by ORM dirty-checking.
+        recordBalance(householdId, liabilityId, "400.00", "2026-02-01", "Confirmed still correct", 1)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.previousBalance").value("400.00"))
+                .andExpect(jsonPath("$.newBalance").value("400.00"))
+                .andExpect(jsonPath("$.revision").value(2));
+
+        mockMvc.perform(get("/api/households/{h}/liabilities/{l}/balances", householdId, liabilityId))
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[1].revision").value(2))
+                .andExpect(jsonPath("$[1].reason").value("Confirmed still correct"));
+        mockMvc.perform(get("/api/households/{h}/liabilities/{l}", householdId, liabilityId))
+                .andExpect(jsonPath("$.revision").value(2));
+    }
+
+    @Test
     void recordsBalanceReplacementAndAppendsHistory() throws Exception {
         String householdId = createHouseholdId("Ralph Household", "PHP");
         String liabilityId = createLiabilityId(householdId, "Credit Card", "CREDIT_CARD", "500.00", "PHP",

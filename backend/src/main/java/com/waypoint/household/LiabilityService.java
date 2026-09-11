@@ -1,10 +1,10 @@
 package com.waypoint.household;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -67,12 +67,12 @@ public class LiabilityService {
     /**
      * Replaces a liability's current outstanding balance and appends an
      * immutable before/after audit row, atomically. {@code expectedRevision}
-     * must match the liability's current revision: a stale value from a prior
-     * read is rejected outright, and two concurrent submissions starting from
-     * the same revision resolve to exactly one success (caught here as an
-     * {@link ObjectOptimisticLockingFailureException} from the losing flush)
-     * and one {@link StaleLiabilityRevisionException} — with exactly one
-     * audit row, since the losing attempt never reaches the append below.
+     * guards against lost updates: {@link LiabilityRepository#applyBalance}
+     * conditions its single update statement on the row's current revision
+     * still matching, so a caller-stale revision and a genuinely concurrent
+     * conflicting write both surface identically as zero rows updated — with
+     * exactly one audit row, since a rejected attempt never reaches the
+     * append below.
      */
     public LiabilityBalanceHistory recordBalance(
             UUID householdId,
@@ -87,32 +87,31 @@ public class LiabilityService {
         }
         Liability liability = liabilityRepository.findByIdAndHousehold_Id(liabilityId, householdId)
                 .orElseThrow(() -> new LiabilityNotFoundException(liabilityId));
-        if (liability.getRevision() != expectedRevision) {
-            throw new StaleLiabilityRevisionException(liabilityId, expectedRevision);
-        }
 
         BigDecimal previousBalance = liability.getOutstandingBalance();
         LocalDate previousBalanceAsOf = liability.getBalanceAsOf();
         SourceType previousSourceType = liability.getSourceType();
 
-        liability.replaceBalance(outstandingBalance, balanceAsOf);
-        try {
-            liabilityRepository.saveAndFlush(liability);
-        } catch (ObjectOptimisticLockingFailureException ex) {
+        int updatedRows = liabilityRepository.applyBalance(
+                liabilityId, householdId, outstandingBalance, balanceAsOf, Instant.now(), expectedRevision);
+        if (updatedRows == 0) {
             throw new StaleLiabilityRevisionException(liabilityId, expectedRevision);
         }
 
+        Liability updated = liabilityRepository.findByIdAndHousehold_Id(liabilityId, householdId)
+                .orElseThrow(() -> new LiabilityNotFoundException(liabilityId));
+
         LiabilityBalanceHistory history = new LiabilityBalanceHistory(
-                liability,
-                liability.getCurrency(),
+                updated,
+                updated.getCurrency(),
                 previousBalance,
                 previousBalanceAsOf,
                 previousSourceType,
                 outstandingBalance,
                 balanceAsOf,
-                liability.getSourceType(),
+                updated.getSourceType(),
                 reason.trim(),
-                liability.getRevision()
+                updated.getRevision()
         );
         return liabilityBalanceHistoryRepository.save(history);
     }

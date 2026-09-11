@@ -3,18 +3,19 @@ package com.waypoint.household;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 class LiabilityServiceTest {
 
@@ -105,12 +106,16 @@ class LiabilityServiceTest {
         UUID householdId = UUID.randomUUID();
         UUID liabilityId = UUID.randomUUID();
         Household household = new Household("Ralph Household", "PHP");
-        Liability liability = new Liability(household, "Loan", LiabilityType.PERSONAL_LOAN,
+        Liability before = new Liability(household, "Loan", LiabilityType.PERSONAL_LOAN,
                 new BigDecimal("500.00"), "PHP", LocalDate.of(2026, 1, 1));
+        Liability after = new Liability(household, "Loan", LiabilityType.PERSONAL_LOAN,
+                new BigDecimal("300.00"), "PHP", LocalDate.of(2026, 2, 1));
         when(householdRepository.existsById(householdId)).thenReturn(true);
         when(liabilityRepository.findByIdAndHousehold_Id(liabilityId, householdId))
-                .thenReturn(Optional.of(liability));
-        when(liabilityRepository.saveAndFlush(liability)).thenReturn(liability);
+                .thenReturn(Optional.of(before), Optional.of(after));
+        when(liabilityRepository.applyBalance(eq(liabilityId), eq(householdId), eq(new BigDecimal("300.00")),
+                eq(LocalDate.of(2026, 2, 1)), any(Instant.class), eq(0L)))
+                .thenReturn(1);
         when(liabilityBalanceHistoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         LiabilityBalanceHistory history = liabilityService.recordBalance(
@@ -122,12 +127,11 @@ class LiabilityServiceTest {
         assertThat(history.getNewBalance()).isEqualByComparingTo("300.00");
         assertThat(history.getNewBalanceAsOf()).isEqualTo(LocalDate.of(2026, 2, 1));
         assertThat(history.getReason()).isEqualTo("Paid down");
-        assertThat(liability.getOutstandingBalance()).isEqualByComparingTo("300.00");
-        assertThat(liability.getBalanceAsOf()).isEqualTo(LocalDate.of(2026, 2, 1));
+        assertThat(history.getLiability()).isSameAs(after);
     }
 
     @Test
-    void rejectsBalanceReplacementWithStaleRevision() {
+    void rejectsBalanceReplacementWhenNoRowMatchesTheExpectedRevision() {
         UUID householdId = UUID.randomUUID();
         UUID liabilityId = UUID.randomUUID();
         Household household = new Household("Ralph Household", "PHP");
@@ -136,29 +140,12 @@ class LiabilityServiceTest {
         when(householdRepository.existsById(householdId)).thenReturn(true);
         when(liabilityRepository.findByIdAndHousehold_Id(liabilityId, householdId))
                 .thenReturn(Optional.of(liability));
+        when(liabilityRepository.applyBalance(eq(liabilityId), eq(householdId), eq(new BigDecimal("300.00")),
+                eq(LocalDate.of(2026, 2, 1)), any(Instant.class), eq(5L)))
+                .thenReturn(0);
 
         assertThatThrownBy(() -> liabilityService.recordBalance(
                 householdId, liabilityId, new BigDecimal("300.00"), LocalDate.of(2026, 2, 1), "Paid down", 5L
-        )).isInstanceOf(StaleLiabilityRevisionException.class);
-        verify(liabilityRepository, never()).saveAndFlush(any());
-        verify(liabilityBalanceHistoryRepository, never()).save(any());
-    }
-
-    @Test
-    void translatesConcurrentUpdateConflictIntoStaleRevisionException() {
-        UUID householdId = UUID.randomUUID();
-        UUID liabilityId = UUID.randomUUID();
-        Household household = new Household("Ralph Household", "PHP");
-        Liability liability = new Liability(household, "Loan", LiabilityType.PERSONAL_LOAN,
-                new BigDecimal("500.00"), "PHP", LocalDate.of(2026, 1, 1));
-        when(householdRepository.existsById(householdId)).thenReturn(true);
-        when(liabilityRepository.findByIdAndHousehold_Id(liabilityId, householdId))
-                .thenReturn(Optional.of(liability));
-        when(liabilityRepository.saveAndFlush(liability))
-                .thenThrow(new ObjectOptimisticLockingFailureException(Liability.class, liabilityId));
-
-        assertThatThrownBy(() -> liabilityService.recordBalance(
-                householdId, liabilityId, new BigDecimal("300.00"), LocalDate.of(2026, 2, 1), "Paid down", 0L
         )).isInstanceOf(StaleLiabilityRevisionException.class);
         verify(liabilityBalanceHistoryRepository, never()).save(any());
     }

@@ -11,7 +11,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -60,12 +59,13 @@ public class Liability {
     private Instant updatedAt;
 
     /**
-     * Optimistic-lock revision. Callers read it from a GET response and echo
-     * it back on a balance-replacement request so concurrent submissions from
-     * the same starting revision resolve to exactly one success and one
-     * stale-revision rejection instead of a lost update.
+     * Advances by exactly one on every accepted balance replacement, via the
+     * conditional bulk update in {@link LiabilityRepository#applyBalance}
+     * rather than ordinary JPA dirty checking, so a same-valued resubmission
+     * still counts as a distinct change instead of being silently skipped
+     * (JPA {@code @Version} was tried first and rejected for this reason —
+     * see D021).
      */
-    @Version
     @Column(name = "revision", nullable = false)
     private long revision;
 
@@ -131,18 +131,5 @@ public class Liability {
 
     public long getRevision() {
         return revision;
-    }
-
-    /**
-     * Replaces the current outstanding balance and its source date, always
-     * re-asserting {@code MANUAL_ENTRY} provenance. Identity, household, name,
-     * type, and currency are untouched. Callers must have already verified the
-     * expected revision; the actual concurrency guarantee comes from the
-     * {@code @Version} check when this change is flushed.
-     */
-    void replaceBalance(BigDecimal outstandingBalance, LocalDate balanceAsOf) {
-        this.outstandingBalance = outstandingBalance;
-        this.balanceAsOf = balanceAsOf;
-        this.sourceType = SourceType.MANUAL_ENTRY;
     }
 }

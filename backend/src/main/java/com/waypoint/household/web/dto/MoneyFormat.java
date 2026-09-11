@@ -6,7 +6,8 @@ import java.math.RoundingMode;
 /**
  * Formats domain {@link BigDecimal} money values as exact two-decimal, non-
  * exponential strings so a JavaScript {@code Number} consumer can never
- * silently lose cents. Scoped to this package's response DTOs; other
+ * silently lose cents. Scoped to this package's revision-history response
+ * DTOs (liability balance history and asset valuation history/state); other
  * endpoints keep serializing money as JSON numbers via their own DTOs,
  * unchanged.
  *
