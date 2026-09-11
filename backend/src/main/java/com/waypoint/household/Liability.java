@@ -58,6 +58,17 @@ public class Liability {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    /**
+     * Advances by exactly one on every accepted balance replacement, via the
+     * conditional bulk update in {@link LiabilityRepository#applyBalance}
+     * rather than ordinary JPA dirty checking, so a same-valued resubmission
+     * still counts as a distinct change instead of being silently skipped
+     * (JPA {@code @Version} was tried first and rejected for this reason —
+     * see D021).
+     */
+    @Column(name = "revision", nullable = false)
+    private long revision;
+
     protected Liability() {
     }
 
@@ -116,5 +127,9 @@ public class Liability {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public long getRevision() {
+        return revision;
     }
 }

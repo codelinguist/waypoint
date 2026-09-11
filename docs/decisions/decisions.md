@@ -297,7 +297,6 @@ removing it is a further cut of the process overhead addressed by D017.
 stage — it relies on the user reporting that Frame/Design/Review/Accept
 happened and on reading the resulting Jira issue and comments.
 
-
 ---
 
 ## D019 — Agent context uses explicit stage activation
@@ -384,3 +383,41 @@ fact instead of two ORM-mediated ones.
 callers must go through the dedicated conditional update method rather than
 mutating and saving the entity normally, and Hibernate's ordinary
 dirty-checking machinery is bypassed entirely for this one field/operation.
+
+---
+
+## D022 — Bounded balance replacement is an append-only audit, not event sourcing
+
+**Status:** Accepted — 2026-09-11, WAP-17
+
+A canonical record that needs an auditable value correction (first
+implemented for `Liability.outstandingBalance`) keeps its current row as the
+single source of the present value, gains a plain `revision` counter column
+guarded by D021's conditional bulk update (not JPA `@Version`), and gets an
+immutable, append-only history table (e.g. `liability_balance_history`)
+written in the same transaction as the current-row replacement. A caller
+reads the current revision, submits a replacement with that
+`expectedRevision`, and gets a structured 409 if the row has moved on —
+whether from a genuinely stale read or a losing concurrent submission (the
+losing request's conditional update statement matches zero rows, so it never
+reaches the audit-row insert below, and exactly one audit row is ever
+appended per accepted change).
+
+**Reason:** The domain needs traceable, conflict-safe corrections (a wrong
+balance, a data-entry fix) without inventing payment/interest semantics or a
+general event-sourced ledger the product doesn't otherwise need. An initial
+draft used JPA `@Version` for the revision check and hit exactly the failure
+mode D021 documents: a resubmission whose `outstandingBalance`/`balanceAsOf`
+were textually identical to the liability's current values left every
+persistent field unchanged, so Hibernate's default dirty checking skipped
+the UPDATE (and the version bump) entirely, and the audit append then
+collided with the still-current revision's existing history row. Switching
+to D021's conditional bulk-update pattern — proven first for asset valuation
+— fixed this: the revision advance is a single explicit SQL statement, not
+something ORM dirty-checking can silently decide is unnecessary.
+
+**Tradeoff:** Only the fields explicitly modeled as before/after audit
+columns are historized; this is not a generic changelog and does not capture
+every column on the parent row. This is the second implementation of D021's
+pattern rather than shared infrastructure between the two entities, which is
+deliberate: see D007.

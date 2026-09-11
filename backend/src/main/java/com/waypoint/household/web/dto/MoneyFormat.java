@@ -5,13 +5,14 @@ import java.math.RoundingMode;
 
 /**
  * Formats domain {@link BigDecimal} money values as exact two-decimal, non-
- * exponential strings for the asset-valuation contract, so a JavaScript
- * {@code Number} consumer can never silently lose cents. Scoped to this
- * package's valuation response DTOs only; {@link AssetResponse} keeps
- * serializing money as JSON numbers, unchanged.
+ * exponential strings so a JavaScript {@code Number} consumer can never
+ * silently lose cents. Scoped to this package's revision-history response
+ * DTOs (liability balance history and asset valuation history/state); other
+ * endpoints keep serializing money as JSON numbers via their own DTOs,
+ * unchanged.
  *
  * <p>{@link RoundingMode#UNNECESSARY} is deliberate: every value reaching
- * this endpoint already carries scale 2 or less (column precision), so
+ * these responses already carries scale 2 or less (column precision), so
  * padding to scale 2 never requires rounding. If that ever stopped being
  * true, failing loudly here is correct: silently rounding would misstate an
  * exact monetary figure.

@@ -29,3 +29,4 @@ are historical and loaded only when directly relevant.
 | D019 | Accepted | Agent context uses stage activation | agent instructions, context loading, workflow docs, decision discovery |
 | D020 | Accepted | Claude Code is a standing Product Owner alternate | Codex/Claude ownership, commands, stage invocation, self-review |
 | D021 | Accepted | Conditional bulk-update revisions guard corrections | optimistic concurrency, revision/version fields, before/after audit trails |
+| D022 | Accepted | Bounded balance replacement is an append-only audit, not event sourcing | balance/value updates, revision concurrency, audit history on canonical records |

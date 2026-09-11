@@ -12,6 +12,7 @@ import com.waypoint.household.InvalidScheduleException;
 import com.waypoint.household.LiabilityNotFoundException;
 import com.waypoint.household.ObligationNotFoundException;
 import com.waypoint.household.StaleAssetRevisionException;
+import com.waypoint.household.StaleLiabilityRevisionException;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -116,6 +117,12 @@ public class ApiExceptionHandler {
     public ResponseEntity<ErrorResponse> handleInvalidPlan(InvalidPlanException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse("VALIDATION_FAILED", ex.getMessage(), List.of()));
+    }
+
+    @ExceptionHandler(StaleLiabilityRevisionException.class)
+    public ResponseEntity<ErrorResponse> handleStaleLiabilityRevision(StaleLiabilityRevisionException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse("LIABILITY_REVISION_CONFLICT", ex.getMessage(), List.of()));
     }
 
     @ExceptionHandler(StaleAssetRevisionException.class)

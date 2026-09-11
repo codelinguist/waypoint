@@ -119,9 +119,10 @@ curl -X POST http://localhost:8080/api/households \
   -d '{"name": "Example Household", "baseCurrency": "PHP"}'
 ```
 
-Assets and liabilities are recorded and read under a household. Both accept
-only explicit, caller-supplied values (create/read only; no update endpoints
-yet):
+Assets and liabilities are recorded and read under a household, and accept
+only explicit, caller-supplied values. Assets are create/read-only; a
+liability's outstanding balance can additionally be replaced through an
+auditable balance-history resource (below):
 
 ```bash
 curl -X POST http://localhost:8080/api/households/{householdId}/assets \
@@ -159,7 +160,41 @@ curl http://localhost:8080/api/households/{householdId}/liabilities/{liabilityId
 `LIQUID`, `RESTRICTED`, `ILLIQUID`. `planningValue` must not exceed
 `estimatedValue`; all monetary values must be non-negative; `valuedAt` and
 `balanceAsOf` must not be in the future. Every created record is stamped
-`sourceType: "MANUAL_ENTRY"` by the server.
+`sourceType: "MANUAL_ENTRY"` by the server. Every `Liability` also carries a
+`revision` (starts at `0`), used below for conditional balance updates.
+
+A liability's outstanding balance is replaced — never edited in place —
+through its balance-history resource, which requires the liability's current
+`revision` and appends an immutable audit row for every accepted change:
+
+```bash
+curl -X POST http://localhost:8080/api/households/{householdId}/liabilities/{liabilityId}/balances \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "outstandingBalance": "300.00",
+        "balanceAsOf": "2026-09-10",
+        "reason": "Paid down with September bonus",
+        "expectedRevision": 0
+      }'
+
+curl http://localhost:8080/api/households/{householdId}/liabilities/{liabilityId}/balances
+```
+
+The POST replaces the liability's current `outstandingBalance`/`balanceAsOf`
+(re-asserting `MANUAL_ENTRY` provenance) and appends a history row recording
+the before/after balance, before/after source date, before/after source
+type, currency, `reason`, the resulting `revision`, and server `recordedAt`
+— atomically, in one transaction. `expectedRevision` must match the
+liability's current `revision`; a stale value (including a replay of an
+already-applied revision) is rejected with a structured `409
+LIABILITY_REVISION_CONFLICT` and appends nothing. Two concurrent submissions
+starting from the same revision resolve to exactly one success and one such
+409, with exactly one audit row appended — never a lost update. The GET
+returns history in deterministic revision order (oldest first) and is empty
+until the first balance replacement; a liability's identity, household,
+name, type, and currency are never affected by a balance replacement. There
+is no edit or delete API for history rows. `outstandingBalance` accepts zero
+and increases as well as decreases; `reason` must be non-blank.
 
 Income streams and recurring obligations are recorded and read the same way.
 Income streams may start in the future (e.g. a job that has not begun yet),
@@ -230,9 +265,11 @@ liability is eligible when its `balanceAsOf` is on or before `asOfDate`
 (later-dated records are excluded). Each line item copies the source
 record's identity (`sourceAssetId`/`sourceLiabilityId`), name, type,
 currency, source date, and exact value (`planningValue` for assets,
-`outstandingBalance` for liabilities) at capture time — later changes to the
-source record cannot alter an existing snapshot, since there is no update
-API for either. `totalsByCurrency` sums asset and liability line items
+`outstandingBalance` for liabilities) at capture time — a snapshot is a
+point-in-time copy, so a later liability balance replacement (or any other
+source-record change) cannot alter an existing snapshot; a new snapshot
+reflects the current values through the same read path as any other query.
+`totalsByCurrency` sums asset and liability line items
 separately within each currency and derives net worth
 (`assetTotal - liabilityTotal`) for that currency only; currencies are never
 combined, and a currency present on only one side shows a zero total for the

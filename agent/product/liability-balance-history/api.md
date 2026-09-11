@@ -1,0 +1,209 @@
+# API: Liability Balance History (WAP-17)
+
+`POST /api/households/{householdId}/liabilities/{liabilityId}/balances`
+`GET  /api/households/{householdId}/liabilities/{liabilityId}/balances`
+
+Replaces a liability's current outstanding balance — the current row is
+never edited in place from the caller's point of view, and the previous
+balance and its context are never lost. Identity, household, name, type, and
+currency are unaffected by a balance replacement.
+
+`GET /api/households/{householdId}/liabilities/{liabilityId}` (existing
+endpoint) now also returns `revision`, a plain counter column (not JPA
+`@Version` — see D021/D022) starting at `0` on creation and advanced only by
+a single atomic conditional `UPDATE ... WHERE revision = :expectedRevision`
+statement, never by ordinary entity dirty-checking. A caller reads the
+current `revision` and echoes it back as `expectedRevision` on the POST; the
+current row and an immutable audit row are appended atomically in one
+transaction only when that statement actually updates the row.
+
+## Concurrency contract
+
+- `expectedRevision` must equal the liability's current `revision`. A stale
+  value — including replaying an already-applied revision — is rejected with
+  `409 LIABILITY_REVISION_CONFLICT` and appends nothing.
+- Two concurrent submissions starting from the same revision resolve to
+  exactly one `201` success and one `409`, with exactly one audit row
+  appended for the winner. The losing request's conditional update statement
+  matches zero rows (PostgreSQL row locking guarantees exactly one of two
+  simultaneous callers wins), so it never reaches the audit append — see
+  [D021](../../../docs/decisions/decisions.md#d021--conditional-bulk-update-revisions-guard-auditable-in-place-corrections)
+  and
+  [D022](../../../docs/decisions/decisions.md#d022--bounded-balance-replacement-is-an-append-only-audit-not-event-sourcing).
+- A resubmission whose `outstandingBalance`/`balanceAsOf` are textually
+  identical to the liability's current values still counts as a distinct
+  accepted change (its own audit row and revision) rather than being
+  silently skipped — this is the specific defect the conditional bulk
+  update avoids that an ordinary JPA `@Version` field would not.
+- A successful replacement always increments `revision` by exactly `1`, and
+  the appended audit row's `revision` equals the liability's new `revision`.
+
+## Request (`POST .../balances`)
+
+| Field                | Type    | Rules |
+|----------------------|---------|-------|
+| `outstandingBalance` | decimal | Required. Zero or greater. At most 17 integer digits and 2 fraction digits; a scale finer than 2 is rejected, not rounded. Increases are as valid as decreases. |
+| `balanceAsOf`        | date    | Required. Not in the future. May be the same date, earlier, or later than the liability's current `balanceAsOf` — the supplied date is always preserved as given; history is never reordered by source date. |
+| `reason`             | string  | Required, non-blank, at most 500 characters. |
+| `expectedRevision`   | integer | Required. Must equal the liability's current `revision`. |
+
+Any other field (e.g. a client-supplied `sourceType`) is rejected as
+`400 MALFORMED_REQUEST` — the endpoint always re-asserts server-assigned
+`MANUAL_ENTRY` provenance, matching the existing create-liability contract.
+
+## Response
+
+### `201 Created` (POST) — one `LiabilityBalanceHistoryResponse`
+
+| Field                 | Meaning |
+|-----------------------|---------|
+| `id`                  | The history row's own identity. |
+| `liabilityId`         | The liability this change belongs to. |
+| `householdId`         | The owning household. |
+| `currency`            | The liability's currency at the time of the change (never changes). |
+| `previousBalance`     | Exact prior `outstandingBalance`, as a two-decimal string (e.g. `"500.00"`), not a JSON number — see D022 and the exact-decimal rationale already used by the financial-position endpoint. |
+| `previousBalanceAsOf` | Exact prior `balanceAsOf`. |
+| `previousSourceType`  | Exact prior `sourceType`. |
+| `newBalance`          | The replacement balance, same string format as `previousBalance`. |
+| `newBalanceAsOf`      | The replacement source date. |
+| `newSourceType`       | Always `MANUAL_ENTRY` for this endpoint. |
+| `reason`              | Echoed, trimmed. |
+| `revision`            | The liability's resulting revision; unique and gap-free per liability. |
+| `recordedAt`          | Server time the change was accepted. |
+
+### `200 OK` (GET) — array of the same shape, oldest first (`revision` ascending)
+
+Empty (`[]`) for a liability that has never been updated — no synthetic
+"initial" history row is invented; `GET .../liabilities/{id}` is always the
+source of a liability's current state, updated or not.
+
+### Errors
+
+| Status | `error`                        | When |
+|--------|--------------------------------|------|
+| 400    | `VALIDATION_FAILED`            | A field fails the rules above. |
+| 400    | `MALFORMED_REQUEST`            | Unparseable JSON or an unsupported field (e.g. `sourceType`). |
+| 404    | `HOUSEHOLD_NOT_FOUND`          | Unknown `householdId`. |
+| 404    | `LIABILITY_NOT_FOUND`          | Unknown `liabilityId`, or one that belongs to a different household (no disclosure). |
+| 409    | `LIABILITY_REVISION_CONFLICT`  | `expectedRevision` is not the liability's current revision. |
+
+## Example
+
+Request:
+
+```json
+{
+  "outstandingBalance": "300.00",
+  "balanceAsOf": "2026-09-10",
+  "reason": "Paid down with September bonus",
+  "expectedRevision": 0
+}
+```
+
+Response (`201 Created`):
+
+```json
+{
+  "id": "e184ca5b-11e5-4f52-b4ec-3719a174938b",
+  "liabilityId": "2888d0f4-0f7f-40c4-b59b-6224396a3471",
+  "householdId": "18ebc62a-1829-4930-bc41-4bf0b0538511",
+  "currency": "PHP",
+  "previousBalance": "500.00",
+  "previousBalanceAsOf": "2026-09-01",
+  "previousSourceType": "MANUAL_ENTRY",
+  "newBalance": "300.00",
+  "newBalanceAsOf": "2026-09-10",
+  "newSourceType": "MANUAL_ENTRY",
+  "reason": "Paid down with September bonus",
+  "revision": 1,
+  "recordedAt": "2026-09-10T17:04:35.997242Z"
+}
+```
+
+Replaying the same request again (`expectedRevision: 0`, now stale) returns:
+
+```json
+{
+  "error": "LIABILITY_REVISION_CONFLICT",
+  "message": "Liability 2888d0f4-0f7f-40c4-b59b-6224396a3471 balance update rejected: revision 0 is not the current revision",
+  "details": []
+}
+```
+
+## Manually verified
+
+Exercised against a running instance (`./mvnw spring-boot:run` against a
+throwaway local `postgres:16-alpine` container on an isolated port/database,
+matching `docker-compose.yml`'s connection settings) on 2026-09-11:
+
+- Create household and liability, `GET` liability shows `revision: 0`.
+- First balance replacement (`expectedRevision: 0`) → `201`, exact
+  before/after decimals and dates as above, `GET` liability now shows the
+  replaced `outstandingBalance`/`balanceAsOf` and `revision: 1`.
+- Replaying the same now-stale `expectedRevision: 0` → `409
+  LIABILITY_REVISION_CONFLICT`, no new history row appended.
+- Second replacement with the current revision (`expectedRevision: 1`),
+  including a zero balance (`"0.00"`) → `201`, `revision: 2`.
+- `GET .../balances` returns both history rows in ascending `revision`
+  order with the correct before/after pairs.
+- Negative `outstandingBalance` → `400 VALIDATION_FAILED`.
+- Blank `reason` → `400 VALIDATION_FAILED`.
+- Unknown `householdId` → `404 HOUSEHOLD_NOT_FOUND`.
+- Liability requested through a different household → `404
+  LIABILITY_NOT_FOUND` (no disclosure of the record's existence).
+- Unknown `liabilityId` under a valid household → `404 LIABILITY_NOT_FOUND`.
+- A client-supplied `sourceType` field → `400 MALFORMED_REQUEST`.
+
+Automated coverage (`./verify.sh`, 829/829 passing) additionally proves,
+against real PostgreSQL, in `LiabilityBalanceHistoryApiIntegrationTest`:
+
+- Two concurrent submissions from the same revision resolve to exactly one
+  `201` and one `409`, with exactly one audit row appended
+  (`concurrentSubmissionsFromSameRevisionProduceExactlyOneSuccessAndOneConflict`).
+- Deterministic revision ordering, zero-balance and balance-increase
+  acceptance, excessive-fraction-scale rejection, and the empty-history
+  state before any update.
+- A resubmission with the exact same `outstandingBalance`/`balanceAsOf` as
+  the liability's current values is still accepted as a distinct change,
+  with its own audit row and incremented revision
+  (`acceptsSameValueResubmissionAsADistinctAcceptedChange`) — the conditional
+  bulk update in `LiabilityRepository#applyBalance` was adopted specifically
+  because an earlier `@Version`-based draft skipped the row update (and thus
+  the revision advance) on an exact-value resubmission, since Hibernate's
+  default dirty checking treats a no-field-changed update as a no-op; this
+  test is the regression guard for that defect (see D021).
+- The current-row replacement and its audit append are atomic: forcing the
+  audit insert to fail (a colliding `(liability_id, revision)` row hitting
+  the real unique constraint) *after* the conditional update has already
+  applied the new revision rolls back both sides of the transaction — the
+  liability's balance/date/revision are unchanged and no history row exists
+  (`rollsBackBalanceReplacementWhenAuditAppendFailsAfterParentFlush`).
+- A captured financial snapshot is unaffected by a later balance
+  replacement, the replacement itself creates no snapshot, and a snapshot
+  captured afterward reflects the replacement through the existing
+  current-source read
+  (`priorSnapshotUnaffectedByLaterBalanceReplacementAndFutureSnapshotReflectsIt`).
+- The maximum supported exact value (17 integer digits, 2 fraction digits)
+  round-trips through the history response as an exact string, with no
+  floating-point conversion
+  (`preservesMaximumExactMonetaryValueOnBalanceReplacement`).
+- Same-date, older-date, and newer-date corrections all preserve the
+  exact supplied date and are ordered by `revision`, never reordered by
+  source date (`preservesSameOlderAndNewerSuppliedDatesInRevisionOrder`).
+- Household, name, type, and currency are unchanged by a balance
+  replacement (`preservesLiabilityIdentityAcrossBalanceReplacement`).
+- An unknown `liabilityId` on update, and a cross-household read of another
+  household's balance history, both return `404 LIABILITY_NOT_FOUND`
+  (`returnsNotFoundForUnknownLiabilityOnBalanceUpdate`,
+  `returnsNotFoundWhenReadingBalanceHistoryForLiabilityInAnotherHousehold`).
+- A `reason` over 500 characters and a future `balanceAsOf` are both
+  rejected with `400 VALIDATION_FAILED`
+  (`rejectsReasonExceedingMaxLength`, `rejectsFutureBalanceAsOfDateOnUpdate`).
+- A client-supplied `sourceType` on this endpoint specifically is rejected
+  with `400 MALFORMED_REQUEST`
+  (`rejectsBalanceUpdateWithUnsupportedSourceTypeField`).
+
+Existing liability create/get/list compatibility (criterion 1) is covered
+by `AssetLiabilityApiIntegrationTest`, unchanged by this feature: field-level
+`jsonPath` assertions there (not full-body equality) are unaffected by the
+additive `revision` field on `LiabilityResponse`.

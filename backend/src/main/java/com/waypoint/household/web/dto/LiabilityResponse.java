@@ -18,7 +18,8 @@ public record LiabilityResponse(
         LocalDate balanceAsOf,
         SourceType sourceType,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        long revision
 ) {
 
     public static LiabilityResponse from(Liability liability) {
@@ -32,7 +33,8 @@ public record LiabilityResponse(
                 liability.getBalanceAsOf(),
                 liability.getSourceType(),
                 liability.getCreatedAt(),
-                liability.getUpdatedAt()
+                liability.getUpdatedAt(),
+                liability.getRevision()
         );
     }
 }
