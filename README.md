@@ -434,18 +434,27 @@ touching the frontend UI.
 `frontend/e2e/real-backend-smoke.sh` is the one real-backend flow required
 by WAP-15's acceptance criteria: it builds and starts an **isolated,
 disposable** copy of the full stack (`docker-compose.test.yml`, an anonymous
-Postgres volume and separate host ports — never the shared
-`waypoint-postgres-data` volume), seeds one synthetic household with
-mixed-currency assets/liabilities through the real REST API, reads it back
-through the real financial-position endpoint via the real nginx frontend
-proxy, asserts the totals reconcile, and tears the isolated stack down
-(`down -v`) afterward. Run it from the repository root:
+Postgres volume and separate host ports driven all the way through both
+compose files — never the shared `waypoint-postgres-data` volume or the
+ordinary dev ports, so it can run alongside an already-running ordinary
+stack), seeds one synthetic household with mixed-currency assets/liabilities
+through the real REST API, then starts the frontend configured for that
+exact household (the ordinary `docker-entrypoint.sh` runtime-config
+contract) and exercises it two ways: a `curl` check of the raw JSON through
+the real nginx-to-Spring proxy, and a real-Chromium Playwright check
+(`frontend/e2e/real-backend-smoke.spec.ts`, run under
+`frontend/playwright.smoke.config.ts`) that renders the actual React
+dashboard against that same real path and drives a refresh through it. Tears
+the isolated stack down (`down -v`) afterward. Run it from the repository
+root:
 
 ```bash
 ./frontend/e2e/real-backend-smoke.sh
 ```
 
-Requires `docker`, `curl`, and `jq`.
+Requires `docker`, `curl`, `jq`, and the frontend's npm dependencies and
+Playwright browsers installed (`npm ci && npx playwright install chromium`
+in `frontend/`).
 
 ## Continuous integration
 

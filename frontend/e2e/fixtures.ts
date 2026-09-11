@@ -104,6 +104,38 @@ export const mixedCurrencyFixture: FinancialPositionResponse = {
   ],
 };
 
+export const zeroAndFutureDatedFixture: FinancialPositionResponse = {
+  householdId: HOUSEHOLD_ID,
+  householdName: 'Ralph Household',
+  baseCurrency: 'PHP',
+  retrievedAt: '2026-09-10T06:15:22.104Z',
+  assets: [
+    {
+      id: '9d999999-9999-9999-9999-999999999999',
+      name: 'Written-Off Startup Shares',
+      assetType: 'INVESTMENT',
+      estimatedValue: '0.00',
+      planningValue: '0.00',
+      currency: 'PHP',
+      valuedAt: '2026-08-20',
+      liquidity: 'ILLIQUID',
+      sourceType: 'MANUAL_ENTRY',
+    },
+  ],
+  liabilities: [
+    {
+      id: 'ae0eeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+      name: 'Prepaid Annual Insurance Premium',
+      liabilityType: 'PERSONAL_LOAN',
+      outstandingBalance: '15000.00',
+      currency: 'PHP',
+      balanceAsOf: '2027-03-01',
+      sourceType: 'MANUAL_ENTRY',
+    },
+  ],
+  totalsByCurrency: [{ currency: 'PHP', assetTotal: '0.00', liabilityTotal: '15000.00', netWorth: '-15000.00' }],
+};
+
 export const emptyHouseholdFixture: FinancialPositionResponse = {
   householdId: HOUSEHOLD_ID,
   householdName: 'New Household',

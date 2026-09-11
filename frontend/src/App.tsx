@@ -1,5 +1,5 @@
 import { readHouseholdConfig } from './config';
-import { ConfigMissing, ConfigNotFound } from './components/ConfigProblem';
+import { ConfigInvalid, ConfigMissing, ConfigNotFound } from './components/ConfigProblem';
 import { CurrencyCard } from './components/CurrencyCard';
 import { LoadingSkeleton } from './components/LoadingSkeleton';
 import { useFinancialPosition } from './hooks/useFinancialPosition';
@@ -117,6 +117,17 @@ export function App() {
           <h1>Financial position</h1>
         </header>
         <ConfigMissing />
+      </div>
+    );
+  }
+
+  if (config.status === 'invalid') {
+    return (
+      <div className="page">
+        <header className="app-header">
+          <h1>Financial position</h1>
+        </header>
+        <ConfigInvalid rawValue={config.rawValue} />
       </div>
     );
   }

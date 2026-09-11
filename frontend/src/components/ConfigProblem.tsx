@@ -12,6 +12,20 @@ export function ConfigMissing() {
   );
 }
 
+export function ConfigInvalid({ rawValue }: { rawValue: string }) {
+  return (
+    <div className="config-state">
+      <p>
+        <strong>The configured household ID is malformed.</strong>
+      </p>
+      <p>
+        The <code>HOUSEHOLD_ID</code> environment variable is set to <code>{rawValue}</code>, which is not a valid
+        household ID. Correct the <code>HOUSEHOLD_ID</code> environment variable and restart the app.
+      </p>
+    </div>
+  );
+}
+
 export function ConfigNotFound({ householdId }: { householdId: string }) {
   return (
     <div className="config-state">

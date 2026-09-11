@@ -94,6 +94,40 @@ const mixedCurrencyResponse: FinancialPositionResponse = {
   ],
 };
 
+const zeroAndFutureDatedResponse: FinancialPositionResponse = {
+  householdId: HOUSEHOLD_ID,
+  householdName: 'Ralph Household',
+  baseCurrency: 'PHP',
+  retrievedAt: '2026-09-10T06:15:22.104Z',
+  assets: [
+    {
+      id: '9d999999-9999-9999-9999-999999999999',
+      name: 'Written-Off Startup Shares',
+      assetType: 'INVESTMENT',
+      estimatedValue: '0.00',
+      planningValue: '0.00',
+      currency: 'PHP',
+      valuedAt: '2026-08-20',
+      liquidity: 'ILLIQUID',
+      sourceType: 'MANUAL_ENTRY',
+    },
+  ],
+  liabilities: [
+    {
+      id: 'ae0eeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+      name: 'Prepaid Annual Insurance Premium',
+      liabilityType: 'PERSONAL_LOAN',
+      outstandingBalance: '15000.00',
+      currency: 'PHP',
+      // A future balanceAsOf: retrievedAt never implies source values were
+      // verified "today" — a dated record can legitimately postdate it.
+      balanceAsOf: '2027-03-01',
+      sourceType: 'MANUAL_ENTRY',
+    },
+  ],
+  totalsByCurrency: [{ currency: 'PHP', assetTotal: '0.00', liabilityTotal: '15000.00', netWorth: '-15000.00' }],
+};
+
 const emptyHouseholdResponse: FinancialPositionResponse = {
   householdId: HOUSEHOLD_ID,
   householdName: 'New Household',
@@ -113,7 +147,7 @@ afterEach(() => {
   setHouseholdConfig(undefined);
 });
 
-describe('missing/invalid configuration', () => {
+describe('missing configuration', () => {
   it('shows the missing-configuration state and never calls the API', async () => {
     setHouseholdConfig(undefined);
     const fetchMock = vi.fn();
@@ -124,15 +158,19 @@ describe('missing/invalid configuration', () => {
     expect(await screen.findByText(/no household is configured/i)).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
   });
+});
 
-  it('treats a malformed configured id as missing configuration', async () => {
+describe('invalid configuration', () => {
+  it('reports a malformed configured id distinctly from missing configuration, and never calls the API', async () => {
     setHouseholdConfig('not-a-uuid');
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
     render(<App />);
 
-    expect(await screen.findByText(/no household is configured/i)).toBeInTheDocument();
+    expect(await screen.findByText(/configured household id is malformed/i)).toBeInTheDocument();
+    expect(screen.getByText('not-a-uuid')).toBeInTheDocument();
+    expect(screen.queryByText(/no household is configured/i)).not.toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
@@ -197,6 +235,25 @@ describe('populated financial position', () => {
 
     expect(await screen.findByText(/no assets or liabilities are recorded/i)).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('renders a zero-valued asset row and a future-dated liability, distinct from the empty-household state', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(zeroAndFutureDatedResponse)));
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Ralph Household' });
+
+    // A currency with real (if zero-valued/future-dated) records is not the
+    // same as a household with no records at all.
+    expect(screen.queryByText(/no assets or liabilities are recorded/i)).not.toBeInTheDocument();
+
+    const phpCard = screen.getByText('PHP').closest('section')!;
+    await userEvent.click(within(phpCard).getByRole('button'));
+
+    expect(within(phpCard).getByText('Written-Off Startup Shares')).toBeInTheDocument();
+    expect(within(phpCard).getAllByText('0.00').length).toBeGreaterThan(0);
+
+    expect(within(phpCard).getByText('Prepaid Annual Insurance Premium')).toBeInTheDocument();
+    expect(within(phpCard).getByText('Mar 1, 2027')).toBeInTheDocument();
   });
 });
 

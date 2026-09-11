@@ -5,12 +5,13 @@ import {
   mixedCurrencyFixture,
   mockConfig,
   mockFinancialPosition,
+  zeroAndFutureDatedFixture,
 } from './fixtures';
 
 const WIDE = { width: 1440, height: 900 };
 const NARROW = { width: 390, height: 844 };
 
-test.describe('missing/invalid configuration', () => {
+test.describe('missing configuration', () => {
   test('shows the missing-configuration state and never calls the API', async ({ page }) => {
     await mockConfig(page, null);
     let apiCalled = false;
@@ -22,6 +23,26 @@ test.describe('missing/invalid configuration', () => {
     await page.goto('/');
 
     await expect(page.getByText(/no household is configured/i)).toBeVisible();
+    expect(apiCalled).toBe(false);
+  });
+});
+
+test.describe('invalid configuration', () => {
+  test('reports a malformed configured id distinctly from missing configuration, and never calls the API', async ({
+    page,
+  }) => {
+    await mockConfig(page, 'not-a-uuid');
+    let apiCalled = false;
+    await page.route('**/api/households/**', () => {
+      apiCalled = true;
+    });
+
+    await page.setViewportSize(WIDE);
+    await page.goto('/');
+
+    await expect(page.getByText(/configured household id is malformed/i)).toBeVisible();
+    await expect(page.getByText('not-a-uuid')).toBeVisible();
+    await expect(page.getByText(/no household is configured/i)).toHaveCount(0);
     expect(apiCalled).toBe(false);
   });
 });
@@ -107,6 +128,27 @@ test.describe('populated financial position', () => {
       clientWidth: document.documentElement.clientWidth,
     }));
     expect(overflow.scrollWidth).toBe(overflow.clientWidth);
+  });
+});
+
+test.describe('zero-valued and future-dated records', () => {
+  test('renders a zero-valued asset row and a future-dated liability, distinct from the empty-household state', async ({
+    page,
+  }) => {
+    await mockConfig(page, HOUSEHOLD_ID);
+    await mockFinancialPosition(page, HOUSEHOLD_ID, () => ({ status: 200, body: zeroAndFutureDatedFixture }));
+
+    await page.setViewportSize(WIDE);
+    await page.goto('/');
+    await expect(page.getByRole('heading', { name: 'Ralph Household' })).toBeVisible();
+    await expect(page.getByText(/no assets or liabilities are recorded/i)).toHaveCount(0);
+
+    const phpCard = page.getByText('PHP', { exact: true }).locator('xpath=ancestor::section');
+    await phpCard.getByRole('button').click();
+
+    await expect(phpCard.getByText('Written-Off Startup Shares')).toBeVisible();
+    await expect(phpCard.getByText('Prepaid Annual Insurance Premium')).toBeVisible();
+    await expect(phpCard.getByText('Mar 1, 2027')).toBeVisible();
   });
 });
 

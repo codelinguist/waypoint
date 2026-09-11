@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { HOUSEHOLD_ID, emptyHouseholdFixture, mixedCurrencyFixture, mockConfig, mockFinancialPosition } from './fixtures';
+import {
+  HOUSEHOLD_ID,
+  emptyHouseholdFixture,
+  mixedCurrencyFixture,
+  mockConfig,
+  mockFinancialPosition,
+  zeroAndFutureDatedFixture,
+} from './fixtures';
 
 // Not a correctness suite — captures representative wide/narrow screenshots
 // of the real implementation as durable evidence under
@@ -77,6 +84,24 @@ test('missing configuration — wide', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText(/no household is configured/i)).toBeVisible();
   await page.screenshot({ path: `${OUT_DIR}/configuration-missing-wide.png`, fullPage: true });
+});
+
+test('invalid configuration — wide', async ({ page }) => {
+  await mockConfig(page, 'not-a-uuid');
+  await page.setViewportSize(WIDE);
+  await page.goto('/');
+  await expect(page.getByText(/configured household id is malformed/i)).toBeVisible();
+  await page.screenshot({ path: `${OUT_DIR}/configuration-invalid-wide.png`, fullPage: true });
+});
+
+test('zero-valued and future-dated records — wide', async ({ page }) => {
+  await mockConfig(page, HOUSEHOLD_ID);
+  await mockFinancialPosition(page, HOUSEHOLD_ID, () => ({ status: 200, body: zeroAndFutureDatedFixture }));
+  await page.setViewportSize(WIDE);
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Ralph Household' })).toBeVisible();
+  await page.getByText('PHP', { exact: true }).locator('xpath=ancestor::section').getByRole('button').click();
+  await page.screenshot({ path: `${OUT_DIR}/zero-and-future-dated-wide.png`, fullPage: true });
 });
 
 test('configured household not found — wide', async ({ page }) => {
