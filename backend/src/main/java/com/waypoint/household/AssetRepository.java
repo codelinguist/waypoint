@@ -1,6 +1,7 @@
 package com.waypoint.household;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -28,7 +29,10 @@ public interface AssetRepository extends JpaRepository<Asset, UUID> {
      * Doing this as a direct bulk update, rather than mutating the loaded
      * entity and relying on JPA dirty checking, also means a resubmission
      * whose values are textually identical to the current row still counts
-     * as a distinct accepted change instead of being silently skipped.
+     * as a distinct accepted change instead of being silently skipped. A
+     * bulk update bypasses Hibernate's {@code @UpdateTimestamp} lifecycle
+     * handling, so {@code updatedAt} is set explicitly here rather than left
+     * to that annotation.
      */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
@@ -36,6 +40,7 @@ public interface AssetRepository extends JpaRepository<Asset, UUID> {
             set a.estimatedValue = :estimatedValue,
                 a.planningValue = :planningValue,
                 a.valuedAt = :valuedAt,
+                a.updatedAt = :updatedAt,
                 a.revision = a.revision + 1
             where a.id = :assetId
               and a.household.id = :householdId
@@ -47,6 +52,7 @@ public interface AssetRepository extends JpaRepository<Asset, UUID> {
             @Param("estimatedValue") BigDecimal estimatedValue,
             @Param("planningValue") BigDecimal planningValue,
             @Param("valuedAt") LocalDate valuedAt,
+            @Param("updatedAt") Instant updatedAt,
             @Param("expectedRevision") long expectedRevision
     );
 }

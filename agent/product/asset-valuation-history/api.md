@@ -13,7 +13,11 @@ change appends an immutable before/after row to a separate audit table
 (`asset_valuations`). There is no update or delete endpoint for that audit
 trail. `POST /assets` (asset creation), `GET /assets/{assetId}` and
 `GET /assets` are unchanged by this feature — their request/response shapes
-and behavior stay exactly as before.
+and behavior stay exactly as before. One exception: an accepted valuation
+update also advances the existing `updatedAt` field returned by
+`GET /assets/{assetId}` — a valuation change is an update to the asset's
+recorded state, so its update metadata reflects that, while `createdAt`,
+identity, name, type, currency, and liquidity are untouched.
 
 Every source type recorded by this endpoint is `MANUAL_ENTRY`: it is a
 trusted manual correction, never an import or an AI inference. An AI
@@ -224,3 +228,20 @@ requests issued concurrently from separate threads on the same starting
 revision yield exactly one `200` and one `409`, with exactly one audit row
 committed — the atomic commit/rollback and concurrency behavior required by
 the acceptance criteria.
+
+`AssetValuationApiIntegrationTest.auditWriteFailureRollsBackTheAssetRowUpdate`
+forces the audit append to fail after the asset row's `UPDATE` has already
+executed (by pre-occupying the `(asset_id, revision)` the update would
+produce) and proves, against real PostgreSQL, that the asset row's
+`estimatedValue`/`planningValue`/`valuedAt`/`revision` are left exactly as
+they were and no partial audit row is committed — the two writes commit or
+roll back together.
+
+`AssetValuationApiIntegrationTest.updateAdvancesUpdatedAtWhilePreservingIdentityAndOtherMetadata`
+proves, via `GET /assets/{assetId}`, that an accepted update changes
+`updatedAt` while `createdAt`, `id`, `householdId`, `name`, `assetType`,
+`currency`, and `liquidity` are all unchanged. Additional PostgreSQL-backed
+tests cover the `NUMERIC(19,2)` maximum (17 integer digits) and zero-value
+boundaries, rejection of an 18-integer-digit value, a missing or
+future `valuedAt`, a 501-character `reason`, and that a snapshot or
+current-position read taken after an update reflects the updated value.

@@ -1,6 +1,7 @@
 package com.waypoint.household;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -101,7 +102,7 @@ public class AssetService {
         SourceType previousSourceType = asset.getSourceType();
 
         int updatedRows = assetRepository.applyValuation(
-                assetId, householdId, estimatedValue, planningValue, valuedAt, expectedRevision);
+                assetId, householdId, estimatedValue, planningValue, valuedAt, Instant.now(), expectedRevision);
         if (updatedRows == 0) {
             throw new StaleAssetRevisionException(assetId, expectedRevision);
         }

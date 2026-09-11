@@ -3,11 +3,13 @@ package com.waypoint.household;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -125,8 +127,9 @@ class AssetServiceTest {
         when(householdRepository.findById(householdId)).thenReturn(Optional.of(household));
         when(assetRepository.findByIdAndHousehold_Id(assetId, householdId))
                 .thenReturn(Optional.of(before), Optional.of(after));
-        when(assetRepository.applyValuation(assetId, householdId, new BigDecimal("200.00"),
-                new BigDecimal("150.00"), LocalDate.of(2026, 2, 1), 0L)).thenReturn(1);
+        when(assetRepository.applyValuation(eq(assetId), eq(householdId), eq(new BigDecimal("200.00")),
+                eq(new BigDecimal("150.00")), eq(LocalDate.of(2026, 2, 1)), any(Instant.class), eq(0L)))
+                .thenReturn(1);
 
         Asset updated = assetService.updateValuation(
                 householdId, assetId, new BigDecimal("200.00"), new BigDecimal("150.00"),
@@ -155,8 +158,8 @@ class AssetServiceTest {
                 LocalDate.now(), Liquidity.LIQUID);
         when(householdRepository.findById(householdId)).thenReturn(Optional.of(household));
         when(assetRepository.findByIdAndHousehold_Id(assetId, householdId)).thenReturn(Optional.of(asset));
-        when(assetRepository.applyValuation(assetId, householdId, BigDecimal.TEN, BigDecimal.TEN,
-                LocalDate.now(), 5L)).thenReturn(0);
+        when(assetRepository.applyValuation(eq(assetId), eq(householdId), eq(BigDecimal.TEN), eq(BigDecimal.TEN),
+                eq(LocalDate.now()), any(Instant.class), eq(5L))).thenReturn(0);
 
         assertThatThrownBy(() -> assetService.updateValuation(
                 householdId, assetId, BigDecimal.TEN, BigDecimal.TEN, LocalDate.now(), "reason", 5L
