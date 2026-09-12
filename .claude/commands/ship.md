@@ -1,6 +1,7 @@
 ---
 description: Merge an accepted PR to main and close out its Jira issue
 argument-hint: <issue-key or PR number>
+model: claude-haiku-4-5-20251001
 ---
 
 # Ship: $ARGUMENTS
