@@ -54,22 +54,3 @@ export function isZeroMoney(value: string): boolean {
   const { integerPart, fractionPart } = parseMoney(value);
   return /^0+$/.test(integerPart) && fractionPart === '00';
 }
-
-const AMOUNT_FORMATTER = new Intl.NumberFormat('en-US', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
-/**
- * Formats a plain JSON-number monetary amount (income-stream/obligation
- * `amount` — see api/types.ts) for display, e.g. 1234.5 -> "1,234.50".
- *
- * Unlike the rest of this module, this does not parse an exact decimal
- * string: the income-streams/obligations API transports `amount` as a JSON
- * number rather than a decimal string, so it is already subject to
- * IEEE-754 double precision by the time it reaches the browser. That is an
- * existing backend transport detail this read-only view does not change.
- */
-export function formatAmount(value: number): string {
-  return AMOUNT_FORMATTER.format(value);
-}

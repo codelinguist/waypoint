@@ -2,62 +2,36 @@ import { useState } from 'react';
 import { readHouseholdConfig } from './config';
 import { ConfigInvalid, ConfigMissing, ConfigNotFound } from './components/ConfigProblem';
 import { CurrencyCard } from './components/CurrencyCard';
-import { IncomeStreamTable } from './components/IncomeStreamTable';
-import { ObligationTable } from './components/ObligationTable';
+import { ForecastingPage } from './components/ForecastingPage';
+import { IncomeObligationsPage } from './components/IncomeObligationsPage';
 import { LoadingSkeleton } from './components/LoadingSkeleton';
+import { GoalsPage } from './GoalsPage';
 import { useFinancialPosition } from './hooks/useFinancialPosition';
-import { useIncomeAndObligations } from './hooks/useIncomeAndObligations';
 import { formatInstantUtc, formatTimeUtc } from './dates';
+
+type View = 'position' | 'goals' | 'forecasting' | 'income-obligations';
 
 const EXPLAINER =
   'Net worth is recorded asset planning values minus outstanding liability balances. ' +
   'Records keep their own valuation or balance dates; refreshing does not update those dates.';
-
-type View = 'financial-position' | 'income-obligations';
-
-const VIEWS: { id: View; label: string }[] = [
-  { id: 'financial-position', label: 'Financial position' },
-  { id: 'income-obligations', label: 'Income & obligations' },
-];
-
-function AppNav({ view, onSelect }: { view: View; onSelect: (view: View) => void }) {
-  return (
-    <nav className="app-nav" aria-label="Sections">
-      <div role="tablist" aria-label="Sections">
-        {VIEWS.map((candidate) => (
-          <button
-            key={candidate.id}
-            type="button"
-            role="tab"
-            aria-selected={view === candidate.id}
-            className={`tab-btn${view === candidate.id ? ' active' : ''}`}
-            onClick={() => onSelect(candidate.id)}
-          >
-            {candidate.label}
-          </button>
-        ))}
-      </div>
-    </nav>
-  );
-}
 
 function FinancialPositionPage({ householdId }: { householdId: string }) {
   const { state, refresh, retryInitial } = useFinancialPosition(householdId);
 
   if (state.status === 'not-found') {
     return (
-      <>
+      <div className="page">
         <header className="app-header">
           <h1>Financial position</h1>
         </header>
         <ConfigNotFound householdId={state.householdId} />
-      </>
+      </div>
     );
   }
 
   if (state.status === 'loading') {
     return (
-      <>
+      <div className="page">
         <header className="app-header">
           <h1>Financial position</h1>
           <button className="refresh-btn" type="button" disabled>
@@ -68,13 +42,13 @@ function FinancialPositionPage({ householdId }: { householdId: string }) {
           Loading financial position&hellip;
         </p>
         <LoadingSkeleton />
-      </>
+      </div>
     );
   }
 
   if (state.status === 'error') {
     return (
-      <>
+      <div className="page">
         <header className="app-header">
           <h1>Financial position</h1>
         </header>
@@ -89,7 +63,7 @@ function FinancialPositionPage({ householdId }: { householdId: string }) {
             </button>
           </p>
         </div>
-      </>
+      </div>
     );
   }
 
@@ -97,7 +71,7 @@ function FinancialPositionPage({ householdId }: { householdId: string }) {
   const isEmptyHousehold = data.totalsByCurrency.length === 0;
 
   return (
-    <>
+    <div className="page">
       <header className="app-header">
         <h1>{data.householdName}</h1>
         <button className="refresh-btn" type="button" onClick={refresh} disabled={refreshing}>
@@ -135,148 +109,84 @@ function FinancialPositionPage({ householdId }: { householdId: string }) {
           />
         ))
       )}
-    </>
+    </div>
   );
 }
 
-function IncomeObligationsPage({ householdId }: { householdId: string }) {
-  const { state, refresh, retryInitial } = useIncomeAndObligations(householdId);
-
-  if (state.status === 'not-found') {
-    return (
-      <>
-        <header className="app-header">
-          <h1>Income &amp; obligations</h1>
-        </header>
-        <ConfigNotFound householdId={state.householdId} />
-      </>
-    );
-  }
-
-  if (state.status === 'loading') {
-    return (
-      <>
-        <header className="app-header">
-          <h1>Income &amp; obligations</h1>
-          <button className="refresh-btn" type="button" disabled>
-            Refresh
-          </button>
-        </header>
-        <p className="status-line" role="status" aria-live="polite">
-          Loading income streams and obligations&hellip;
-        </p>
-        <LoadingSkeleton />
-      </>
-    );
-  }
-
-  if (state.status === 'error') {
-    return (
-      <>
-        <header className="app-header">
-          <h1>Income &amp; obligations</h1>
-        </header>
-        <div className="empty-state" role="alert">
-          <p>
-            <strong>Could not load income streams and obligations.</strong>
-          </p>
-          <p>{state.message} No records are shown below because none have loaded yet.</p>
-          <p>
-            <button className="refresh-btn" type="button" onClick={retryInitial}>
-              Retry
-            </button>
-          </p>
-        </div>
-      </>
-    );
-  }
-
-  const { data, refreshing, refreshError } = state;
-  const isEmpty = data.incomeStreams.length === 0 && data.obligations.length === 0;
-
+function AppNav({ view, onSelect }: { view: View; onSelect: (view: View) => void }) {
   return (
-    <>
-      <header className="app-header">
-        <h1>Income &amp; obligations</h1>
-        <button className="refresh-btn" type="button" onClick={refresh} disabled={refreshing}>
-          {refreshing ? 'Refreshing…' : 'Refresh'}
-        </button>
-      </header>
-      <p className="status-line" role="status" aria-live="polite">
-        {refreshError ? 'Showing previously loaded results' : 'Loaded'}
-      </p>
-
-      {refreshError && (
-        <div className="banner" role="alert">
-          <strong>Refresh failed at {formatTimeUtc(refreshError.failedAt)}.</strong>
-          Showing the results from the last successful refresh below. Select &ldquo;Refresh&rdquo; to try again.
-        </div>
-      )}
-
-      {isEmpty ? (
-        <div className="empty-state">
-          <p>
-            <strong>No income streams or obligations are recorded for this household yet.</strong>
-          </p>
-          <p>Add records through the existing household data tools, then refresh this page.</p>
-        </div>
-      ) : (
-        <div className={`card${refreshError ? ' dimmed' : ''}`}>
-          <div className="records">
-            <h4>Income streams{data.incomeStreams.length > 0 ? ` (${data.incomeStreams.length})` : ''}</h4>
-            {data.incomeStreams.length > 0 ? (
-              <IncomeStreamTable incomeStreams={data.incomeStreams} />
-            ) : (
-              <p className="no-records-side">No income streams recorded.</p>
-            )}
-
-            <h4>Recurring obligations{data.obligations.length > 0 ? ` (${data.obligations.length})` : ''}</h4>
-            {data.obligations.length > 0 ? (
-              <ObligationTable obligations={data.obligations} />
-            ) : (
-              <p className="no-records-side">No recurring obligations recorded.</p>
-            )}
-          </div>
-        </div>
-      )}
-    </>
+    <nav className="app-nav" aria-label="Sections">
+      <button type="button" aria-current={view === 'position' ? 'page' : undefined} onClick={() => onSelect('position')}>
+        Financial position
+      </button>
+      <button type="button" aria-current={view === 'goals' ? 'page' : undefined} onClick={() => onSelect('goals')}>
+        Goals
+      </button>
+      <button
+        type="button"
+        aria-current={view === 'income-obligations' ? 'page' : undefined}
+        onClick={() => onSelect('income-obligations')}
+      >
+        Income &amp; obligations
+      </button>
+      <button
+        type="button"
+        aria-current={view === 'forecasting' ? 'page' : undefined}
+        onClick={() => onSelect('forecasting')}
+      >
+        Forecasting
+      </button>
+    </nav>
   );
 }
 
 export function App() {
+  const [view, setView] = useState<View>('position');
   const config = readHouseholdConfig();
-  const [view, setView] = useState<View>('financial-position');
+
+  if (view === 'forecasting') {
+    return (
+      <>
+        <AppNav view={view} onSelect={setView} />
+        <ForecastingPage />
+      </>
+    );
+  }
 
   if (config.status === 'missing') {
     return (
-      <div className="page">
-        <header className="app-header">
-          <h1>Financial position</h1>
-        </header>
-        <ConfigMissing />
-      </div>
+      <>
+        <AppNav view={view} onSelect={setView} />
+        <div className="page">
+          <header className="app-header">
+            <h1>Financial position</h1>
+          </header>
+          <ConfigMissing />
+        </div>
+      </>
     );
   }
 
   if (config.status === 'invalid') {
     return (
-      <div className="page">
-        <header className="app-header">
-          <h1>Financial position</h1>
-        </header>
-        <ConfigInvalid rawValue={config.rawValue} />
-      </div>
+      <>
+        <AppNav view={view} onSelect={setView} />
+        <div className="page">
+          <header className="app-header">
+            <h1>Financial position</h1>
+          </header>
+          <ConfigInvalid rawValue={config.rawValue} />
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="page">
+    <>
       <AppNav view={view} onSelect={setView} />
-      {view === 'financial-position' ? (
-        <FinancialPositionPage householdId={config.householdId} />
-      ) : (
-        <IncomeObligationsPage householdId={config.householdId} />
-      )}
-    </div>
+      {view === 'goals' && <GoalsPage householdId={config.householdId} />}
+      {view === 'income-obligations' && <IncomeObligationsPage householdId={config.householdId} />}
+      {view === 'position' && <FinancialPositionPage householdId={config.householdId} />}
+    </>
   );
 }

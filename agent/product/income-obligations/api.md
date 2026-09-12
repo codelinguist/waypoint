@@ -16,16 +16,17 @@ frequency, and currency, per PD-001 in the product brief.
 
 `amount` in both `IncomeStreamResponse` and `ObligationResponse` is a plain
 **JSON number** (e.g. `1234.56`, not `"1234.56"`), backed by a `BigDecimal`
-column with no custom Jackson serializer. This predates the exact-decimal
--string convention documented in
-`agent/product/current-financial-position/api.md` and is **not** changed by
-this API's frontend consumer (WAP-21) — a read-only view has no license to
-alter an already-accepted API contract. The frontend's `money.ts` exposes a
-separate `formatAmount(number)` presentation helper for this field,
-distinct from `formatMoneyMagnitude(string)` used for financial-position
-values. A future task could align this endpoint onto the decimal-string
-convention; until then, be aware that very large amounts are subject to
-ordinary IEEE-754 double precision once parsed by a JSON client.
+column with no custom Jackson serializer — the same situation as the goals
+and planning-calculator endpoints (see the comment on `FinancialGoal` in
+`frontend/src/api/types.ts`). Only the financial-position endpoint uses the
+exact-decimal-string convention documented in
+`agent/product/current-financial-position/api.md`; this is **not** changed
+by this API's frontend consumer (WAP-21) — a read-only view has no license
+to alter an already-accepted API contract. The frontend formats this field
+with the existing `formatMoneyNumber` from `frontend/src/moneyNumber.ts`
+(the same helper the goals view uses), not `money.ts`'s decimal-string
+formatters. Be aware that very large amounts are subject to ordinary
+IEEE-754 double precision once parsed by a JSON client.
 
 ## Response fields
 

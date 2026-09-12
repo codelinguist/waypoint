@@ -18,7 +18,7 @@ const NARROW = { width: 390, height: 844 };
 
 async function gotoIncomeObligationsTab(page: import('@playwright/test').Page) {
   await page.goto('/');
-  await page.getByRole('tab', { name: /income & obligations/i }).click();
+  await page.getByRole('button', { name: 'Income & obligations' }).click();
 }
 
 test('populated income streams and obligations — wide and narrow', async ({ page }) => {
@@ -83,7 +83,7 @@ test('configured household not found — wide', async ({ page }) => {
   await page.screenshot({ path: `${OUT_DIR}/configuration-not-found-wide.png`, fullPage: true });
 });
 
-test('keyboard focus on nav tabs — wide', async ({ page }) => {
+test('keyboard focus on nav — wide', async ({ page }) => {
   await mockConfig(page, HOUSEHOLD_ID);
   await mockIncomeStreams(page, HOUSEHOLD_ID, () => ({ status: 200, body: incomeStreamsFixture }));
   await mockObligations(page, HOUSEHOLD_ID, () => ({ status: 200, body: obligationsFixture }));

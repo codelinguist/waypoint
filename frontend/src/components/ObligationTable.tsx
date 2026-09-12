@@ -1,6 +1,6 @@
 import { formatLocalDate } from '../dates';
 import { frequencyLabel, obligationTypeLabel, sourceTypeLabel } from '../labels';
-import { formatAmount } from '../money';
+import { formatMoneyNumber } from '../moneyNumber';
 import type { Obligation } from '../api/types';
 
 export function ObligationTable({ obligations }: { obligations: Obligation[] }) {
@@ -29,7 +29,7 @@ export function ObligationTable({ obligations }: { obligations: Obligation[] }) 
                 <span className="badge">{obligationTypeLabel(obligation.obligationType)}</span>
               </td>
               <td className="amount" data-label="Amount">
-                {formatAmount(obligation.amount)} {obligation.currency}
+                {formatMoneyNumber(obligation.amount)} {obligation.currency}
               </td>
               <td data-label="Frequency">{frequencyLabel(obligation.frequency)}</td>
               <td data-label="Start">

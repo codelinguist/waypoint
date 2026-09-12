@@ -2,6 +2,7 @@ import type {
   AssetType,
   CompensationClassification,
   Frequency,
+  GoalContributionStatus,
   IncomeCertainty,
   IncomeType,
   LiabilityType,
@@ -38,6 +39,11 @@ const LIQUIDITY_LABELS: Record<Liquidity, string> = {
 // being required before the backend adds one.
 const SOURCE_TYPE_LABELS: Partial<Record<SourceType, string>> = {
   MANUAL_ENTRY: 'Manual',
+};
+
+const GOAL_CONTRIBUTION_STATUS_LABELS: Record<GoalContributionStatus, string> = {
+  ALREADY_FUNDED: 'Already funded',
+  CONTRIBUTIONS_REQUIRED: 'Contributions required',
 };
 
 const INCOME_TYPE_LABELS: Record<IncomeType, string> = {
@@ -100,6 +106,10 @@ export function liquidityLabel(value: Liquidity): string {
 
 export function sourceTypeLabel(value: SourceType): string {
   return SOURCE_TYPE_LABELS[value] ?? titleCaseFallback(value);
+}
+
+export function goalContributionStatusLabel(value: GoalContributionStatus): string {
+  return GOAL_CONTRIBUTION_STATUS_LABELS[value] ?? titleCaseFallback(value);
 }
 
 export function incomeTypeLabel(value: IncomeType): string {

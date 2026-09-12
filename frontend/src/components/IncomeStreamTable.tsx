@@ -1,6 +1,6 @@
 import { formatLocalDate } from '../dates';
 import { certaintyLabel, compensationClassificationLabel, frequencyLabel, incomeTypeLabel, sourceTypeLabel } from '../labels';
-import { formatAmount } from '../money';
+import { formatMoneyNumber } from '../moneyNumber';
 import type { IncomeStream } from '../api/types';
 
 export function IncomeStreamTable({ incomeStreams }: { incomeStreams: IncomeStream[] }) {
@@ -33,7 +33,7 @@ export function IncomeStreamTable({ incomeStreams }: { incomeStreams: IncomeStre
                   <span className="badge">{incomeTypeLabel(incomeStream.incomeType)}</span>
                 </td>
                 <td className="amount" data-label="Amount">
-                  {formatAmount(incomeStream.amount)} {incomeStream.currency}
+                  {formatMoneyNumber(incomeStream.amount)} {incomeStream.currency}
                 </td>
                 <td data-label="Frequency">{frequencyLabel(incomeStream.frequency)}</td>
                 <td data-label="Classification">

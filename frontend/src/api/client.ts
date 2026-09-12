@@ -1,4 +1,16 @@
-import type { ApiErrorBody, FinancialPositionResponse, IncomeStream, Obligation } from './types';
+import type {
+  ApiErrorBody,
+  CashFlowProjectionRequest,
+  CashFlowProjectionResponse,
+  EmergencyFundRunwayRequest,
+  EmergencyFundRunwayResponse,
+  FinancialGoal,
+  FinancialPositionResponse,
+  GoalContributionRequestBody,
+  GoalContributionResult,
+  IncomeStream,
+  Obligation,
+} from './types';
 
 export class HouseholdNotFoundError extends Error {
   readonly householdId: string;
@@ -14,13 +26,6 @@ export class FinancialPositionRequestError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'FinancialPositionRequestError';
-  }
-}
-
-export class IncomeObligationsRequestError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'IncomeObligationsRequestError';
   }
 }
 
@@ -59,6 +64,169 @@ export async function fetchFinancialPosition(
   }
 
   return (await response.json()) as FinancialPositionResponse;
+}
+
+export class GoalsRequestError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'GoalsRequestError';
+  }
+}
+
+/**
+ * Fetches a household's financial goals, ordered by priority (matches the
+ * backend's `findByHousehold_IdOrderByPriorityAscCreatedAtAscIdAsc`). Throws
+ * `HouseholdNotFoundError` for a 404, `GoalsRequestError` for any other
+ * non-OK response or network failure.
+ */
+export async function fetchGoals(householdId: string, signal?: AbortSignal): Promise<FinancialGoal[]> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/households/${householdId}/goals`, { signal });
+  } catch (cause) {
+    if (cause instanceof DOMException && cause.name === 'AbortError') {
+      throw cause;
+    }
+    throw new GoalsRequestError('Could not reach the server.');
+  }
+
+  if (response.status === 404) {
+    throw new HouseholdNotFoundError(householdId);
+  }
+  if (!response.ok) {
+    let body: Partial<ApiErrorBody> | undefined;
+    try {
+      body = (await response.json()) as ApiErrorBody;
+    } catch {
+      body = undefined;
+    }
+    throw new GoalsRequestError(body?.message ?? `Request failed with status ${response.status}.`);
+  }
+
+  return (await response.json()) as FinancialGoal[];
+}
+
+export class GoalContributionRequestError extends Error {
+  /** "field: message" strings from a 400 VALIDATION_FAILED response, if any. */
+  readonly details: string[];
+
+  constructor(message: string, details: string[] = []) {
+    super(message);
+    this.name = 'GoalContributionRequestError';
+    this.details = details;
+  }
+}
+
+/**
+ * Raised for a validation error the API rejected the request with (HTTP
+ * 400), distinct from `CalculatorRequestError`'s network/server failures so
+ * a caller can label the two differently (a mistyped input vs. "try again
+ * later").
+ */
+export class CalculatorValidationError extends Error {
+  readonly details: unknown[];
+
+  constructor(message: string, details: unknown[]) {
+    super(message);
+    this.name = 'CalculatorValidationError';
+    this.details = details;
+  }
+}
+
+/**
+ * Calls the stateless goal-contribution calculator. Throws
+ * `GoalContributionRequestError` (carrying any validation `details`) for a
+ * non-OK response or network failure. Never 404s — the endpoint accepts no
+ * household or goal identifier.
+ */
+export async function calculateGoalContribution(
+  request: GoalContributionRequestBody,
+  signal?: AbortSignal
+): Promise<GoalContributionResult> {
+  let response: Response;
+  try {
+    response = await fetch('/api/planning/goal-contribution-calculator', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+      signal,
+    });
+  } catch (cause) {
+    if (cause instanceof DOMException && cause.name === 'AbortError') {
+      throw cause;
+    }
+    throw new GoalContributionRequestError('Could not reach the server.');
+  }
+
+  if (!response.ok) {
+    let body: Partial<ApiErrorBody> | undefined;
+    try {
+      body = (await response.json()) as ApiErrorBody;
+    } catch {
+      body = undefined;
+    }
+    const details = Array.isArray(body?.details) ? body.details.map(String) : [];
+    throw new GoalContributionRequestError(body?.message ?? `Request failed with status ${response.status}.`, details);
+  }
+
+  return (await response.json()) as GoalContributionResult;
+}
+
+export class CalculatorRequestError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'CalculatorRequestError';
+  }
+}
+
+/**
+ * Posts a stateless planning-calculator request. Neither calculator reads or
+ * writes any persisted household state, so this takes only the request body
+ * — no householdId. Throws `CalculatorValidationError` for a 400 and
+ * `CalculatorRequestError` for any other non-OK response or network failure.
+ */
+async function postCalculator<TResponse>(path: string, body: unknown): Promise<TResponse> {
+  let response: Response;
+  try {
+    response = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new CalculatorRequestError('Could not reach the server.');
+  }
+
+  if (!response.ok) {
+    let errorBody: Partial<ApiErrorBody> | undefined;
+    try {
+      errorBody = (await response.json()) as ApiErrorBody;
+    } catch {
+      errorBody = undefined;
+    }
+    const message = errorBody?.message ?? `Request failed with status ${response.status}.`;
+    if (response.status === 400) {
+      throw new CalculatorValidationError(message, errorBody?.details ?? []);
+    }
+    throw new CalculatorRequestError(message);
+  }
+
+  return (await response.json()) as TResponse;
+}
+
+export function fetchCashFlowProjection(request: CashFlowProjectionRequest): Promise<CashFlowProjectionResponse> {
+  return postCalculator<CashFlowProjectionResponse>('/api/planning/cash-flow-projection', request);
+}
+
+export function fetchEmergencyFundRunway(request: EmergencyFundRunwayRequest): Promise<EmergencyFundRunwayResponse> {
+  return postCalculator<EmergencyFundRunwayResponse>('/api/planning/emergency-fund-runway', request);
+}
+
+export class IncomeObligationsRequestError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'IncomeObligationsRequestError';
+  }
 }
 
 /**

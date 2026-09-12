@@ -389,8 +389,8 @@ real, ephemeral PostgreSQL container (Flyway migrations included).
 ## Frontend
 
 The `frontend/` directory is a private, read-only React/TypeScript app for
-one already-configured household, with two sections reachable through a
-minimal in-page tab nav (no router):
+one already-configured household, with multiple sections reachable through
+a minimal in-page nav (no router; see `App.tsx`'s `AppNav`). Notably:
 
 - **Financial position** (Phase 9 early slice, WAP-15) follows the approved
   design in `agent/ui/financial-position/design-brief.md` (currency-first
@@ -405,7 +405,7 @@ minimal in-page tab nav (no router):
   than introducing a new visual language.
 
 Record creation/editing, household creation/selection, authentication, and
-FX conversion are explicitly out of scope for both sections.
+FX conversion are explicitly out of scope for every section.
 
 ### Configuring the displayed household
 
