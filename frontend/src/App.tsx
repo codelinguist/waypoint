@@ -4,10 +4,11 @@ import { ConfigInvalid, ConfigMissing, ConfigNotFound } from './components/Confi
 import { CurrencyCard } from './components/CurrencyCard';
 import { ForecastingPage } from './components/ForecastingPage';
 import { LoadingSkeleton } from './components/LoadingSkeleton';
+import { GoalsPage } from './GoalsPage';
 import { useFinancialPosition } from './hooks/useFinancialPosition';
 import { formatInstantUtc, formatTimeUtc } from './dates';
 
-type View = 'position' | 'forecasting';
+type View = 'position' | 'goals' | 'forecasting';
 
 const EXPLAINER =
   'Net worth is recorded asset planning values minus outstanding liability balances. ' +
@@ -117,6 +118,9 @@ function AppNav({ view, onSelect }: { view: View; onSelect: (view: View) => void
       <button type="button" aria-current={view === 'position' ? 'page' : undefined} onClick={() => onSelect('position')}>
         Financial position
       </button>
+      <button type="button" aria-current={view === 'goals' ? 'page' : undefined} onClick={() => onSelect('goals')}>
+        Goals
+      </button>
       <button
         type="button"
         aria-current={view === 'forecasting' ? 'page' : undefined}
@@ -172,7 +176,11 @@ export function App() {
   return (
     <>
       <AppNav view={view} onSelect={setView} />
-      <FinancialPositionPage householdId={config.householdId} />
+      {view === 'goals' ? (
+        <GoalsPage householdId={config.householdId} />
+      ) : (
+        <FinancialPositionPage householdId={config.householdId} />
+      )}
     </>
   );
 }

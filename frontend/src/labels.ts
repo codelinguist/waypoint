@@ -1,4 +1,4 @@
-import type { AssetType, LiabilityType, Liquidity, SourceType } from './api/types';
+import type { AssetType, GoalContributionStatus, LiabilityType, Liquidity, SourceType } from './api/types';
 
 const ASSET_TYPE_LABELS: Record<AssetType, string> = {
   CASH: 'Cash',
@@ -30,6 +30,11 @@ const SOURCE_TYPE_LABELS: Partial<Record<SourceType, string>> = {
   MANUAL_ENTRY: 'Manual',
 };
 
+const GOAL_CONTRIBUTION_STATUS_LABELS: Record<GoalContributionStatus, string> = {
+  ALREADY_FUNDED: 'Already funded',
+  CONTRIBUTIONS_REQUIRED: 'Contributions required',
+};
+
 function titleCaseFallback(value: string): string {
   return value
     .toLowerCase()
@@ -52,4 +57,8 @@ export function liquidityLabel(value: Liquidity): string {
 
 export function sourceTypeLabel(value: SourceType): string {
   return SOURCE_TYPE_LABELS[value] ?? titleCaseFallback(value);
+}
+
+export function goalContributionStatusLabel(value: GoalContributionStatus): string {
+  return GOAL_CONTRIBUTION_STATUS_LABELS[value] ?? titleCaseFallback(value);
 }
