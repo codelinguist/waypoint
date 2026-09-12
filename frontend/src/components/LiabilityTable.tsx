@@ -1,9 +1,20 @@
 import { formatLocalDate } from '../dates';
 import { liabilityTypeLabel, sourceTypeLabel } from '../labels';
 import { formatMoneyMagnitude } from '../money';
+import { CorrectLiabilityBalanceForm } from './entry/CorrectLiabilityBalanceForm';
 import type { PositionLiability } from '../api/types';
 
-export function LiabilityTable({ currency, liabilities }: { currency: string; liabilities: PositionLiability[] }) {
+export function LiabilityTable({
+  currency,
+  liabilities,
+  householdId,
+  onRecordChanged,
+}: {
+  currency: string;
+  liabilities: PositionLiability[];
+  householdId: string;
+  onRecordChanged: () => void;
+}) {
   return (
     <div className="table-scroll" tabIndex={0} role="region" aria-label={`${currency} liabilities, scrollable`}>
       <table className="stackable">
@@ -17,6 +28,7 @@ export function LiabilityTable({ currency, liabilities }: { currency: string; li
             </th>
             <th scope="col">Balance as of</th>
             <th scope="col">Source</th>
+            <th scope="col">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -34,6 +46,14 @@ export function LiabilityTable({ currency, liabilities }: { currency: string; li
               </td>
               <td data-label="Source">
                 <span className="badge">{sourceTypeLabel(liability.sourceType)}</span>
+              </td>
+              <td data-label="Actions">
+                <CorrectLiabilityBalanceForm
+                  householdId={householdId}
+                  liabilityId={liability.id}
+                  liabilityName={liability.name}
+                  onCorrected={onRecordChanged}
+                />
               </td>
             </tr>
           ))}

@@ -44,6 +44,7 @@ class FinancialGoalServiceTest {
         assertThat(goal.getName()).isEqualTo("Emergency Fund");
         assertThat(goal.getCurrency()).isEqualTo("PHP");
         assertThat(goal.getHousehold()).isSameAs(household);
+        assertThat(goal.getSourceType()).isEqualTo(SourceType.MANUAL_ENTRY);
     }
 
     @Test

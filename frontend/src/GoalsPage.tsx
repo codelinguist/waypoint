@@ -1,4 +1,5 @@
 import { ConfigNotFound } from './components/ConfigProblem';
+import { AddGoalForm } from './components/entry/AddGoalForm';
 import { GoalContributionCalculator } from './components/GoalContributionCalculator';
 import { GoalsTable } from './components/GoalsTable';
 import { LoadingSkeleton } from './components/LoadingSkeleton';
@@ -69,6 +70,8 @@ export function GoalsPage({ householdId }: { householdId: string }) {
         </button>
       </header>
 
+      <AddGoalForm householdId={householdId} onCreated={refresh} />
+
       {refreshError && (
         <div className="banner" role="alert">
           <strong>Refresh failed at {formatTimeUtc(refreshError.failedAt)}.</strong>
@@ -81,7 +84,7 @@ export function GoalsPage({ householdId }: { householdId: string }) {
           <p>
             <strong>No goals are recorded for this household yet.</strong>
           </p>
-          <p>Add goals through the existing household data tools, then refresh this page.</p>
+          <p>Use &ldquo;Add goal&rdquo; above to record one.</p>
         </div>
       ) : (
         <GoalsTable goals={data} />

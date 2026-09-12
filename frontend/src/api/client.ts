@@ -1,7 +1,16 @@
 import type {
   ApiErrorBody,
+  Asset,
+  AssetValuationState,
   CashFlowProjectionRequest,
   CashFlowProjectionResponse,
+  CreateAssetRequest,
+  CreateGoalRequest,
+  CreateIncomeStreamRequest,
+  CreateLiabilityRequest,
+  CreateObligationRequest,
+  CreatePlanningAssumptionRequest,
+  CreateSnapshotRequest,
   DebtPrepaymentComparisonRequest,
   DebtPrepaymentComparisonResponse,
   EmergencyFundRunwayRequest,
@@ -16,11 +25,15 @@ import type {
   IncomeInterruptionScenarioRequest,
   IncomeInterruptionScenarioResponse,
   IncomeStream,
+  Liability,
   Obligation,
+  PlanningAssumption,
   PlanVersusActualRequest,
   PlanVersusActualResponse,
   PurchaseReserveImpactRequest,
   PurchaseReserveImpactResponse,
+  RecordLiabilityBalanceRequest,
+  UpdateAssetValuationRequest,
 } from './types';
 
 export class HouseholdNotFoundError extends Error {
@@ -462,5 +475,179 @@ export async function fetchSnapshotComparison(
   }
 
   return (await response.json()) as FinancialSnapshotComparison;
+}
+
+// Data-entry mutations (WAP-25): creating and correcting household records.
+// Distinct error types from the read-only fetchers above so a form can tell
+// a validation failure (400, fixable by editing the form) apart from a
+// correction's stale-revision conflict (409, fixable only by reloading the
+// current value) and any other failure.
+
+/** A 400 VALIDATION_FAILED response; `details` holds the backend's own "field: message" strings, unmodified. */
+export class EntryValidationError extends Error {
+  readonly details: unknown[];
+
+  constructor(message: string, details: unknown[]) {
+    super(message);
+    this.name = 'EntryValidationError';
+    this.details = details;
+  }
+}
+
+/** A 409 revision conflict from a correction endpoint (D021/D022): the record changed since its revision was read. */
+export class EntryConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'EntryConflictError';
+  }
+}
+
+export class EntryRequestError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'EntryRequestError';
+  }
+}
+
+/**
+ * POSTs a create/correction request and parses the JSON response, throwing
+ * `EntryValidationError` (400), `EntryConflictError` (409, correction
+ * endpoints only), or `EntryRequestError` for anything else (network
+ * failure, 404, 500). Shared by every create/correct call below.
+ */
+async function postHouseholdRecord<TResponse>(path: string, body: unknown): Promise<TResponse> {
+  let response: Response;
+  try {
+    response = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new EntryRequestError('Could not reach the server.');
+  }
+
+  if (!response.ok) {
+    let errorBody: Partial<ApiErrorBody> | undefined;
+    try {
+      errorBody = (await response.json()) as ApiErrorBody;
+    } catch {
+      errorBody = undefined;
+    }
+    const message = errorBody?.message ?? `Request failed with status ${response.status}.`;
+    if (response.status === 400) {
+      throw new EntryValidationError(message, errorBody?.details ?? []);
+    }
+    if (response.status === 409) {
+      throw new EntryConflictError(message);
+    }
+    throw new EntryRequestError(message);
+  }
+
+  return (await response.json()) as TResponse;
+}
+
+/**
+ * GETs a single household-scoped record, throwing `HouseholdNotFoundError`
+ * for a 404 and `EntryRequestError` for anything else. Used to load an
+ * asset's or liability's current revision immediately before a correction
+ * form opens.
+ */
+async function fetchHouseholdRecord<T>(path: string, householdId: string, signal?: AbortSignal): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(path, { signal });
+  } catch (cause) {
+    if (cause instanceof DOMException && cause.name === 'AbortError') {
+      throw cause;
+    }
+    throw new EntryRequestError('Could not reach the server.');
+  }
+
+  if (response.status === 404) {
+    throw new HouseholdNotFoundError(householdId);
+  }
+  if (!response.ok) {
+    let body: Partial<ApiErrorBody> | undefined;
+    try {
+      body = (await response.json()) as ApiErrorBody;
+    } catch {
+      body = undefined;
+    }
+    throw new EntryRequestError(body?.message ?? `Request failed with status ${response.status}.`);
+  }
+
+  return (await response.json()) as T;
+}
+
+export function createAsset(householdId: string, request: CreateAssetRequest): Promise<Asset> {
+  return postHouseholdRecord(`/api/households/${householdId}/assets`, request);
+}
+
+/** The asset's current valuation and revision, fetched fresh each time a correction form opens. */
+export function fetchAssetValuationState(householdId: string, assetId: string): Promise<AssetValuationState> {
+  return fetchHouseholdRecord(`/api/households/${householdId}/assets/${assetId}/valuations`, householdId);
+}
+
+export function correctAssetValuation(
+  householdId: string,
+  assetId: string,
+  request: UpdateAssetValuationRequest
+): Promise<AssetValuationState> {
+  return postHouseholdRecord(`/api/households/${householdId}/assets/${assetId}/valuations`, request);
+}
+
+export function createLiability(householdId: string, request: CreateLiabilityRequest): Promise<Liability> {
+  return postHouseholdRecord(`/api/households/${householdId}/liabilities`, request);
+}
+
+/** The liability's current record (including revision), fetched fresh each time a correction form opens. */
+export function fetchLiability(householdId: string, liabilityId: string): Promise<Liability> {
+  return fetchHouseholdRecord(`/api/households/${householdId}/liabilities/${liabilityId}`, householdId);
+}
+
+export function correctLiabilityBalance(
+  householdId: string,
+  liabilityId: string,
+  request: RecordLiabilityBalanceRequest
+): Promise<unknown> {
+  return postHouseholdRecord(`/api/households/${householdId}/liabilities/${liabilityId}/balances`, request);
+}
+
+export function createIncomeStream(householdId: string, request: CreateIncomeStreamRequest): Promise<IncomeStream> {
+  return postHouseholdRecord(`/api/households/${householdId}/income-streams`, request);
+}
+
+export function createObligation(householdId: string, request: CreateObligationRequest): Promise<Obligation> {
+  return postHouseholdRecord(`/api/households/${householdId}/obligations`, request);
+}
+
+export function createGoal(householdId: string, request: CreateGoalRequest): Promise<FinancialGoal> {
+  return postHouseholdRecord(`/api/households/${householdId}/goals`, request);
+}
+
+export function createSnapshot(householdId: string, request: CreateSnapshotRequest): Promise<FinancialSnapshotDetail> {
+  return postHouseholdRecord(`/api/households/${householdId}/financial-snapshots`, request);
+}
+
+/** Lists a household's planning assumptions (current and superseded), newest first. */
+export function fetchPlanningAssumptions(householdId: string, signal?: AbortSignal): Promise<PlanningAssumption[]> {
+  return fetchHouseholdRecord(`/api/households/${householdId}/assumptions`, householdId, signal);
+}
+
+export function createPlanningAssumption(
+  householdId: string,
+  request: CreatePlanningAssumptionRequest
+): Promise<PlanningAssumption> {
+  return postHouseholdRecord(`/api/households/${householdId}/assumptions`, request);
+}
+
+/** Creates a replacement assumption linked as the successor to `assumptionId` (backend rejects an already-superseded source). */
+export function supersedePlanningAssumption(
+  householdId: string,
+  assumptionId: string,
+  request: CreatePlanningAssumptionRequest
+): Promise<PlanningAssumption> {
+  return postHouseholdRecord(`/api/households/${householdId}/assumptions/${assumptionId}/supersede`, request);
 }
 

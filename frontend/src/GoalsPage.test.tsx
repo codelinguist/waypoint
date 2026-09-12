@@ -36,6 +36,7 @@ const goalsFixture: FinancialGoal[] = [
     currentAmount: 120000,
     remainingAmount: 180000,
     progressPercentage: 40,
+    sourceType: 'MANUAL_ENTRY',
     createdAt: '2026-09-01T00:00:00Z',
     updatedAt: '2026-09-01T00:00:00Z',
   },
@@ -123,6 +124,7 @@ describe('goals list', () => {
     expect(within(row).getByText(/120,000\.00 PHP/)).toBeInTheDocument();
     expect(within(row).getByText(/180,000\.00 PHP/)).toBeInTheDocument();
     expect(within(row).getByText('40.00%')).toBeInTheDocument();
+    expect(within(row).getByText('Manual')).toBeInTheDocument();
   });
 
   it('shows an empty state distinct from an error when there are no goals', async () => {
@@ -194,11 +196,17 @@ describe('contribution calculator', () => {
 
     expect(screen.queryByLabelText('Prefill from goal')).not.toBeInTheDocument();
 
-    await userEvent.type(screen.getByLabelText('Currency'), 'PHP');
-    await userEvent.type(screen.getByLabelText('Target amount'), '0');
-    await userEvent.type(screen.getByLabelText('Current amount'), '0');
-    await userEvent.type(screen.getByLabelText('Months to contribute'), '3');
-    await userEvent.click(screen.getByRole('button', { name: 'Calculate' }));
+    // Scoped to the calculator section: the page's own "Add goal" form
+    // (WAP-25) has fields with the same labels (Currency, Target amount,
+    // Current amount), so an unscoped screen.getByLabelText would be
+    // ambiguous.
+    const calculator = screen.getByRole('heading', { name: 'Contribution calculator' }).closest('section')!;
+
+    await userEvent.type(within(calculator).getByLabelText('Currency'), 'PHP');
+    await userEvent.type(within(calculator).getByLabelText('Target amount'), '0');
+    await userEvent.type(within(calculator).getByLabelText('Current amount'), '0');
+    await userEvent.type(within(calculator).getByLabelText('Months to contribute'), '3');
+    await userEvent.click(within(calculator).getByRole('button', { name: 'Calculate' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/request validation failed/i);
     expect(screen.getByText(/targetAmount must be greater than zero/i)).toBeInTheDocument();

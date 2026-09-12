@@ -1,0 +1,2 @@
+ALTER TABLE financial_goals
+    ADD COLUMN source_type VARCHAR(16) NOT NULL DEFAULT 'MANUAL_ENTRY';

@@ -2,9 +2,13 @@ import { useState } from 'react';
 import { readHouseholdConfig } from './config';
 import { ConfigInvalid, ConfigMissing, ConfigNotFound } from './components/ConfigProblem';
 import { CurrencyCard } from './components/CurrencyCard';
+import { AddAssetForm } from './components/entry/AddAssetForm';
+import { AddLiabilityForm } from './components/entry/AddLiabilityForm';
+import { CreateSnapshotForm } from './components/entry/CreateSnapshotForm';
 import { ForecastingPage } from './components/ForecastingPage';
 import { IncomeObligationsPage } from './components/IncomeObligationsPage';
 import { LoadingSkeleton } from './components/LoadingSkeleton';
+import { PlanningAssumptionsPage } from './components/PlanningAssumptionsPage';
 import { PlanVersusActualPage } from './components/PlanVersusActualPage';
 import { ScenariosPage } from './components/ScenariosPage';
 import { SnapshotComparisonView } from './components/SnapshotComparisonView';
@@ -14,7 +18,15 @@ import { useFinancialPosition } from './hooks/useFinancialPosition';
 import { useFinancialSnapshotDetails } from './hooks/useFinancialSnapshotDetails';
 import { formatInstantUtc, formatTimeUtc } from './dates';
 
-type View = 'position' | 'goals' | 'forecasting' | 'plan-vs-actual' | 'income-obligations' | 'snapshots' | 'scenarios';
+type View =
+  | 'position'
+  | 'goals'
+  | 'forecasting'
+  | 'plan-vs-actual'
+  | 'income-obligations'
+  | 'snapshots'
+  | 'scenarios'
+  | 'assumptions';
 
 const EXPLAINER =
   'Net worth is recorded asset planning values minus outstanding liability balances. ' +
@@ -89,6 +101,9 @@ function FinancialPositionPage({ householdId }: { householdId: string }) {
 
       {!isEmptyHousehold && <p className="explainer">{EXPLAINER}</p>}
 
+      <AddAssetForm householdId={householdId} onCreated={refresh} />
+      <AddLiabilityForm householdId={householdId} onCreated={refresh} />
+
       {refreshError && (
         <div className="banner" role="alert">
           <strong>Refresh failed at {formatTimeUtc(refreshError.failedAt)}.</strong>
@@ -101,7 +116,7 @@ function FinancialPositionPage({ householdId }: { householdId: string }) {
           <p>
             <strong>No assets or liabilities are recorded for this household yet.</strong>
           </p>
-          <p>Add records through the existing household data tools, then refresh this page.</p>
+          <p>Use &ldquo;Add asset&rdquo; or &ldquo;Add liability&rdquo; above to record one.</p>
         </div>
       ) : (
         data.totalsByCurrency.map((totals) => (
@@ -111,6 +126,8 @@ function FinancialPositionPage({ householdId }: { householdId: string }) {
             assets={data.assets.filter((asset) => asset.currency === totals.currency)}
             liabilities={data.liabilities.filter((liability) => liability.currency === totals.currency)}
             dimmed={Boolean(refreshError)}
+            householdId={householdId}
+            onRecordChanged={refresh}
           />
         ))
       )}
@@ -174,11 +191,15 @@ function SnapshotsPage({ householdId }: { householdId: string }) {
       <header className="app-header">
         <h1>Snapshots</h1>
       </header>
+
+      <CreateSnapshotForm householdId={householdId} onCreated={retry} />
+
       {snapshots.length === 0 ? (
         <div className="empty-state">
           <p>
             <strong>No financial snapshots are recorded for this household yet.</strong>
           </p>
+          <p>Use &ldquo;Create snapshot&rdquo; above to record one.</p>
         </div>
       ) : (
         <>
@@ -222,6 +243,13 @@ function AppNav({ view, onSelect }: { view: View; onSelect: (view: View) => void
         onClick={() => onSelect('plan-vs-actual')}
       >
         Plan vs. actual
+      </button>
+      <button
+        type="button"
+        aria-current={view === 'assumptions' ? 'page' : undefined}
+        onClick={() => onSelect('assumptions')}
+      >
+        Planning assumptions
       </button>
       <button
         type="button"
@@ -299,6 +327,7 @@ export function App() {
       {view === 'goals' && <GoalsPage householdId={config.householdId} />}
       {view === 'income-obligations' && <IncomeObligationsPage householdId={config.householdId} />}
       {view === 'snapshots' && <SnapshotsPage householdId={config.householdId} />}
+      {view === 'assumptions' && <PlanningAssumptionsPage householdId={config.householdId} />}
       {view === 'position' && <FinancialPositionPage householdId={config.householdId} />}
     </>
   );
