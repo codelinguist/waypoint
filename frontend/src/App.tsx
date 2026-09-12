@@ -4,10 +4,11 @@ import { ConfigInvalid, ConfigMissing, ConfigNotFound } from './components/Confi
 import { CurrencyCard } from './components/CurrencyCard';
 import { ForecastingPage } from './components/ForecastingPage';
 import { LoadingSkeleton } from './components/LoadingSkeleton';
+import { ScenariosPage } from './components/ScenariosPage';
 import { useFinancialPosition } from './hooks/useFinancialPosition';
 import { formatInstantUtc, formatTimeUtc } from './dates';
 
-type View = 'position' | 'forecasting';
+type View = 'position' | 'forecasting' | 'scenarios';
 
 const EXPLAINER =
   'Net worth is recorded asset planning values minus outstanding liability balances. ' +
@@ -124,6 +125,13 @@ function AppNav({ view, onSelect }: { view: View; onSelect: (view: View) => void
       >
         Forecasting
       </button>
+      <button
+        type="button"
+        aria-current={view === 'scenarios' ? 'page' : undefined}
+        onClick={() => onSelect('scenarios')}
+      >
+        Scenarios
+      </button>
     </nav>
   );
 }
@@ -137,6 +145,15 @@ export function App() {
       <>
         <AppNav view={view} onSelect={setView} />
         <ForecastingPage />
+      </>
+    );
+  }
+
+  if (view === 'scenarios') {
+    return (
+      <>
+        <AppNav view={view} onSelect={setView} />
+        <ScenariosPage />
       </>
     );
   }
