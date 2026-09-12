@@ -388,13 +388,24 @@ real, ephemeral PostgreSQL container (Flyway migrations included).
 
 ## Frontend
 
-The `frontend/` directory contains the first React/TypeScript page (Phase 9
-early slice, WAP-15): a private, read-only financial-position dashboard for
-one already-configured household. It follows the approved design in
-`agent/ui/financial-position/design-brief.md` (currency-first summary cards,
-expandable holdings) and consumes the backend endpoint described above.
+The `frontend/` directory is a private, read-only React/TypeScript app for
+one already-configured household, with two sections reachable through a
+minimal in-page tab nav (no router):
+
+- **Financial position** (Phase 9 early slice, WAP-15) follows the approved
+  design in `agent/ui/financial-position/design-brief.md` (currency-first
+  summary cards, expandable holdings) and consumes the financial-position
+  endpoint described above.
+- **Income & obligations** (WAP-21) lists every recorded income stream and
+  recurring obligation for the household (see
+  `agent/product/income-obligations/api.md`), including income's
+  `certainty` classification — anything other than `CONFIRMED` is visually
+  flagged, consistent with AGENTS.md's facts-vs-assumptions rule. It reuses
+  the financial-position page's table/badge/loading/error conventions rather
+  than introducing a new visual language.
+
 Record creation/editing, household creation/selection, authentication, and
-FX conversion are explicitly out of scope for this page.
+FX conversion are explicitly out of scope for both sections.
 
 ### Configuring the displayed household
 

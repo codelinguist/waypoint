@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatMoneyMagnitude, formatSignedMoney, isZeroMoney, parseMoney } from './money';
+import { formatAmount, formatMoneyMagnitude, formatSignedMoney, isZeroMoney, parseMoney } from './money';
 
 describe('money formatting', () => {
   it('groups an ordinary amount with thousands separators', () => {
@@ -44,5 +44,21 @@ describe('money formatting', () => {
     expect(isZeroMoney('0000.00')).toBe(true);
     expect(isZeroMoney('0.01')).toBe(false);
     expect(isZeroMoney('1.00')).toBe(false);
+  });
+});
+
+describe('formatAmount (plain JSON-number amounts, e.g. income-streams/obligations)', () => {
+  it('groups an ordinary amount with thousands separators and two decimals', () => {
+    expect(formatAmount(1234.56)).toBe('1,234.56');
+    expect(formatAmount(50000)).toBe('50,000.00');
+  });
+
+  it('formats zero', () => {
+    expect(formatAmount(0)).toBe('0.00');
+  });
+
+  it('rounds to two fractional digits', () => {
+    expect(formatAmount(1234.5)).toBe('1,234.50');
+    expect(formatAmount(1234.567)).toBe('1,234.57');
   });
 });

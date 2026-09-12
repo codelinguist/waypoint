@@ -1,4 +1,14 @@
-import type { AssetType, LiabilityType, Liquidity, SourceType } from './api/types';
+import type {
+  AssetType,
+  CompensationClassification,
+  Frequency,
+  IncomeCertainty,
+  IncomeType,
+  LiabilityType,
+  Liquidity,
+  ObligationType,
+  SourceType,
+} from './api/types';
 
 const ASSET_TYPE_LABELS: Record<AssetType, string> = {
   CASH: 'Cash',
@@ -30,6 +40,44 @@ const SOURCE_TYPE_LABELS: Partial<Record<SourceType, string>> = {
   MANUAL_ENTRY: 'Manual',
 };
 
+const INCOME_TYPE_LABELS: Record<IncomeType, string> = {
+  SALARY: 'Salary',
+  HOURLY_CONTRACT: 'Hourly contract',
+  BUSINESS_DISTRIBUTION: 'Business distribution',
+  OTHER: 'Other',
+};
+
+const OBLIGATION_TYPE_LABELS: Record<ObligationType, string> = {
+  HOUSEHOLD_BASELINE: 'Household baseline',
+  MORTGAGE: 'Mortgage',
+  LOAN_PAYMENT: 'Loan payment',
+  INSURANCE: 'Insurance',
+  TUITION: 'Tuition',
+  TRAVEL_SINKING_FUND: 'Travel sinking fund',
+  DISCRETIONARY: 'Discretionary',
+  OTHER: 'Other',
+};
+
+const FREQUENCY_LABELS: Record<Frequency, string> = {
+  HOURLY: 'Hourly',
+  WEEKLY: 'Weekly',
+  BIWEEKLY: 'Biweekly',
+  MONTHLY: 'Monthly',
+  ANNUAL: 'Annual',
+};
+
+const CERTAINTY_LABELS: Record<IncomeCertainty, string> = {
+  CONFIRMED: 'Confirmed',
+  EXPECTED: 'Expected',
+  VARIABLE: 'Variable',
+};
+
+const COMPENSATION_CLASSIFICATION_LABELS: Record<CompensationClassification, string> = {
+  GROSS: 'Gross',
+  NET: 'Net',
+  UNKNOWN: 'Unknown',
+};
+
 function titleCaseFallback(value: string): string {
   return value
     .toLowerCase()
@@ -52,4 +100,24 @@ export function liquidityLabel(value: Liquidity): string {
 
 export function sourceTypeLabel(value: SourceType): string {
   return SOURCE_TYPE_LABELS[value] ?? titleCaseFallback(value);
+}
+
+export function incomeTypeLabel(value: IncomeType): string {
+  return INCOME_TYPE_LABELS[value] ?? titleCaseFallback(value);
+}
+
+export function obligationTypeLabel(value: ObligationType): string {
+  return OBLIGATION_TYPE_LABELS[value] ?? titleCaseFallback(value);
+}
+
+export function frequencyLabel(value: Frequency): string {
+  return FREQUENCY_LABELS[value] ?? titleCaseFallback(value);
+}
+
+export function certaintyLabel(value: IncomeCertainty): string {
+  return CERTAINTY_LABELS[value] ?? titleCaseFallback(value);
+}
+
+export function compensationClassificationLabel(value: CompensationClassification): string {
+  return COMPENSATION_CLASSIFICATION_LABELS[value] ?? titleCaseFallback(value);
 }
