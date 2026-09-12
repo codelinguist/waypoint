@@ -259,6 +259,116 @@ export interface EmergencyFundRunwayResponse {
   modelNote: string;
 }
 
+// Mirrors backend/src/main/java/com/waypoint/scenarios/{purchasereserve,
+// incomeinterruption,debtprepayment}/web/dto/*.java. Same stateless,
+// no-householdId convention and JSON-number money encoding as the planning
+// calculators above — format with ../calculatorMoney.ts, not money.ts.
+
+export interface PurchaseReserveImpactRequest {
+  currency: string;
+  availableReserve: string;
+  purchaseAmount: string;
+  monthlyExpenses: string;
+  monthlyNetIncome: string;
+  minimumReserve: string;
+}
+
+export type AfterPurchaseRunwayAvailability = 'AVAILABLE' | 'INSUFFICIENT_CASH';
+
+export interface PurchaseReserveImpactResponse {
+  currency: string;
+  availableReserve: number;
+  purchaseAmount: number;
+  monthlyExpenses: number;
+  monthlyNetIncome: number;
+  minimumReserve: number;
+  reserveAfterPurchase: number;
+  purchaseFundingGap: number;
+  purchaseFitsAvailableCash: boolean;
+  baselineReserveFloorGap: number;
+  reserveFloorGapAfterPurchase: number;
+  reserveMeetsFloorAfterPurchase: boolean;
+  beforePurchaseRunway: EmergencyFundRunwayResponse;
+  afterPurchaseRunwayAvailability: AfterPurchaseRunwayAvailability;
+  afterPurchaseRunway: EmergencyFundRunwayResponse | null;
+  modelNote: string;
+}
+
+export interface IncomeInterruptionScenarioRequest {
+  currency: string;
+  openingReserve: string;
+  normalMonthlyNetIncome: string;
+  interruptedMonthlyNetIncome: string;
+  monthlyExpenses: string;
+  horizonMonths: number;
+  interruptionStartMonth: number;
+  interruptionMonths: number;
+}
+
+export interface IncomeInterruptionScenarioRow {
+  month: number;
+  openingCash: number;
+  income: number;
+  expenses: number;
+  netCashFlow: number;
+  closingCash: number;
+}
+
+export interface IncomeInterruptionScenarioResponse {
+  currency: string;
+  openingReserve: number;
+  normalMonthlyNetIncome: number;
+  interruptedMonthlyNetIncome: number;
+  monthlyExpenses: number;
+  horizonMonths: number;
+  interruptionStartMonth: number;
+  interruptionMonths: number;
+  baselineRows: IncomeInterruptionScenarioRow[];
+  scenarioRows: IncomeInterruptionScenarioRow[];
+  closingDeltas: number[];
+  endingCash: number;
+  minimumCash: number;
+  firstNegativeMonth: number | null;
+  additionalOpeningReserveNeeded: number;
+}
+
+export interface DebtPrepaymentComparisonRequest {
+  principal: string;
+  monthlyInterestRate: string;
+  monthlyPayment: string;
+  currency: string;
+  immediatePrepayment: string;
+}
+
+export type DebtAmortizationStatus = 'PAID_OFF' | 'NON_AMORTIZING' | 'HORIZON_LIMIT';
+
+// The backend also returns a full monthly `schedule` on each path, omitted
+// here: this view renders only the lifetime comparison, not a month-by-month
+// amortization table (see DebtPrepaymentComparisonSection).
+export interface DebtPrepaymentPathResponse {
+  startingBalance: number;
+  status: DebtAmortizationStatus;
+  payoffMonths: number | null;
+  totalPaid: number;
+  totalInterest: number;
+  remainingBalance: number;
+}
+
+export interface DebtPrepaymentComparisonResponse {
+  principal: number;
+  monthlyInterestRate: number;
+  monthlyPayment: number;
+  currency: string;
+  immediatePrepayment: number;
+  baseline: DebtPrepaymentPathResponse;
+  scenario: DebtPrepaymentPathResponse;
+  scenarioTotalCashPaid: number;
+  lifetimeInterestSaved: number | null;
+  payoffMonthsSaved: number | null;
+  lifetimeCashSaved: number | null;
+  comparisonUnavailableReason: string | null;
+}
+
 // Mirrors backend/src/main/java/com/waypoint/household/web/dto/{IncomeStreamResponse,ObligationResponse}.java.
 // Unlike the position types above, `amount` here is a plain JSON number, not
 // a decimal string — this API (agent/product/income-obligations/product-brief.md)

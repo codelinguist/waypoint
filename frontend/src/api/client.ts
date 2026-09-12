@@ -2,6 +2,8 @@ import type {
   ApiErrorBody,
   CashFlowProjectionRequest,
   CashFlowProjectionResponse,
+  DebtPrepaymentComparisonRequest,
+  DebtPrepaymentComparisonResponse,
   EmergencyFundRunwayRequest,
   EmergencyFundRunwayResponse,
   FinancialGoal,
@@ -11,10 +13,14 @@ import type {
   FinancialSnapshotListItem,
   GoalContributionRequestBody,
   GoalContributionResult,
+  IncomeInterruptionScenarioRequest,
+  IncomeInterruptionScenarioResponse,
   IncomeStream,
   Obligation,
   PlanVersusActualRequest,
   PlanVersusActualResponse,
+  PurchaseReserveImpactRequest,
+  PurchaseReserveImpactResponse,
 } from './types';
 
 export class HouseholdNotFoundError extends Error {
@@ -264,6 +270,24 @@ export function fetchCashFlowProjection(request: CashFlowProjectionRequest): Pro
 
 export function fetchEmergencyFundRunway(request: EmergencyFundRunwayRequest): Promise<EmergencyFundRunwayResponse> {
   return postCalculator<EmergencyFundRunwayResponse>('/api/planning/emergency-fund-runway', request);
+}
+
+export function fetchPurchaseReserveImpact(
+  request: PurchaseReserveImpactRequest
+): Promise<PurchaseReserveImpactResponse> {
+  return postCalculator<PurchaseReserveImpactResponse>('/api/scenarios/purchase-reserve-impact', request);
+}
+
+export function fetchIncomeInterruptionScenario(
+  request: IncomeInterruptionScenarioRequest
+): Promise<IncomeInterruptionScenarioResponse> {
+  return postCalculator<IncomeInterruptionScenarioResponse>('/api/scenarios/income-interruption', request);
+}
+
+export function fetchDebtPrepaymentComparison(
+  request: DebtPrepaymentComparisonRequest
+): Promise<DebtPrepaymentComparisonResponse> {
+  return postCalculator<DebtPrepaymentComparisonResponse>('/api/scenarios/debt-prepayment', request);
 }
 
 /**

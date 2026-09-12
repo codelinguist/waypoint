@@ -5,15 +5,16 @@ import { CurrencyCard } from './components/CurrencyCard';
 import { ForecastingPage } from './components/ForecastingPage';
 import { IncomeObligationsPage } from './components/IncomeObligationsPage';
 import { LoadingSkeleton } from './components/LoadingSkeleton';
+import { PlanVersusActualPage } from './components/PlanVersusActualPage';
+import { ScenariosPage } from './components/ScenariosPage';
 import { SnapshotComparisonView } from './components/SnapshotComparisonView';
 import { SnapshotList } from './components/SnapshotList';
 import { GoalsPage } from './GoalsPage';
-import { PlanVersusActualPage } from './components/PlanVersusActualPage';
 import { useFinancialPosition } from './hooks/useFinancialPosition';
 import { useFinancialSnapshotDetails } from './hooks/useFinancialSnapshotDetails';
 import { formatInstantUtc, formatTimeUtc } from './dates';
 
-type View = 'position' | 'goals' | 'forecasting' | 'plan-vs-actual' | 'income-obligations' | 'snapshots';
+type View = 'position' | 'goals' | 'forecasting' | 'plan-vs-actual' | 'income-obligations' | 'snapshots' | 'scenarios';
 
 const EXPLAINER =
   'Net worth is recorded asset planning values minus outstanding liability balances. ' +
@@ -222,6 +223,13 @@ function AppNav({ view, onSelect }: { view: View; onSelect: (view: View) => void
       >
         Plan vs. actual
       </button>
+      <button
+        type="button"
+        aria-current={view === 'scenarios' ? 'page' : undefined}
+        onClick={() => onSelect('scenarios')}
+      >
+        Scenarios
+      </button>
     </nav>
   );
 }
@@ -235,6 +243,15 @@ export function App() {
       <>
         <AppNav view={view} onSelect={setView} />
         <ForecastingPage />
+      </>
+    );
+  }
+
+  if (view === 'scenarios') {
+    return (
+      <>
+        <AppNav view={view} onSelect={setView} />
+        <ScenariosPage />
       </>
     );
   }
