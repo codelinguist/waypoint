@@ -6,6 +6,8 @@ import type {
   EmergencyFundRunwayResponse,
   FinancialGoal,
   FinancialPositionResponse,
+  FinancialSnapshotDetail,
+  FinancialSnapshotComparison,
   FinancialSnapshotListItem,
   GoalContributionRequestBody,
   GoalContributionResult,
@@ -330,3 +332,111 @@ export function fetchIncomeStreams(householdId: string, signal?: AbortSignal): P
 export function fetchObligations(householdId: string, signal?: AbortSignal): Promise<Obligation[]> {
   return fetchHouseholdCollection(`/api/households/${householdId}/obligations`, householdId, signal);
 }
+
+export class FinancialSnapshotRequestError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'FinancialSnapshotRequestError';
+  }
+}
+
+export class FinancialSnapshotNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'FinancialSnapshotNotFoundError';
+  }
+}
+
+/** Thrown for the API's `IdenticalSnapshotComparisonException` (comparing a snapshot against itself). */
+export class IdenticalSnapshotComparisonError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'IdenticalSnapshotComparisonError';
+  }
+}
+
+/**
+ * Fetches the read-only, full-detail list of a household's recorded
+ * financial snapshots (asset/liability line items and source type
+ * included), for the snapshots list view. Distinct from
+ * `fetchFinancialSnapshots` above, which types the same endpoint's response
+ * narrowly for the plan-vs-actual picker. Throws `HouseholdNotFoundError`
+ * for a 404, `FinancialSnapshotRequestError` for any other non-OK response
+ * or network failure.
+ */
+export async function fetchFinancialSnapshotDetails(householdId: string, signal?: AbortSignal): Promise<FinancialSnapshotDetail[]> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/households/${householdId}/financial-snapshots`, { signal });
+  } catch (cause) {
+    if (cause instanceof DOMException && cause.name === 'AbortError') {
+      throw cause;
+    }
+    throw new FinancialSnapshotRequestError('Could not reach the server.');
+  }
+
+  if (response.status === 404) {
+    throw new HouseholdNotFoundError(householdId);
+  }
+  if (!response.ok) {
+    let body: Partial<ApiErrorBody> | undefined;
+    try {
+      body = (await response.json()) as ApiErrorBody;
+    } catch {
+      body = undefined;
+    }
+    throw new FinancialSnapshotRequestError(body?.message ?? `Request failed with status ${response.status}.`);
+  }
+
+  return (await response.json()) as FinancialSnapshotDetail[];
+}
+
+/**
+ * Compares two of a household's financial snapshots. Throws
+ * `HouseholdNotFoundError` (household 404), `FinancialSnapshotNotFoundError`
+ * (either snapshot id 404s), `IdenticalSnapshotComparisonError` (both ids
+ * identical, 400), or `FinancialSnapshotRequestError` for anything else.
+ * The 400 branch below only ever reaches the identical-snapshot case in
+ * practice: the UI always supplies both ids from the loaded snapshot list,
+ * so the backend's other `VALIDATION_FAILED` cause (a missing query
+ * parameter) cannot occur here.
+ */
+export async function fetchSnapshotComparison(
+  householdId: string,
+  earlierSnapshotId: string,
+  laterSnapshotId: string,
+  signal?: AbortSignal
+): Promise<FinancialSnapshotComparison> {
+  const params = new URLSearchParams({ earlierSnapshotId, laterSnapshotId });
+  let response: Response;
+  try {
+    response = await fetch(`/api/households/${householdId}/financial-snapshots/comparison?${params}`, { signal });
+  } catch (cause) {
+    if (cause instanceof DOMException && cause.name === 'AbortError') {
+      throw cause;
+    }
+    throw new FinancialSnapshotRequestError('Could not reach the server.');
+  }
+
+  if (!response.ok) {
+    let body: Partial<ApiErrorBody> | undefined;
+    try {
+      body = (await response.json()) as ApiErrorBody;
+    } catch {
+      body = undefined;
+    }
+    if (response.status === 404 && body?.error === 'FINANCIAL_SNAPSHOT_NOT_FOUND') {
+      throw new FinancialSnapshotNotFoundError(body.message ?? 'Financial snapshot not found.');
+    }
+    if (response.status === 404) {
+      throw new HouseholdNotFoundError(householdId);
+    }
+    if (response.status === 400 && body?.error === 'VALIDATION_FAILED') {
+      throw new IdenticalSnapshotComparisonError(body.message ?? 'Cannot compare a snapshot against itself.');
+    }
+    throw new FinancialSnapshotRequestError(body?.message ?? `Request failed with status ${response.status}.`);
+  }
+
+  return (await response.json()) as FinancialSnapshotComparison;
+}
+

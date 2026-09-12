@@ -315,3 +315,73 @@ export interface Obligation {
   createdAt: string;
   updatedAt: string;
 }
+
+// Mirrors backend/src/main/java/com/waypoint/household/web/dto/{FinancialSnapshotResponse,
+// SnapshotAssetLineItem,SnapshotLiabilityLineItem,CurrencyTotals,
+// CurrencyTotalsDelta}Response.java exactly. FinancialSnapshotDetail is the
+// full-detail counterpart to FinancialSnapshotListItem above (which the
+// plan-vs-actual picker uses); this ticket's snapshots list view needs
+// sourceType and line items that the picker's narrower type omits, even
+// though both types describe the same GET /financial-snapshots response.
+//
+// These fields serialize as plain JSON numbers, not exact-decimal strings
+// (an existing, unchanged contract — see
+// agent/product/current-financial-position/api.md). Use ../snapshotMoney.ts
+// to format them.
+
+export interface SnapshotAssetLineItem {
+  id: string;
+  sourceAssetId: string;
+  name: string;
+  assetType: AssetType;
+  currency: string;
+  sourceDate: string;
+  value: number;
+}
+
+export interface SnapshotLiabilityLineItem {
+  id: string;
+  sourceLiabilityId: string;
+  name: string;
+  liabilityType: LiabilityType;
+  currency: string;
+  sourceDate: string;
+  value: number;
+}
+
+export interface FinancialSnapshotCurrencyTotals {
+  currency: string;
+  assetTotal: number;
+  liabilityTotal: number;
+  netWorth: number;
+}
+
+export interface FinancialSnapshotDetail {
+  id: string;
+  householdId: string;
+  asOfDate: string;
+  capturedAt: string;
+  sourceType: SourceType;
+  assetLineItems: SnapshotAssetLineItem[];
+  liabilityLineItems: SnapshotLiabilityLineItem[];
+  totalsByCurrency: FinancialSnapshotCurrencyTotals[];
+}
+
+export interface SnapshotComparisonSummary {
+  id: string;
+  asOfDate: string;
+  capturedAt: string;
+}
+
+export interface SnapshotCurrencyTotalsDelta {
+  currency: string;
+  assetTotalDelta: number;
+  liabilityTotalDelta: number;
+  netWorthDelta: number;
+}
+
+export interface FinancialSnapshotComparison {
+  earlierSnapshot: SnapshotComparisonSummary;
+  laterSnapshot: SnapshotComparisonSummary;
+  currencyDeltas: SnapshotCurrencyTotalsDelta[];
+}
