@@ -8,8 +8,13 @@ import type {
   FinancialPositionResponse,
   FinancialSnapshotDetail,
   FinancialSnapshotComparison,
+  FinancialSnapshotListItem,
   GoalContributionRequestBody,
   GoalContributionResult,
+  IncomeStream,
+  Obligation,
+  PlanVersusActualRequest,
+  PlanVersusActualResponse,
 } from './types';
 
 export class HouseholdNotFoundError extends Error {
@@ -64,6 +69,43 @@ export async function fetchFinancialPosition(
   }
 
   return (await response.json()) as FinancialPositionResponse;
+}
+
+export class FinancialSnapshotsRequestError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'FinancialSnapshotsRequestError';
+  }
+}
+
+/**
+ * Lists a household's recorded financial snapshots (for the plan-vs-actual
+ * snapshot picker). Throws `HouseholdNotFoundError` for a 404,
+ * `FinancialSnapshotsRequestError` for any other non-OK response or network
+ * failure.
+ */
+export async function fetchFinancialSnapshots(householdId: string): Promise<FinancialSnapshotListItem[]> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/households/${householdId}/financial-snapshots`);
+  } catch {
+    throw new FinancialSnapshotsRequestError('Could not reach the server.');
+  }
+
+  if (response.status === 404) {
+    throw new HouseholdNotFoundError(householdId);
+  }
+  if (!response.ok) {
+    let body: Partial<ApiErrorBody> | undefined;
+    try {
+      body = (await response.json()) as ApiErrorBody;
+    } catch {
+      body = undefined;
+    }
+    throw new FinancialSnapshotsRequestError(body?.message ?? `Request failed with status ${response.status}.`);
+  }
+
+  return (await response.json()) as FinancialSnapshotListItem[];
 }
 
 export class GoalsRequestError extends Error {
@@ -180,10 +222,12 @@ export class CalculatorRequestError extends Error {
 }
 
 /**
- * Posts a stateless planning-calculator request. Neither calculator reads or
- * writes any persisted household state, so this takes only the request body
- * — no householdId. Throws `CalculatorValidationError` for a 400 and
- * `CalculatorRequestError` for any other non-OK response or network failure.
+ * Posts a JSON request and parses a JSON response, throwing
+ * `CalculatorValidationError` for a 400 and `CalculatorRequestError` for any
+ * other non-OK response or network failure. Named for its original stateless
+ * planning-calculator callers below; also reused by
+ * `fetchPlanVersusActual`, whose path is household/snapshot-scoped but whose
+ * error shape is identical.
  */
 async function postCalculator<TResponse>(path: string, body: unknown): Promise<TResponse> {
   let response: Response;
@@ -222,6 +266,73 @@ export function fetchEmergencyFundRunway(request: EmergencyFundRunwayRequest): P
   return postCalculator<EmergencyFundRunwayResponse>('/api/planning/emergency-fund-runway', request);
 }
 
+/**
+ * Compares caller-supplied planned totals against one existing snapshot's
+ * actual totals. Unlike the calculators above this reads persisted household
+ * data (the snapshot), but nothing here is written back — see
+ * PlanVersusActualService (backend) for the read-only contract.
+ */
+export function fetchPlanVersusActual(
+  householdId: string,
+  snapshotId: string,
+  request: PlanVersusActualRequest
+): Promise<PlanVersusActualResponse> {
+  return postCalculator<PlanVersusActualResponse>(
+    `/api/households/${householdId}/financial-snapshots/${snapshotId}/plan-comparison`,
+    request
+  );
+}
+
+export class IncomeObligationsRequestError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'IncomeObligationsRequestError';
+  }
+}
+
+/**
+ * Fetches a household-scoped collection (income streams or obligations).
+ * Throws `HouseholdNotFoundError` for a 404, `IncomeObligationsRequestError`
+ * for any other non-OK response or network failure. Shared by
+ * `fetchIncomeStreams` and `fetchObligations` below.
+ */
+async function fetchHouseholdCollection<T>(path: string, householdId: string, signal?: AbortSignal): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(path, { signal });
+  } catch (cause) {
+    if (cause instanceof DOMException && cause.name === 'AbortError') {
+      throw cause;
+    }
+    throw new IncomeObligationsRequestError('Could not reach the server.');
+  }
+
+  if (response.status === 404) {
+    throw new HouseholdNotFoundError(householdId);
+  }
+  if (!response.ok) {
+    let body: Partial<ApiErrorBody> | undefined;
+    try {
+      body = (await response.json()) as ApiErrorBody;
+    } catch {
+      body = undefined;
+    }
+    throw new IncomeObligationsRequestError(body?.message ?? `Request failed with status ${response.status}.`);
+  }
+
+  return (await response.json()) as T;
+}
+
+/** Lists a household's recorded income streams in creation order. */
+export function fetchIncomeStreams(householdId: string, signal?: AbortSignal): Promise<IncomeStream[]> {
+  return fetchHouseholdCollection(`/api/households/${householdId}/income-streams`, householdId, signal);
+}
+
+/** Lists a household's recorded recurring obligations in creation order. */
+export function fetchObligations(householdId: string, signal?: AbortSignal): Promise<Obligation[]> {
+  return fetchHouseholdCollection(`/api/households/${householdId}/obligations`, householdId, signal);
+}
+
 export class FinancialSnapshotRequestError extends Error {
   constructor(message: string) {
     super(message);
@@ -245,9 +356,13 @@ export class IdenticalSnapshotComparisonError extends Error {
 }
 
 /**
- * Fetches the read-only list of a household's recorded financial snapshots.
- * Throws `HouseholdNotFoundError` for a 404, `FinancialSnapshotRequestError`
- * for any other non-OK response or network failure.
+ * Fetches the read-only, full-detail list of a household's recorded
+ * financial snapshots (asset/liability line items and source type
+ * included), for the snapshots list view. Distinct from
+ * `fetchFinancialSnapshots` above, which types the same endpoint's response
+ * narrowly for the plan-vs-actual picker. Throws `HouseholdNotFoundError`
+ * for a 404, `FinancialSnapshotRequestError` for any other non-OK response
+ * or network failure.
  */
 export async function fetchFinancialSnapshotDetails(householdId: string, signal?: AbortSignal): Promise<FinancialSnapshotDetail[]> {
   let response: Response;

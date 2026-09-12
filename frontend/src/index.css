@@ -46,6 +46,40 @@ body {
   margin: 0 auto;
 }
 
+.app-nav {
+  margin-bottom: 16px;
+}
+
+.app-nav [role='tablist'] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  padding: 8px 14px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  transform: translateY(1px);
+}
+
+.tab-btn:hover {
+  color: var(--text);
+}
+
+.tab-btn.active {
+  color: var(--accent);
+  border-color: var(--border);
+  background: var(--surface);
+  border-bottom: 1px solid var(--surface);
+}
+
 header.app-header {
   display: flex;
   flex-wrap: wrap;
@@ -216,6 +250,13 @@ th.amount {
   border-radius: 999px;
   border: 1px solid var(--border);
   color: var(--text-muted);
+}
+
+.badge--attention {
+  color: var(--warning-border);
+  border-color: var(--warning-border);
+  background: var(--warning-bg);
+  font-weight: 600;
 }
 
 .negative {
@@ -528,7 +569,8 @@ nav.app-nav {
   color: var(--text-muted);
 }
 
-.field input {
+.field input,
+.field select {
   font: inherit;
   padding: 8px 10px;
   border: 1px solid var(--border);
@@ -538,7 +580,8 @@ nav.app-nav {
   width: 100%;
 }
 
-.field input:focus-visible {
+.field input:focus-visible,
+.field select:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 1px;
 }
@@ -602,6 +645,18 @@ nav.app-nav {
   border-radius: 8px;
   padding: 10px 14px;
   margin-top: 14px;
+}
+
+/* Plan vs. actual (WAP-23): a variance cell holds two inline children (the
+   signed amount and its direction badge) rather than one text node like
+   every other .amount cell here — without this, table.stackable's flex td
+   treats them as separate flex items and overflows/clips on narrow widths. */
+.variance-value {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 4px 8px;
 }
 
 .comparison-controls {

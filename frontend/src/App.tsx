@@ -3,15 +3,17 @@ import { readHouseholdConfig } from './config';
 import { ConfigInvalid, ConfigMissing, ConfigNotFound } from './components/ConfigProblem';
 import { CurrencyCard } from './components/CurrencyCard';
 import { ForecastingPage } from './components/ForecastingPage';
+import { IncomeObligationsPage } from './components/IncomeObligationsPage';
 import { LoadingSkeleton } from './components/LoadingSkeleton';
 import { SnapshotComparisonView } from './components/SnapshotComparisonView';
 import { SnapshotList } from './components/SnapshotList';
 import { GoalsPage } from './GoalsPage';
+import { PlanVersusActualPage } from './components/PlanVersusActualPage';
 import { useFinancialPosition } from './hooks/useFinancialPosition';
 import { useFinancialSnapshotDetails } from './hooks/useFinancialSnapshotDetails';
 import { formatInstantUtc, formatTimeUtc } from './dates';
 
-type View = 'position' | 'goals' | 'forecasting' | 'snapshots';
+type View = 'position' | 'goals' | 'forecasting' | 'plan-vs-actual' | 'income-obligations' | 'snapshots';
 
 const EXPLAINER =
   'Net worth is recorded asset planning values minus outstanding liability balances. ' +
@@ -201,10 +203,24 @@ function AppNav({ view, onSelect }: { view: View; onSelect: (view: View) => void
       </button>
       <button
         type="button"
+        aria-current={view === 'income-obligations' ? 'page' : undefined}
+        onClick={() => onSelect('income-obligations')}
+      >
+        Income &amp; obligations
+      </button>
+      <button
+        type="button"
         aria-current={view === 'forecasting' ? 'page' : undefined}
         onClick={() => onSelect('forecasting')}
       >
         Forecasting
+      </button>
+      <button
+        type="button"
+        aria-current={view === 'plan-vs-actual' ? 'page' : undefined}
+        onClick={() => onSelect('plan-vs-actual')}
+      >
+        Plan vs. actual
       </button>
     </nav>
   );
@@ -251,16 +267,22 @@ export function App() {
     );
   }
 
+  if (view === 'plan-vs-actual') {
+    return (
+      <>
+        <AppNav view={view} onSelect={setView} />
+        <PlanVersusActualPage householdId={config.householdId} />
+      </>
+    );
+  }
+
   return (
     <>
       <AppNav view={view} onSelect={setView} />
-      {view === 'goals' ? (
-        <GoalsPage householdId={config.householdId} />
-      ) : view === 'snapshots' ? (
-        <SnapshotsPage householdId={config.householdId} />
-      ) : (
-        <FinancialPositionPage householdId={config.householdId} />
-      )}
+      {view === 'goals' && <GoalsPage householdId={config.householdId} />}
+      {view === 'income-obligations' && <IncomeObligationsPage householdId={config.householdId} />}
+      {view === 'snapshots' && <SnapshotsPage householdId={config.householdId} />}
+      {view === 'position' && <FinancialPositionPage householdId={config.householdId} />}
     </>
   );
 }
