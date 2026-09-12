@@ -2,12 +2,16 @@ import { useState } from 'react';
 import { readHouseholdConfig } from './config';
 import { ConfigInvalid, ConfigMissing, ConfigNotFound } from './components/ConfigProblem';
 import { CurrencyCard } from './components/CurrencyCard';
+import { ForecastingPage } from './components/ForecastingPage';
 import { LoadingSkeleton } from './components/LoadingSkeleton';
-import { SnapshotList } from './components/SnapshotList';
 import { SnapshotComparisonView } from './components/SnapshotComparisonView';
+import { SnapshotList } from './components/SnapshotList';
+import { GoalsPage } from './GoalsPage';
 import { useFinancialPosition } from './hooks/useFinancialPosition';
 import { useFinancialSnapshots } from './hooks/useFinancialSnapshots';
 import { formatInstantUtc, formatTimeUtc } from './dates';
+
+type View = 'position' | 'goals' | 'forecasting' | 'snapshots';
 
 const EXPLAINER =
   'Net worth is recorded asset planning values minus outstanding liability balances. ' +
@@ -18,18 +22,18 @@ function FinancialPositionPage({ householdId }: { householdId: string }) {
 
   if (state.status === 'not-found') {
     return (
-      <>
+      <div className="page">
         <header className="app-header">
           <h1>Financial position</h1>
         </header>
         <ConfigNotFound householdId={state.householdId} />
-      </>
+      </div>
     );
   }
 
   if (state.status === 'loading') {
     return (
-      <>
+      <div className="page">
         <header className="app-header">
           <h1>Financial position</h1>
           <button className="refresh-btn" type="button" disabled>
@@ -40,13 +44,13 @@ function FinancialPositionPage({ householdId }: { householdId: string }) {
           Loading financial position&hellip;
         </p>
         <LoadingSkeleton />
-      </>
+      </div>
     );
   }
 
   if (state.status === 'error') {
     return (
-      <>
+      <div className="page">
         <header className="app-header">
           <h1>Financial position</h1>
         </header>
@@ -61,7 +65,7 @@ function FinancialPositionPage({ householdId }: { householdId: string }) {
             </button>
           </p>
         </div>
-      </>
+      </div>
     );
   }
 
@@ -69,7 +73,7 @@ function FinancialPositionPage({ householdId }: { householdId: string }) {
   const isEmptyHousehold = data.totalsByCurrency.length === 0;
 
   return (
-    <>
+    <div className="page">
       <header className="app-header">
         <h1>{data.householdName}</h1>
         <button className="refresh-btn" type="button" onClick={refresh} disabled={refreshing}>
@@ -107,7 +111,7 @@ function FinancialPositionPage({ householdId }: { householdId: string }) {
           />
         ))
       )}
-    </>
+    </div>
   );
 }
 
@@ -116,18 +120,18 @@ function SnapshotsPage({ householdId }: { householdId: string }) {
 
   if (state.status === 'not-found') {
     return (
-      <>
+      <div className="page">
         <header className="app-header">
           <h1>Snapshots</h1>
         </header>
         <ConfigNotFound householdId={state.householdId} />
-      </>
+      </div>
     );
   }
 
   if (state.status === 'loading') {
     return (
-      <>
+      <div className="page">
         <header className="app-header">
           <h1>Snapshots</h1>
         </header>
@@ -135,13 +139,13 @@ function SnapshotsPage({ householdId }: { householdId: string }) {
           Loading snapshots&hellip;
         </p>
         <LoadingSkeleton />
-      </>
+      </div>
     );
   }
 
   if (state.status === 'error') {
     return (
-      <>
+      <div className="page">
         <header className="app-header">
           <h1>Snapshots</h1>
         </header>
@@ -156,14 +160,14 @@ function SnapshotsPage({ householdId }: { householdId: string }) {
             </button>
           </p>
         </div>
-      </>
+      </div>
     );
   }
 
   const { snapshots } = state;
 
   return (
-    <>
+    <div className="page">
       <header className="app-header">
         <h1>Snapshots</h1>
       </header>
@@ -179,70 +183,84 @@ function SnapshotsPage({ householdId }: { householdId: string }) {
           <SnapshotComparisonView householdId={householdId} snapshots={snapshots} />
         </>
       )}
-    </>
+    </div>
   );
 }
 
-type Tab = 'position' | 'snapshots';
-
-function AppNav({ active, onChange }: { active: Tab; onChange: (tab: Tab) => void }) {
+function AppNav({ view, onSelect }: { view: View; onSelect: (view: View) => void }) {
   return (
     <nav className="app-nav" aria-label="Sections">
-      <button
-        className="nav-tab"
-        type="button"
-        aria-current={active === 'position' ? 'page' : undefined}
-        onClick={() => onChange('position')}
-      >
+      <button type="button" aria-current={view === 'position' ? 'page' : undefined} onClick={() => onSelect('position')}>
         Financial position
       </button>
-      <button
-        className="nav-tab"
-        type="button"
-        aria-current={active === 'snapshots' ? 'page' : undefined}
-        onClick={() => onChange('snapshots')}
-      >
+      <button type="button" aria-current={view === 'goals' ? 'page' : undefined} onClick={() => onSelect('goals')}>
+        Goals
+      </button>
+      <button type="button" aria-current={view === 'snapshots' ? 'page' : undefined} onClick={() => onSelect('snapshots')}>
         Snapshots
+      </button>
+      <button
+        type="button"
+        aria-current={view === 'forecasting' ? 'page' : undefined}
+        onClick={() => onSelect('forecasting')}
+      >
+        Forecasting
       </button>
     </nav>
   );
 }
 
-function ConfiguredApp({ householdId }: { householdId: string }) {
-  const [tab, setTab] = useState<Tab>('position');
-
-  return (
-    <div className="page">
-      <AppNav active={tab} onChange={setTab} />
-      {tab === 'position' ? <FinancialPositionPage householdId={householdId} /> : <SnapshotsPage householdId={householdId} />}
-    </div>
-  );
-}
-
 export function App() {
+  const [view, setView] = useState<View>('position');
   const config = readHouseholdConfig();
+
+  if (view === 'forecasting') {
+    return (
+      <>
+        <AppNav view={view} onSelect={setView} />
+        <ForecastingPage />
+      </>
+    );
+  }
 
   if (config.status === 'missing') {
     return (
-      <div className="page">
-        <header className="app-header">
-          <h1>Financial position</h1>
-        </header>
-        <ConfigMissing />
-      </div>
+      <>
+        <AppNav view={view} onSelect={setView} />
+        <div className="page">
+          <header className="app-header">
+            <h1>Financial position</h1>
+          </header>
+          <ConfigMissing />
+        </div>
+      </>
     );
   }
 
   if (config.status === 'invalid') {
     return (
-      <div className="page">
-        <header className="app-header">
-          <h1>Financial position</h1>
-        </header>
-        <ConfigInvalid rawValue={config.rawValue} />
-      </div>
+      <>
+        <AppNav view={view} onSelect={setView} />
+        <div className="page">
+          <header className="app-header">
+            <h1>Financial position</h1>
+          </header>
+          <ConfigInvalid rawValue={config.rawValue} />
+        </div>
+      </>
     );
   }
 
-  return <ConfiguredApp householdId={config.householdId} />;
+  return (
+    <>
+      <AppNav view={view} onSelect={setView} />
+      {view === 'goals' ? (
+        <GoalsPage householdId={config.householdId} />
+      ) : view === 'snapshots' ? (
+        <SnapshotsPage householdId={config.householdId} />
+      ) : (
+        <FinancialPositionPage householdId={config.householdId} />
+      )}
+    </>
+  );
 }

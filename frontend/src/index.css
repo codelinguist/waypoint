@@ -46,72 +46,6 @@ body {
   margin: 0 auto;
 }
 
-.app-nav {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--border);
-}
-
-.nav-tab {
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  padding: 10px 4px;
-  margin-right: 20px;
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
-.nav-tab:hover {
-  color: var(--text);
-}
-
-.nav-tab[aria-current='page'] {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
-}
-
-.comparison-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px 20px;
-  margin: 12px 0 16px;
-}
-
-.comparison-controls label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  font-weight: 600;
-}
-
-.comparison-controls select {
-  font: inherit;
-  padding: 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface);
-  color: var(--text);
-  min-width: 160px;
-}
-
-.comparison-result {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-
-.net-worth-list {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-}
-
 header.app-header {
   display: flex;
   flex-wrap: wrap;
@@ -447,10 +381,265 @@ th.amount {
   margin: 2px 0 0;
 }
 
+.app-nav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.app-nav button {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.app-nav button:hover {
+  background: #eef3f9;
+}
+
+.app-nav button[aria-current='page'] {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: #eef3f9;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+  max-width: 320px;
+}
+
+.field label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.field input,
+.field select {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.field input:focus-visible,
+.field select:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.result {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.result dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 12px 0 0;
+  max-width: 420px;
+}
+
+.result dt {
+  color: var(--text-muted);
+}
+
+.result dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 footer.evidence-note {
   margin-top: 40px;
   font-size: 0.75rem;
   color: var(--text-muted);
   border-top: 1px dashed var(--border);
   padding-top: 12px;
+}
+
+/* Planning calculators (WAP-19): same tokens and card language as the
+   financial-position dashboard above, extended with a form and a top-level
+   nav since App.tsx now renders more than one view. */
+
+nav.app-nav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  max-width: 960px;
+  margin: 0 auto 20px;
+}
+
+.app-nav button {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.app-nav button[aria-current='page'] {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: #eef3f9;
+}
+
+.calc-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.calc-section h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.calc-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px 16px;
+  margin: 16px 0 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  min-width: 0;
+}
+
+.field label {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.field input {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  width: 100%;
+}
+
+.field input:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.submit-btn {
+  grid-column: 1 / -1;
+  justify-self: start;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: #fff;
+  border-radius: 6px;
+  padding: 10px 18px;
+  font-weight: 600;
+}
+
+.submit-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.form-error {
+  border: 1px solid var(--negative);
+  background: #fbeceb;
+  color: var(--negative);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 16px 0 0;
+  font-size: 0.9rem;
+}
+
+.results {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px 20px;
+  margin: 14px 0;
+}
+
+.summary-item {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.summary-item strong {
+  display: block;
+  font-size: 1.1rem;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.model-note {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 14px;
+}
+
+.comparison-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 20px;
+  margin: 12px 0 16px;
+}
+
+.comparison-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.comparison-controls select {
+  font: inherit;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  min-width: 160px;
+}
+
+.comparison-result {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.net-worth-list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
 }
