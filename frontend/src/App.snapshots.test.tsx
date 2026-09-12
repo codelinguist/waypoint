@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
-import type { FinancialSnapshot } from './api/types';
+import type { FinancialSnapshotDetail } from './api/types';
 
 const HOUSEHOLD_ID = '3f7b1e2a-9c4d-4a1b-8f2e-6d5c4b3a2f10';
 const EARLIER_ID = '11111111-1111-1111-1111-111111111111';
@@ -16,7 +16,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 }
 
-const twoSnapshots: FinancialSnapshot[] = [
+const twoSnapshots: FinancialSnapshotDetail[] = [
   {
     id: EARLIER_ID,
     householdId: HOUSEHOLD_ID,

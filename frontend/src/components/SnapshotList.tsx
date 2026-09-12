@@ -1,9 +1,9 @@
 import { formatInstantUtc, formatLocalDate } from '../dates';
 import { sourceTypeLabel } from '../labels';
 import { formatSignedSnapshotAmount } from '../snapshotMoney';
-import type { FinancialSnapshot } from '../api/types';
+import type { FinancialSnapshotDetail } from '../api/types';
 
-export function SnapshotList({ snapshots }: { snapshots: FinancialSnapshot[] }) {
+export function SnapshotList({ snapshots }: { snapshots: FinancialSnapshotDetail[] }) {
   return (
     <div className="table-scroll" tabIndex={0} role="region" aria-label="Financial snapshots, scrollable">
       <table className="stackable">

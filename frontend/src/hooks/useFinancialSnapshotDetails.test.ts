@@ -1,11 +1,11 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { useFinancialSnapshots } from './useFinancialSnapshots';
-import type { FinancialSnapshot } from '../api/types';
+import { useFinancialSnapshotDetails } from './useFinancialSnapshotDetails';
+import type { FinancialSnapshotDetail } from '../api/types';
 
 const HOUSEHOLD_ID = '3f7b1e2a-9c4d-4a1b-8f2e-6d5c4b3a2f10';
 
-function snapshot(id: string, asOfDate: string): FinancialSnapshot {
+function snapshot(id: string, asOfDate: string): FinancialSnapshotDetail {
   return {
     id,
     householdId: HOUSEHOLD_ID,
@@ -26,7 +26,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('useFinancialSnapshots', () => {
+describe('useFinancialSnapshotDetails', () => {
   it('loads the snapshot list', async () => {
     const snapshots = [snapshot('11111111-1111-1111-1111-111111111111', '2026-08-01')];
     vi.stubGlobal(
@@ -34,7 +34,7 @@ describe('useFinancialSnapshots', () => {
       vi.fn().mockResolvedValue(jsonResponse(snapshots))
     );
 
-    const { result } = renderHook(() => useFinancialSnapshots(HOUSEHOLD_ID));
+    const { result } = renderHook(() => useFinancialSnapshotDetails(HOUSEHOLD_ID));
 
     await waitFor(() => expect(result.current.state.status).toBe('ready'));
     expect(result.current.state.status === 'ready' && result.current.state.snapshots).toEqual(snapshots);
@@ -43,7 +43,7 @@ describe('useFinancialSnapshots', () => {
   it('reports a not-found household distinctly from a generic error', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({}, 404)));
 
-    const { result } = renderHook(() => useFinancialSnapshots(HOUSEHOLD_ID));
+    const { result } = renderHook(() => useFinancialSnapshotDetails(HOUSEHOLD_ID));
 
     await waitFor(() => expect(result.current.state.status).toBe('not-found'));
   });
@@ -61,7 +61,7 @@ describe('useFinancialSnapshots', () => {
       .mockImplementationOnce(() => Promise.resolve(jsonResponse(newer)));
     vi.stubGlobal('fetch', fetchMock);
 
-    const { result } = renderHook(() => useFinancialSnapshots(HOUSEHOLD_ID));
+    const { result } = renderHook(() => useFinancialSnapshotDetails(HOUSEHOLD_ID));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     expect(result.current.state.status).toBe('loading');
 

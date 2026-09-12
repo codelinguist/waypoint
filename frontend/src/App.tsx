@@ -8,7 +8,7 @@ import { SnapshotComparisonView } from './components/SnapshotComparisonView';
 import { SnapshotList } from './components/SnapshotList';
 import { GoalsPage } from './GoalsPage';
 import { useFinancialPosition } from './hooks/useFinancialPosition';
-import { useFinancialSnapshots } from './hooks/useFinancialSnapshots';
+import { useFinancialSnapshotDetails } from './hooks/useFinancialSnapshotDetails';
 import { formatInstantUtc, formatTimeUtc } from './dates';
 
 type View = 'position' | 'goals' | 'forecasting' | 'snapshots';
@@ -116,7 +116,7 @@ function FinancialPositionPage({ householdId }: { householdId: string }) {
 }
 
 function SnapshotsPage({ householdId }: { householdId: string }) {
-  const { state, retry } = useFinancialSnapshots(householdId);
+  const { state, retry } = useFinancialSnapshotDetails(householdId);
 
   if (state.status === 'not-found') {
     return (

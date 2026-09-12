@@ -10,7 +10,7 @@ export type SnapshotComparisonState =
 
 /**
  * Runs an on-demand comparison between two of a household's financial
- * snapshots. Unlike useFinancialSnapshots, nothing loads until `compare` is
+ * snapshots. Unlike useFinancialSnapshotDetails, nothing loads until `compare` is
  * called. Race safety: only the response belonging to the most recently
  * started comparison is ever applied to state, so rapidly re-submitting
  * cannot let a slower, earlier comparison overwrite a newer one.

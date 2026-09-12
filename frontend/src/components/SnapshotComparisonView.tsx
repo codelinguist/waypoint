@@ -3,9 +3,9 @@ import type { FormEvent } from 'react';
 import { useSnapshotComparison } from '../hooks/useSnapshotComparison';
 import { formatLocalDate } from '../dates';
 import { formatSignedSnapshotAmount } from '../snapshotMoney';
-import type { FinancialSnapshot } from '../api/types';
+import type { FinancialSnapshotDetail } from '../api/types';
 
-function SnapshotOptions({ snapshots }: { snapshots: FinancialSnapshot[] }) {
+function SnapshotOptions({ snapshots }: { snapshots: FinancialSnapshotDetail[] }) {
   return (
     <>
       <option value="" disabled>
@@ -37,7 +37,7 @@ export function SnapshotComparisonView({
   snapshots,
 }: {
   householdId: string;
-  snapshots: FinancialSnapshot[];
+  snapshots: FinancialSnapshotDetail[];
 }) {
   const { state, compare } = useSnapshotComparison(householdId);
   const [earlierId, setEarlierId] = useState('');

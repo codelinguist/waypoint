@@ -185,7 +185,7 @@ export interface EmergencyFundRunwayResponse {
   modelNote: string;
 }
 
-// Mirrors backend/src/main/java/com/waypoint/household/web/dto/{FinancialSnapshot*,
+// Mirrors backend/src/main/java/com/waypoint/household/web/dto/{FinancialSnapshotDetail*,
 // SnapshotAssetLineItem,SnapshotLiabilityLineItem,CurrencyTotals,
 // CurrencyTotalsDelta}Response.java exactly.
 //
@@ -214,14 +214,14 @@ export interface SnapshotLiabilityLineItem {
   value: number;
 }
 
-export interface SnapshotCurrencyTotals {
+export interface FinancialSnapshotCurrencyTotals {
   currency: string;
   assetTotal: number;
   liabilityTotal: number;
   netWorth: number;
 }
 
-export interface FinancialSnapshot {
+export interface FinancialSnapshotDetail {
   id: string;
   householdId: string;
   asOfDate: string;
@@ -229,10 +229,10 @@ export interface FinancialSnapshot {
   sourceType: SourceType;
   assetLineItems: SnapshotAssetLineItem[];
   liabilityLineItems: SnapshotLiabilityLineItem[];
-  totalsByCurrency: SnapshotCurrencyTotals[];
+  totalsByCurrency: FinancialSnapshotCurrencyTotals[];
 }
 
-export interface FinancialSnapshotSummary {
+export interface SnapshotComparisonSummary {
   id: string;
   asOfDate: string;
   capturedAt: string;
@@ -246,7 +246,7 @@ export interface SnapshotCurrencyTotalsDelta {
 }
 
 export interface FinancialSnapshotComparison {
-  earlierSnapshot: FinancialSnapshotSummary;
-  laterSnapshot: FinancialSnapshotSummary;
+  earlierSnapshot: SnapshotComparisonSummary;
+  laterSnapshot: SnapshotComparisonSummary;
   currencyDeltas: SnapshotCurrencyTotalsDelta[];
 }

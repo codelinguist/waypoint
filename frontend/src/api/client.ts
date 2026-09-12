@@ -6,7 +6,7 @@ import type {
   EmergencyFundRunwayResponse,
   FinancialGoal,
   FinancialPositionResponse,
-  FinancialSnapshot,
+  FinancialSnapshotDetail,
   FinancialSnapshotComparison,
   GoalContributionRequestBody,
   GoalContributionResult,
@@ -222,10 +222,10 @@ export function fetchEmergencyFundRunway(request: EmergencyFundRunwayRequest): P
   return postCalculator<EmergencyFundRunwayResponse>('/api/planning/emergency-fund-runway', request);
 }
 
-export class FinancialSnapshotsRequestError extends Error {
+export class FinancialSnapshotRequestError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'FinancialSnapshotsRequestError';
+    this.name = 'FinancialSnapshotRequestError';
   }
 }
 
@@ -246,10 +246,10 @@ export class IdenticalSnapshotComparisonError extends Error {
 
 /**
  * Fetches the read-only list of a household's recorded financial snapshots.
- * Throws `HouseholdNotFoundError` for a 404, `FinancialSnapshotsRequestError`
+ * Throws `HouseholdNotFoundError` for a 404, `FinancialSnapshotRequestError`
  * for any other non-OK response or network failure.
  */
-export async function fetchFinancialSnapshots(householdId: string, signal?: AbortSignal): Promise<FinancialSnapshot[]> {
+export async function fetchFinancialSnapshotDetails(householdId: string, signal?: AbortSignal): Promise<FinancialSnapshotDetail[]> {
   let response: Response;
   try {
     response = await fetch(`/api/households/${householdId}/financial-snapshots`, { signal });
@@ -257,7 +257,7 @@ export async function fetchFinancialSnapshots(householdId: string, signal?: Abor
     if (cause instanceof DOMException && cause.name === 'AbortError') {
       throw cause;
     }
-    throw new FinancialSnapshotsRequestError('Could not reach the server.');
+    throw new FinancialSnapshotRequestError('Could not reach the server.');
   }
 
   if (response.status === 404) {
@@ -270,17 +270,17 @@ export async function fetchFinancialSnapshots(householdId: string, signal?: Abor
     } catch {
       body = undefined;
     }
-    throw new FinancialSnapshotsRequestError(body?.message ?? `Request failed with status ${response.status}.`);
+    throw new FinancialSnapshotRequestError(body?.message ?? `Request failed with status ${response.status}.`);
   }
 
-  return (await response.json()) as FinancialSnapshot[];
+  return (await response.json()) as FinancialSnapshotDetail[];
 }
 
 /**
  * Compares two of a household's financial snapshots. Throws
  * `HouseholdNotFoundError` (household 404), `FinancialSnapshotNotFoundError`
  * (either snapshot id 404s), `IdenticalSnapshotComparisonError` (both ids
- * identical, 400), or `FinancialSnapshotsRequestError` for anything else.
+ * identical, 400), or `FinancialSnapshotRequestError` for anything else.
  * The 400 branch below only ever reaches the identical-snapshot case in
  * practice: the UI always supplies both ids from the loaded snapshot list,
  * so the backend's other `VALIDATION_FAILED` cause (a missing query
@@ -300,7 +300,7 @@ export async function fetchSnapshotComparison(
     if (cause instanceof DOMException && cause.name === 'AbortError') {
       throw cause;
     }
-    throw new FinancialSnapshotsRequestError('Could not reach the server.');
+    throw new FinancialSnapshotRequestError('Could not reach the server.');
   }
 
   if (!response.ok) {
@@ -319,7 +319,7 @@ export async function fetchSnapshotComparison(
     if (response.status === 400 && body?.error === 'VALIDATION_FAILED') {
       throw new IdenticalSnapshotComparisonError(body.message ?? 'Cannot compare a snapshot against itself.');
     }
-    throw new FinancialSnapshotsRequestError(body?.message ?? `Request failed with status ${response.status}.`);
+    throw new FinancialSnapshotRequestError(body?.message ?? `Request failed with status ${response.status}.`);
   }
 
   return (await response.json()) as FinancialSnapshotComparison;
