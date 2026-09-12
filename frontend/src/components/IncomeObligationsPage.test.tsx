@@ -140,20 +140,26 @@ describe('income streams and obligations', () => {
     );
     await navigateToIncomeObligations();
 
-    expect(screen.getByText('October Salary')).toBeInTheDocument();
+    // Scoped to the income streams table: the page's own "Add income
+    // stream" form (WAP-25) also renders type/certainty/classification
+    // options with this same text, so an unscoped screen.getByText would be
+    // ambiguous.
+    const incomeStreamsTable = screen.getByRole('region', { name: 'Income streams, scrollable' });
+
+    expect(within(incomeStreamsTable).getByText('October Salary')).toBeInTheDocument();
     expect(screen.getByText('Freelance Retainer')).toBeInTheDocument();
     expect(screen.getByText(/50,000\.00 PHP/)).toBeInTheDocument();
     expect(screen.getByText(/1,234\.50 USD/)).toBeInTheDocument();
-    expect(screen.getByText('Business distribution')).toBeInTheDocument();
-    expect(screen.getByText('Net')).toBeInTheDocument();
+    expect(within(incomeStreamsTable).getByText('Business distribution')).toBeInTheDocument();
+    expect(within(incomeStreamsTable).getByText('Net')).toBeInTheDocument();
     // Both "October Salary" (income) and "Home Mortgage Payment" (obligation) are open-ended.
     expect(screen.getAllByText('Ongoing')).toHaveLength(2);
 
     // Certainty: CONFIRMED is unmarked, VARIABLE is visually flagged (badge
     // styling) and additionally called out for assistive tech (sr-only text).
-    const confirmedBadge = screen.getByText('Confirmed');
+    const confirmedBadge = within(incomeStreamsTable).getByText('Confirmed');
     expect(confirmedBadge.className).not.toContain('badge--attention');
-    const variableBadge = screen.getByText('Variable', { exact: false }).closest('.badge')!;
+    const variableBadge = within(incomeStreamsTable).getByText('Variable', { exact: false }).closest('.badge')!;
     expect(variableBadge.className).toContain('badge--attention');
     expect(within(variableBadge as HTMLElement).getByText(/not confirmed/i)).toBeInTheDocument();
 

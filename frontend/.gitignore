@@ -18,6 +18,7 @@ coverage
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+/e2e-evidence/
 
 # Editor directories and files
 .vscode/*

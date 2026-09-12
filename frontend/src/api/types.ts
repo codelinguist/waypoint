@@ -495,3 +495,147 @@ export interface FinancialSnapshotComparison {
   laterSnapshot: SnapshotComparisonSummary;
   currencyDeltas: SnapshotCurrencyTotalsDelta[];
 }
+
+// Data-entry request/response types (WAP-25). Mirrors
+// backend/src/main/java/com/waypoint/household/web/dto/Create*Request.java,
+// Update AssetValuationRequest, RecordLiabilityBalanceRequest, and
+// backend/src/main/java/com/waypoint/assumption/web/dto/*.java. Every field
+// here is a plain create/list DTO with no MoneyFormat conversion, so
+// `Asset`/`Liability` monetary fields below are plain JSON numbers — the one
+// exception is `AssetValuationState`, which the backend does serialize with
+// MoneyFormat (see AssetValuationStateResponse.java) as exact decimal
+// strings, matching PositionAsset's convention.
+
+export interface CreateAssetRequest {
+  name: string;
+  assetType: AssetType;
+  estimatedValue: string;
+  planningValue: string;
+  currency: string;
+  valuedAt: string;
+  liquidity: Liquidity;
+}
+
+export interface Asset {
+  id: string;
+  householdId: string;
+  name: string;
+  assetType: AssetType;
+  estimatedValue: number;
+  planningValue: number;
+  currency: string;
+  valuedAt: string;
+  liquidity: Liquidity;
+  sourceType: SourceType;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** The asset's current recorded valuation plus its opaque revision, for a correction's conditional submission. */
+export interface AssetValuationState {
+  assetId: string;
+  householdId: string;
+  estimatedValue: string;
+  planningValue: string;
+  currency: string;
+  valuedAt: string;
+  sourceType: SourceType;
+  revision: number;
+}
+
+export interface UpdateAssetValuationRequest {
+  estimatedValue: string;
+  planningValue: string;
+  valuedAt: string;
+  reason: string;
+  expectedRevision: number;
+}
+
+export interface CreateLiabilityRequest {
+  name: string;
+  liabilityType: LiabilityType;
+  outstandingBalance: string;
+  currency: string;
+  balanceAsOf: string;
+}
+
+export interface Liability {
+  id: string;
+  householdId: string;
+  name: string;
+  liabilityType: LiabilityType;
+  outstandingBalance: number;
+  currency: string;
+  balanceAsOf: string;
+  sourceType: SourceType;
+  createdAt: string;
+  updatedAt: string;
+  revision: number;
+}
+
+export interface RecordLiabilityBalanceRequest {
+  outstandingBalance: string;
+  balanceAsOf: string;
+  reason: string;
+  expectedRevision: number;
+}
+
+export interface CreateIncomeStreamRequest {
+  name: string;
+  incomeType: IncomeType;
+  amount: string;
+  frequency: Frequency;
+  currency: string;
+  compensationClassification: CompensationClassification;
+  certainty: IncomeCertainty;
+  startDate: string;
+  endDate: string | null;
+}
+
+export interface CreateObligationRequest {
+  name: string;
+  obligationType: ObligationType;
+  amount: string;
+  frequency: Frequency;
+  currency: string;
+  startDate: string;
+  endDate: string | null;
+}
+
+export interface CreateGoalRequest {
+  name: string;
+  targetAmount: string;
+  currency: string;
+  targetDate: string;
+  priority: number;
+  currentAmount: string;
+}
+
+export interface CreateSnapshotRequest {
+  asOfDate: string;
+}
+
+export interface CreatePlanningAssumptionRequest {
+  name: string;
+  value: string;
+  valueType: string;
+  notes: string | null;
+  effectiveFrom: string;
+  effectiveUntil: string | null;
+  reviewDate: string;
+}
+
+export interface PlanningAssumption {
+  id: string;
+  householdId: string;
+  name: string;
+  value: string;
+  valueType: string;
+  notes: string | null;
+  effectiveFrom: string;
+  effectiveUntil: string | null;
+  reviewDate: string;
+  sourceType: SourceType;
+  supersededBy: string | null;
+  createdAt: string;
+}

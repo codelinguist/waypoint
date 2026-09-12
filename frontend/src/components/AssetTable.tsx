@@ -1,9 +1,20 @@
 import { formatLocalDate } from '../dates';
 import { assetTypeLabel, liquidityLabel, sourceTypeLabel } from '../labels';
 import { formatMoneyMagnitude } from '../money';
+import { CorrectAssetValuationForm } from './entry/CorrectAssetValuationForm';
 import type { PositionAsset } from '../api/types';
 
-export function AssetTable({ currency, assets }: { currency: string; assets: PositionAsset[] }) {
+export function AssetTable({
+  currency,
+  assets,
+  householdId,
+  onRecordChanged,
+}: {
+  currency: string;
+  assets: PositionAsset[];
+  householdId: string;
+  onRecordChanged: () => void;
+}) {
   return (
     <div className="table-scroll" tabIndex={0} role="region" aria-label={`${currency} assets, scrollable`}>
       <table className="stackable">
@@ -21,6 +32,7 @@ export function AssetTable({ currency, assets }: { currency: string; assets: Pos
             </th>
             <th scope="col">Valued</th>
             <th scope="col">Source</th>
+            <th scope="col">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -44,6 +56,14 @@ export function AssetTable({ currency, assets }: { currency: string; assets: Pos
               </td>
               <td data-label="Source">
                 <span className="badge">{sourceTypeLabel(asset.sourceType)}</span>
+              </td>
+              <td data-label="Actions">
+                <CorrectAssetValuationForm
+                  householdId={householdId}
+                  assetId={asset.id}
+                  assetName={asset.name}
+                  onCorrected={onRecordChanged}
+                />
               </td>
             </tr>
           ))}

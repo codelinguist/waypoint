@@ -1,4 +1,6 @@
 import { ConfigNotFound } from './ConfigProblem';
+import { AddIncomeStreamForm } from './entry/AddIncomeStreamForm';
+import { AddObligationForm } from './entry/AddObligationForm';
 import { IncomeStreamTable } from './IncomeStreamTable';
 import { ObligationTable } from './ObligationTable';
 import { LoadingSkeleton } from './LoadingSkeleton';
@@ -69,6 +71,9 @@ export function IncomeObligationsPage({ householdId }: { householdId: string }) 
         </button>
       </header>
 
+      <AddIncomeStreamForm householdId={householdId} onCreated={refresh} />
+      <AddObligationForm householdId={householdId} onCreated={refresh} />
+
       {refreshError && (
         <div className="banner" role="alert">
           <strong>Refresh failed at {formatTimeUtc(refreshError.failedAt)}.</strong>
@@ -81,7 +86,7 @@ export function IncomeObligationsPage({ householdId }: { householdId: string }) 
           <p>
             <strong>No income streams or obligations are recorded for this household yet.</strong>
           </p>
-          <p>Add records through the existing household data tools, then refresh this page.</p>
+          <p>Use &ldquo;Add income stream&rdquo; or &ldquo;Add obligation&rdquo; above to record one.</p>
         </div>
       ) : (
         <div className={`card${refreshError ? ' dimmed' : ''}`}>

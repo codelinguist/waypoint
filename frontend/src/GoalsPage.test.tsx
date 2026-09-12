@@ -194,11 +194,17 @@ describe('contribution calculator', () => {
 
     expect(screen.queryByLabelText('Prefill from goal')).not.toBeInTheDocument();
 
-    await userEvent.type(screen.getByLabelText('Currency'), 'PHP');
-    await userEvent.type(screen.getByLabelText('Target amount'), '0');
-    await userEvent.type(screen.getByLabelText('Current amount'), '0');
-    await userEvent.type(screen.getByLabelText('Months to contribute'), '3');
-    await userEvent.click(screen.getByRole('button', { name: 'Calculate' }));
+    // Scoped to the calculator section: the page's own "Add goal" form
+    // (WAP-25) has fields with the same labels (Currency, Target amount,
+    // Current amount), so an unscoped screen.getByLabelText would be
+    // ambiguous.
+    const calculator = screen.getByRole('heading', { name: 'Contribution calculator' }).closest('section')!;
+
+    await userEvent.type(within(calculator).getByLabelText('Currency'), 'PHP');
+    await userEvent.type(within(calculator).getByLabelText('Target amount'), '0');
+    await userEvent.type(within(calculator).getByLabelText('Current amount'), '0');
+    await userEvent.type(within(calculator).getByLabelText('Months to contribute'), '3');
+    await userEvent.click(within(calculator).getByRole('button', { name: 'Calculate' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/request validation failed/i);
     expect(screen.getByText(/targetAmount must be greater than zero/i)).toBeInTheDocument();

@@ -10,12 +10,16 @@ export function CurrencyCard({
   liabilities,
   dimmed,
   defaultExpanded,
+  householdId,
+  onRecordChanged,
 }: {
   totals: PositionCurrencyTotals;
   assets: PositionAsset[];
   liabilities: PositionLiability[];
   dimmed: boolean;
   defaultExpanded?: boolean;
+  householdId: string;
+  onRecordChanged: () => void;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded ?? false);
   const headingId = useId();
@@ -60,14 +64,19 @@ export function CurrencyCard({
       <div className="records" id={recordsId} hidden={!expanded}>
         <h4>Assets{assets.length > 0 ? ` (${assets.length})` : ''}</h4>
         {assets.length > 0 ? (
-          <AssetTable currency={totals.currency} assets={assets} />
+          <AssetTable currency={totals.currency} assets={assets} householdId={householdId} onRecordChanged={onRecordChanged} />
         ) : (
           <p className="no-records-side">No assets recorded in {totals.currency}.</p>
         )}
 
         <h4>Liabilities{liabilities.length > 0 ? ` (${liabilities.length})` : ''}</h4>
         {liabilities.length > 0 ? (
-          <LiabilityTable currency={totals.currency} liabilities={liabilities} />
+          <LiabilityTable
+            currency={totals.currency}
+            liabilities={liabilities}
+            householdId={householdId}
+            onRecordChanged={onRecordChanged}
+          />
         ) : (
           <p className="no-records-side">No liabilities recorded in {totals.currency}.</p>
         )}

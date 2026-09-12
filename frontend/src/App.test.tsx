@@ -257,6 +257,76 @@ describe('populated financial position', () => {
   });
 });
 
+describe('data entry (WAP-25)', () => {
+  it('names the real "Add asset"/"Add liability" actions in the empty-state copy instead of a nonexistent external tool', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(emptyHouseholdResponse)));
+    render(<App />);
+
+    expect(await screen.findByText(/no assets or liabilities are recorded/i)).toBeInTheDocument();
+    expect(screen.getByText(/use.*add asset.*or.*add liability.*above/i)).toBeInTheDocument();
+  });
+
+  it('adding an asset refreshes the financial position list to show it, with no page navigation', async () => {
+    const fetchMock = vi.fn();
+    fetchMock.mockResolvedValueOnce(jsonResponse(emptyHouseholdResponse)); // initial load
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        {
+          id: 'new-asset-id',
+          householdId: HOUSEHOLD_ID,
+          name: 'Emergency Cash',
+          assetType: 'CASH',
+          estimatedValue: 5000,
+          planningValue: 5000,
+          currency: 'PHP',
+          valuedAt: '2026-09-01',
+          liquidity: 'LIQUID',
+          sourceType: 'MANUAL_ENTRY',
+          createdAt: '2026-09-12T00:00:00Z',
+          updatedAt: '2026-09-12T00:00:00Z',
+        },
+        201
+      )
+    ); // create response
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        ...emptyHouseholdResponse,
+        assets: [
+          {
+            id: 'new-asset-id',
+            name: 'Emergency Cash',
+            assetType: 'CASH',
+            estimatedValue: '5000.00',
+            planningValue: '5000.00',
+            currency: 'PHP',
+            valuedAt: '2026-09-01',
+            liquidity: 'LIQUID',
+            sourceType: 'MANUAL_ENTRY',
+          },
+        ],
+        totalsByCurrency: [{ currency: 'PHP', assetTotal: '5000.00', liabilityTotal: '0.00', netWorth: '5000.00' }],
+      })
+    ); // post-create refresh
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByRole('heading', { name: 'New Household' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Add asset' }));
+    await userEvent.type(screen.getByLabelText('Name'), 'Emergency Cash');
+    await userEvent.type(screen.getByLabelText('Currency'), 'PHP');
+    await userEvent.type(screen.getByLabelText('Estimated value'), '5000.00');
+    await userEvent.type(screen.getByLabelText('Planning value'), '5000.00');
+    await userEvent.type(screen.getByLabelText('Valued as of'), '2026-09-01');
+    await userEvent.click(screen.getByRole('button', { name: 'Add asset' }));
+
+    expect(await screen.findByText('Emergency Cash')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    // Still the same page/heading — no navigation happened.
+    expect(screen.getByRole('heading', { name: 'New Household' })).toBeInTheDocument();
+  });
+});
+
 describe('first-load failure', () => {
   it('shows a retry action and no fabricated data when there is no prior successful load', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('network down')));
