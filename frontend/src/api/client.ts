@@ -6,10 +6,13 @@ import type {
   EmergencyFundRunwayResponse,
   FinancialGoal,
   FinancialPositionResponse,
+  FinancialSnapshotListItem,
   GoalContributionRequestBody,
   GoalContributionResult,
   IncomeStream,
   Obligation,
+  PlanVersusActualRequest,
+  PlanVersusActualResponse,
 } from './types';
 
 export class HouseholdNotFoundError extends Error {
@@ -64,6 +67,43 @@ export async function fetchFinancialPosition(
   }
 
   return (await response.json()) as FinancialPositionResponse;
+}
+
+export class FinancialSnapshotsRequestError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'FinancialSnapshotsRequestError';
+  }
+}
+
+/**
+ * Lists a household's recorded financial snapshots (for the plan-vs-actual
+ * snapshot picker). Throws `HouseholdNotFoundError` for a 404,
+ * `FinancialSnapshotsRequestError` for any other non-OK response or network
+ * failure.
+ */
+export async function fetchFinancialSnapshots(householdId: string): Promise<FinancialSnapshotListItem[]> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/households/${householdId}/financial-snapshots`);
+  } catch {
+    throw new FinancialSnapshotsRequestError('Could not reach the server.');
+  }
+
+  if (response.status === 404) {
+    throw new HouseholdNotFoundError(householdId);
+  }
+  if (!response.ok) {
+    let body: Partial<ApiErrorBody> | undefined;
+    try {
+      body = (await response.json()) as ApiErrorBody;
+    } catch {
+      body = undefined;
+    }
+    throw new FinancialSnapshotsRequestError(body?.message ?? `Request failed with status ${response.status}.`);
+  }
+
+  return (await response.json()) as FinancialSnapshotListItem[];
 }
 
 export class GoalsRequestError extends Error {
@@ -180,10 +220,12 @@ export class CalculatorRequestError extends Error {
 }
 
 /**
- * Posts a stateless planning-calculator request. Neither calculator reads or
- * writes any persisted household state, so this takes only the request body
- * — no householdId. Throws `CalculatorValidationError` for a 400 and
- * `CalculatorRequestError` for any other non-OK response or network failure.
+ * Posts a JSON request and parses a JSON response, throwing
+ * `CalculatorValidationError` for a 400 and `CalculatorRequestError` for any
+ * other non-OK response or network failure. Named for its original stateless
+ * planning-calculator callers below; also reused by
+ * `fetchPlanVersusActual`, whose path is household/snapshot-scoped but whose
+ * error shape is identical.
  */
 async function postCalculator<TResponse>(path: string, body: unknown): Promise<TResponse> {
   let response: Response;
@@ -220,6 +262,23 @@ export function fetchCashFlowProjection(request: CashFlowProjectionRequest): Pro
 
 export function fetchEmergencyFundRunway(request: EmergencyFundRunwayRequest): Promise<EmergencyFundRunwayResponse> {
   return postCalculator<EmergencyFundRunwayResponse>('/api/planning/emergency-fund-runway', request);
+}
+
+/**
+ * Compares caller-supplied planned totals against one existing snapshot's
+ * actual totals. Unlike the calculators above this reads persisted household
+ * data (the snapshot), but nothing here is written back — see
+ * PlanVersusActualService (backend) for the read-only contract.
+ */
+export function fetchPlanVersusActual(
+  householdId: string,
+  snapshotId: string,
+  request: PlanVersusActualRequest
+): Promise<PlanVersusActualResponse> {
+  return postCalculator<PlanVersusActualResponse>(
+    `/api/households/${householdId}/financial-snapshots/${snapshotId}/plan-comparison`,
+    request
+  );
 }
 
 export class IncomeObligationsRequestError extends Error {

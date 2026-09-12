@@ -9,6 +9,7 @@ import type {
   Liquidity,
   ObligationType,
   SourceType,
+  VarianceDirection,
 } from './api/types';
 
 const ASSET_TYPE_LABELS: Record<AssetType, string> = {
@@ -39,6 +40,15 @@ const LIQUIDITY_LABELS: Record<Liquidity, string> = {
 // being required before the backend adds one.
 const SOURCE_TYPE_LABELS: Partial<Record<SourceType, string>> = {
   MANUAL_ENTRY: 'Manual',
+};
+
+// Deliberately neutral wording — matches VarianceDirection's backend javadoc:
+// whether "above" or "below" plan is favorable depends on the measure and
+// household priorities, which this label must not imply either way.
+const VARIANCE_DIRECTION_LABELS: Record<VarianceDirection, string> = {
+  ABOVE_PLAN: 'Above plan',
+  BELOW_PLAN: 'Below plan',
+  ON_PLAN: 'On plan',
 };
 
 const GOAL_CONTRIBUTION_STATUS_LABELS: Record<GoalContributionStatus, string> = {
@@ -106,6 +116,10 @@ export function liquidityLabel(value: Liquidity): string {
 
 export function sourceTypeLabel(value: SourceType): string {
   return SOURCE_TYPE_LABELS[value] ?? titleCaseFallback(value);
+}
+
+export function varianceDirectionLabel(value: VarianceDirection): string {
+  return VARIANCE_DIRECTION_LABELS[value] ?? titleCaseFallback(value);
 }
 
 export function goalContributionStatusLabel(value: GoalContributionStatus): string {
