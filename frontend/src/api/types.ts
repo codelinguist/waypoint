@@ -141,6 +141,60 @@ export interface PlanVersusActualResponse {
   currencyResults: CurrencyPlanVersusActual[];
 }
 
+// Mirrors backend/src/main/java/com/waypoint/household/web/dto/FinancialGoalResponse.java
+// and backend/src/main/java/com/waypoint/planning/goalcontribution/web/dto/*.java.
+// Unlike PositionAsset/PositionLiability/PositionCurrencyTotals above, these
+// two endpoints serialize BigDecimal fields as plain JSON numbers, not exact
+// decimal strings (confirmed by agent/product/current-financial-position/api.md:
+// "Existing endpoints ... continue to serialize money as JSON numbers"). Use
+// ../moneyNumber.ts to format them, not ../money.ts.
+
+export interface FinancialGoal {
+  id: string;
+  householdId: string;
+  name: string;
+  targetAmount: number;
+  currency: string;
+  targetDate: string;
+  priority: number;
+  currentAmount: number;
+  remainingAmount: number;
+  progressPercentage: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type GoalContributionStatus = 'ALREADY_FUNDED' | 'CONTRIBUTIONS_REQUIRED';
+
+/**
+ * Request body for POST /api/planning/goal-contribution-calculator. Amount
+ * fields are sent as decimal strings (the backend's BigDecimal fields accept
+ * either a JSON string or number; sending the user's typed string directly
+ * avoids ever routing it through a JS `Number`). `contributionMonths` must
+ * stay a genuine JSON integer — the backend's WholeNumberDeserializer rejects
+ * a string token outright, since it exists specifically to reject anything
+ * that isn't already a whole JSON number.
+ */
+export interface GoalContributionRequestBody {
+  currency: string;
+  targetAmount: string;
+  currentAmount: string;
+  contributionMonths: number;
+}
+
+export interface GoalContributionResult {
+  currency: string;
+  targetAmount: number;
+  currentAmount: number;
+  contributionMonths: number;
+  remainingAmount: number;
+  monthlyContribution: number;
+  totalContributions: number;
+  projectedAmount: number;
+  amountAboveTarget: number;
+  status: GoalContributionStatus;
+}
+
 // Mirrors backend/src/main/java/com/waypoint/planning/{cashflow,runway}/web/dto/*.java.
 // Unlike the position DTOs above, these are stateless calculators whose DTOs
 // declare monetary fields as BigDecimal, which Jackson serializes as a JSON

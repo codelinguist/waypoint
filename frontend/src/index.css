@@ -381,6 +381,85 @@ th.amount {
   margin: 2px 0 0;
 }
 
+.app-nav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.app-nav button {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.app-nav button:hover {
+  background: #eef3f9;
+}
+
+.app-nav button[aria-current='page'] {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: #eef3f9;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+  max-width: 320px;
+}
+
+.field label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.field input,
+.field select {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.field input:focus-visible,
+.field select:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.result {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.result dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 12px 0 0;
+  max-width: 420px;
+}
+
+.result dt {
+  color: var(--text-muted);
+}
+
+.result dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 footer.evidence-note {
   margin-top: 40px;
   font-size: 0.75rem;

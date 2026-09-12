@@ -1,4 +1,11 @@
-import type { AssetType, LiabilityType, Liquidity, SourceType, VarianceDirection } from './api/types';
+import type {
+  AssetType,
+  GoalContributionStatus,
+  LiabilityType,
+  Liquidity,
+  SourceType,
+  VarianceDirection,
+} from './api/types';
 
 const ASSET_TYPE_LABELS: Record<AssetType, string> = {
   CASH: 'Cash',
@@ -39,6 +46,11 @@ const VARIANCE_DIRECTION_LABELS: Record<VarianceDirection, string> = {
   ON_PLAN: 'On plan',
 };
 
+const GOAL_CONTRIBUTION_STATUS_LABELS: Record<GoalContributionStatus, string> = {
+  ALREADY_FUNDED: 'Already funded',
+  CONTRIBUTIONS_REQUIRED: 'Contributions required',
+};
+
 function titleCaseFallback(value: string): string {
   return value
     .toLowerCase()
@@ -65,4 +77,8 @@ export function sourceTypeLabel(value: SourceType): string {
 
 export function varianceDirectionLabel(value: VarianceDirection): string {
   return VARIANCE_DIRECTION_LABELS[value] ?? titleCaseFallback(value);
+}
+
+export function goalContributionStatusLabel(value: GoalContributionStatus): string {
+  return GOAL_CONTRIBUTION_STATUS_LABELS[value] ?? titleCaseFallback(value);
 }
