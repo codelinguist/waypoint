@@ -616,6 +616,40 @@ export interface CreateSnapshotRequest {
   asOfDate: string;
 }
 
+// Household/person creation (WAP-26). Mirrors
+// backend/src/main/java/com/waypoint/household/web/dto/{CreateHouseholdRequest,
+// HouseholdResponse,CreatePersonRequest,PersonResponse}.java. `role` is
+// deliberately a free-text string, not an enum (PD-003,
+// agent/product/household-foundation/product-brief.md) — the backend applies
+// only a non-blank check.
+
+export interface CreateHouseholdRequest {
+  name: string;
+  baseCurrency: string;
+}
+
+export interface Household {
+  id: string;
+  name: string;
+  baseCurrency: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePersonRequest {
+  name: string;
+  role: string;
+}
+
+export interface Person {
+  id: string;
+  householdId: string;
+  name: string;
+  role: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CreatePlanningAssumptionRequest {
   name: string;
   value: string;

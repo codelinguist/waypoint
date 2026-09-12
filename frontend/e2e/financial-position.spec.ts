@@ -12,7 +12,9 @@ const WIDE = { width: 1440, height: 900 };
 const NARROW = { width: 390, height: 844 };
 
 test.describe('missing configuration', () => {
-  test('shows the missing-configuration state and never calls the API', async ({ page }) => {
+  test('shows the onboarding wizard instead of a static message, and never calls the financial-position API', async ({
+    page,
+  }) => {
     await mockConfig(page, null);
     let apiCalled = false;
     await page.route('**/api/households/**', () => {
@@ -22,7 +24,8 @@ test.describe('missing configuration', () => {
     await page.setViewportSize(WIDE);
     await page.goto('/');
 
-    await expect(page.getByText(/no household is configured/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Set up your household' })).toBeVisible();
+    await expect(page.getByText('Step 1 of 7: Household & people')).toBeVisible();
     expect(apiCalled).toBe(false);
   });
 });
@@ -42,7 +45,7 @@ test.describe('invalid configuration', () => {
 
     await expect(page.getByText(/configured household id is malformed/i)).toBeVisible();
     await expect(page.getByText('not-a-uuid')).toBeVisible();
-    await expect(page.getByText(/no household is configured/i)).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Set up your household' })).toHaveCount(0);
     expect(apiCalled).toBe(false);
   });
 });

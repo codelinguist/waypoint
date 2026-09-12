@@ -148,14 +148,15 @@ afterEach(() => {
 });
 
 describe('missing configuration', () => {
-  it('shows the missing-configuration state and never calls the API', async () => {
+  it('shows the onboarding wizard instead of a static message, and never calls the financial-position API', async () => {
     setHouseholdConfig(undefined);
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
     render(<App />);
 
-    expect(await screen.findByText(/no household is configured/i)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Set up your household' })).toBeInTheDocument();
+    expect(screen.getByText('Step 1 of 7: Household & people')).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
@@ -170,7 +171,7 @@ describe('invalid configuration', () => {
 
     expect(await screen.findByText(/configured household id is malformed/i)).toBeInTheDocument();
     expect(screen.getByText('not-a-uuid')).toBeInTheDocument();
-    expect(screen.queryByText(/no household is configured/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Set up your household' })).not.toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
