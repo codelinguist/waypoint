@@ -160,6 +160,7 @@ export interface FinancialGoal {
   currentAmount: number;
   remainingAmount: number;
   progressPercentage: number;
+  sourceType: SourceType;
   createdAt: string;
   updatedAt: string;
 }

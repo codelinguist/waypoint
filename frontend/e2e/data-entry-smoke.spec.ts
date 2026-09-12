@@ -75,6 +75,29 @@ test('creating and correcting every WAP-25 record type through the real UI refle
   expect(historyBody.some((entry) => entry.previousEstimatedValue === '185000.00')).toBe(true);
   expect(historyBody.some((entry) => entry.newEstimatedValue === '190000.00')).toBe(true);
 
+  // --- Liability correction (D021/D022) --- the liability row's own "Correct" action.
+  // Unlike the asset valuation state (formatted server-side to two decimals),
+  // LiabilityResponse.outstandingBalance is a plain JSON number, so a whole
+  // value round-trips as "8000", not "8000.00" — expected, not a bug.
+  await page.getByRole('button', { name: 'Correct' }).last().click();
+  await expect(page.getByLabel('Outstanding balance')).toHaveValue('8000');
+  await page.getByLabel('Outstanding balance').fill('7500.00');
+  await page.getByLabel('Reason for correction').fill('Smoke test liability correction');
+  await page.getByRole('button', { name: 'Save correction' }).click();
+  // Scoped to the liability's own table cell: the currency card's net-worth
+  // headline and per-currency totals row can coincidentally show the same
+  // formatted figure.
+  await expect(page.getByRole('cell', { name: '7,500.00' })).toBeVisible();
+
+  const liabilitiesResponse = await request.get(`/api/households/${HOUSEHOLD_ID}/liabilities`);
+  const liabilities = (await liabilitiesResponse.json()) as { id: string; name: string }[];
+  const correctedLiabilityId = liabilities.find((liability) => liability.name === 'Smoke Credit Card')!.id;
+  const liabilityHistoryBody = (await (
+    await request.get(`/api/households/${HOUSEHOLD_ID}/liabilities/${correctedLiabilityId}/balances`)
+  ).json()) as { previousBalance: string; newBalance: string }[];
+  expect(liabilityHistoryBody.some((entry) => entry.previousBalance === '8000.00')).toBe(true);
+  expect(liabilityHistoryBody.some((entry) => entry.newBalance === '7500.00')).toBe(true);
+
   // --- Income & obligations ---
   await goToNav(page, 'Income & obligations');
   await page.getByRole('button', { name: 'Add income stream' }).click();

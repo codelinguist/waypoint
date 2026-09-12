@@ -55,6 +55,7 @@ class FinancialGoalApiIntegrationTest {
                 .andExpect(jsonPath("$.currentAmount").value(50000.00))
                 .andExpect(jsonPath("$.remainingAmount").value(950000.00))
                 .andExpect(jsonPath("$.progressPercentage").value(5.00))
+                .andExpect(jsonPath("$.sourceType").value("MANUAL_ENTRY"))
                 .andReturn().getResponse().getContentAsString();
         String goalId = objectMapper.readTree(body).get("id").asText();
 

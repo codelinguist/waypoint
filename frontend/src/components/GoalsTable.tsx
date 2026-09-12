@@ -1,4 +1,5 @@
 import { formatLocalDate } from '../dates';
+import { sourceTypeLabel } from '../labels';
 import { formatMoneyNumber, formatPercent } from '../moneyNumber';
 import type { FinancialGoal } from '../api/types';
 
@@ -24,6 +25,7 @@ export function GoalsTable({ goals }: { goals: FinancialGoal[] }) {
             <th scope="col" className="amount">
               Progress
             </th>
+            <th scope="col">Source</th>
           </tr>
         </thead>
         <tbody>
@@ -45,6 +47,9 @@ export function GoalsTable({ goals }: { goals: FinancialGoal[] }) {
               </td>
               <td className="amount" data-label="Progress">
                 {formatPercent(goal.progressPercentage)}
+              </td>
+              <td data-label="Source">
+                <span className="badge">{sourceTypeLabel(goal.sourceType)}</span>
               </td>
             </tr>
           ))}

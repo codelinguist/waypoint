@@ -17,6 +17,7 @@ function goal(name: string): FinancialGoal {
     currentAmount: 100,
     remainingAmount: 900,
     progressPercentage: 10,
+    sourceType: 'MANUAL_ENTRY',
     createdAt: '2026-09-10T06:15:22.104Z',
     updatedAt: '2026-09-10T06:15:22.104Z',
   };

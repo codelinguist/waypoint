@@ -2,6 +2,7 @@ package com.waypoint.household.web.dto;
 
 import com.waypoint.household.FinancialGoal;
 import com.waypoint.household.FinancialGoalService;
+import com.waypoint.household.SourceType;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -18,6 +19,7 @@ public record FinancialGoalResponse(
         BigDecimal currentAmount,
         BigDecimal remainingAmount,
         BigDecimal progressPercentage,
+        SourceType sourceType,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -34,6 +36,7 @@ public record FinancialGoalResponse(
                 goal.getCurrentAmount(),
                 FinancialGoalService.remainingAmount(goal),
                 FinancialGoalService.progressPercentage(goal),
+                goal.getSourceType(),
                 goal.getCreatedAt(),
                 goal.getUpdatedAt()
         );
