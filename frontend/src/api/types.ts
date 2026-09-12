@@ -62,9 +62,83 @@ export interface FinancialPositionResponse {
 }
 
 export interface ApiErrorBody {
-  error: 'HOUSEHOLD_NOT_FOUND' | 'MALFORMED_REQUEST' | 'VALIDATION_FAILED' | string;
+  error:
+    | 'HOUSEHOLD_NOT_FOUND'
+    | 'MALFORMED_REQUEST'
+    | 'VALIDATION_FAILED'
+    | 'FINANCIAL_SNAPSHOT_NOT_FOUND'
+    | string;
   message: string;
   details: unknown[];
+}
+
+// Mirrors backend/src/main/java/com/waypoint/household/web/dto/{CurrencyTotalsResponse,
+// FinancialSnapshotResponse,FinancialSnapshotSummaryResponse,PlanVersusActual*}.java.
+// Like the planning-calculator DTOs above (and unlike the position DTOs), these
+// monetary fields are plain BigDecimal with no MoneyFormat conversion, so they
+// arrive as JSON numbers — read with ../calculatorMoney.ts, not ../money.ts.
+// The one exception is the *request* side (PlannedCurrencyTotalsInput below):
+// those fields are sent as trimmed form-input strings, which the backend's
+// BigDecimal deserializer accepts directly, exactly like the calculator
+// requests above.
+
+export interface SnapshotCurrencyTotals {
+  currency: string;
+  assetTotal: number;
+  liabilityTotal: number;
+  netWorth: number;
+}
+
+/**
+ * One entry from `GET /api/households/{householdId}/financial-snapshots`, used
+ * only to populate the plan-vs-actual snapshot picker. The full response also
+ * carries householdId, sourceType, and per-record line items — deliberately
+ * omitted here since the picker never reads them.
+ */
+export interface FinancialSnapshotListItem {
+  id: string;
+  asOfDate: string;
+  capturedAt: string;
+  totalsByCurrency: SnapshotCurrencyTotals[];
+}
+
+/** The snapshot identity embedded in a PlanVersusActualResponse — no totals. */
+export interface FinancialSnapshotSummary {
+  id: string;
+  asOfDate: string;
+  capturedAt: string;
+}
+
+export interface PlannedCurrencyTotalsInput {
+  currency: string;
+  assetTotal: string;
+  liabilityTotal: string;
+  netWorth: string;
+}
+
+export interface PlanVersusActualRequest {
+  plannedMeasures: PlannedCurrencyTotalsInput[];
+}
+
+export type VarianceDirection = 'ABOVE_PLAN' | 'BELOW_PLAN' | 'ON_PLAN';
+
+export interface Variance {
+  planned: number;
+  actual: number;
+  variance: number;
+  direction: VarianceDirection;
+}
+
+export interface CurrencyPlanVersusActual {
+  currency: string;
+  assetTotal: Variance;
+  liabilityTotal: Variance;
+  netWorth: Variance;
+}
+
+export interface PlanVersusActualResponse {
+  snapshot: FinancialSnapshotSummary;
+  currencyResults: CurrencyPlanVersusActual[];
 }
 
 // Mirrors backend/src/main/java/com/waypoint/planning/{cashflow,runway}/web/dto/*.java.
