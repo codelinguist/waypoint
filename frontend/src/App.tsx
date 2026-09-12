@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { readHouseholdConfig } from './config';
 import { ConfigInvalid, ConfigMissing, ConfigNotFound } from './components/ConfigProblem';
 import { CurrencyCard } from './components/CurrencyCard';
+import { ForecastingPage } from './components/ForecastingPage';
 import { LoadingSkeleton } from './components/LoadingSkeleton';
 import { GoalsPage } from './GoalsPage';
 import { useFinancialPosition } from './hooks/useFinancialPosition';
 import { formatInstantUtc, formatTimeUtc } from './dates';
 
-type Section = 'financial-position' | 'goals';
+type View = 'position' | 'goals' | 'forecasting';
 
 const EXPLAINER =
   'Net worth is recorded asset planning values minus outstanding liability balances. ' +
@@ -111,59 +112,74 @@ function FinancialPositionPage({ householdId }: { householdId: string }) {
   );
 }
 
+function AppNav({ view, onSelect }: { view: View; onSelect: (view: View) => void }) {
+  return (
+    <nav className="app-nav" aria-label="Sections">
+      <button type="button" aria-current={view === 'position' ? 'page' : undefined} onClick={() => onSelect('position')}>
+        Financial position
+      </button>
+      <button type="button" aria-current={view === 'goals' ? 'page' : undefined} onClick={() => onSelect('goals')}>
+        Goals
+      </button>
+      <button
+        type="button"
+        aria-current={view === 'forecasting' ? 'page' : undefined}
+        onClick={() => onSelect('forecasting')}
+      >
+        Forecasting
+      </button>
+    </nav>
+  );
+}
+
 export function App() {
+  const [view, setView] = useState<View>('position');
   const config = readHouseholdConfig();
+
+  if (view === 'forecasting') {
+    return (
+      <>
+        <AppNav view={view} onSelect={setView} />
+        <ForecastingPage />
+      </>
+    );
+  }
 
   if (config.status === 'missing') {
     return (
-      <div className="page">
-        <header className="app-header">
-          <h1>Financial position</h1>
-        </header>
-        <ConfigMissing />
-      </div>
+      <>
+        <AppNav view={view} onSelect={setView} />
+        <div className="page">
+          <header className="app-header">
+            <h1>Financial position</h1>
+          </header>
+          <ConfigMissing />
+        </div>
+      </>
     );
   }
 
   if (config.status === 'invalid') {
     return (
-      <div className="page">
-        <header className="app-header">
-          <h1>Financial position</h1>
-        </header>
-        <ConfigInvalid rawValue={config.rawValue} />
-      </div>
+      <>
+        <AppNav view={view} onSelect={setView} />
+        <div className="page">
+          <header className="app-header">
+            <h1>Financial position</h1>
+          </header>
+          <ConfigInvalid rawValue={config.rawValue} />
+        </div>
+      </>
     );
   }
 
-  return <ConfiguredApp householdId={config.householdId} />;
-}
-
-function ConfiguredApp({ householdId }: { householdId: string }) {
-  const [section, setSection] = useState<Section>('financial-position');
-
   return (
     <>
-      <nav className="app-nav" aria-label="Sections">
-        <button
-          type="button"
-          aria-current={section === 'financial-position' ? 'page' : undefined}
-          onClick={() => setSection('financial-position')}
-        >
-          Financial position
-        </button>
-        <button
-          type="button"
-          aria-current={section === 'goals' ? 'page' : undefined}
-          onClick={() => setSection('goals')}
-        >
-          Goals
-        </button>
-      </nav>
-      {section === 'financial-position' ? (
-        <FinancialPositionPage householdId={householdId} />
+      <AppNav view={view} onSelect={setView} />
+      {view === 'goals' ? (
+        <GoalsPage householdId={config.householdId} />
       ) : (
-        <GoalsPage householdId={householdId} />
+        <FinancialPositionPage householdId={config.householdId} />
       )}
     </>
   );
