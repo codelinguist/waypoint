@@ -6,9 +6,11 @@ import type {
   CashFlowProjectionResponse,
   CreateAssetRequest,
   CreateGoalRequest,
+  CreateHouseholdRequest,
   CreateIncomeStreamRequest,
   CreateLiabilityRequest,
   CreateObligationRequest,
+  CreatePersonRequest,
   CreatePlanningAssumptionRequest,
   CreateSnapshotRequest,
   DebtPrepaymentComparisonRequest,
@@ -22,11 +24,13 @@ import type {
   FinancialSnapshotListItem,
   GoalContributionRequestBody,
   GoalContributionResult,
+  Household,
   IncomeInterruptionScenarioRequest,
   IncomeInterruptionScenarioResponse,
   IncomeStream,
   Liability,
   Obligation,
+  Person,
   PlanningAssumption,
   PlanVersusActualRequest,
   PlanVersusActualResponse,
@@ -578,6 +582,16 @@ async function fetchHouseholdRecord<T>(path: string, householdId: string, signal
   }
 
   return (await response.json()) as T;
+}
+
+/** Creates a new household (WAP-26 onboarding wizard, step 1). Not scoped to an existing household — this is the one create endpoint with no `householdId` in its path. */
+export function createHousehold(request: CreateHouseholdRequest): Promise<Household> {
+  return postHouseholdRecord('/api/households', request);
+}
+
+/** Adds a person to a household (WAP-26 onboarding wizard, step 1). `role` is free text — see CreatePersonRequest. */
+export function createPerson(householdId: string, request: CreatePersonRequest): Promise<Person> {
+  return postHouseholdRecord(`/api/households/${householdId}/people`, request);
 }
 
 export function createAsset(householdId: string, request: CreateAssetRequest): Promise<Asset> {

@@ -698,3 +698,20 @@ nav.app-nav {
   align-items: flex-end;
   gap: 2px;
 }
+
+/* Onboarding wizard (WAP-26): Back/Next/Exit row below each step's card. */
+.wizard-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+@media (max-width: 700px) {
+  .wizard-actions {
+    flex-direction: column;
+  }
+
+  .wizard-actions button {
+    width: 100%;
+  }
+}

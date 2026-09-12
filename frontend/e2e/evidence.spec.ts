@@ -82,7 +82,7 @@ test('missing configuration — wide', async ({ page }) => {
   await mockConfig(page, null);
   await page.setViewportSize(WIDE);
   await page.goto('/');
-  await expect(page.getByText(/no household is configured/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Set up your household' })).toBeVisible();
   await page.screenshot({ path: `${OUT_DIR}/configuration-missing-wide.png`, fullPage: true });
 });
 

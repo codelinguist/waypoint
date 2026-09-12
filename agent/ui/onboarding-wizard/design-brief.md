@@ -83,11 +83,56 @@ Changing status to `APPROVED` confirms the selection above.
 
 ## Implementation handoff
 
-- Implemented by:
-- Automated checks and results:
-- Evidence:
+- Implemented by: Claude Code (Sonnet 5), directly with Ralph (D020)
+- Automated checks and results: `./verify.sh` green (backend `./mvnw test` —
+  all suites including Testcontainers integration tests; frontend `npm ci`,
+  `npm run typecheck`, `npm test` — 119/119 passing including new
+  `OnboardingWizard.test.tsx` covering the full 7-step fresh-household flow
+  end to end and the 6-step resume-from-banner flow, `npm run build`).
+  `npm run lint` (oxlint) clean. Two pre-existing Playwright e2e specs
+  (`e2e/financial-position.spec.ts`, `e2e/evidence.spec.ts`) that asserted
+  the old static "no household is configured" text were updated to assert
+  the wizard's heading instead — e2e is not part of the `verify` CI gate but
+  was fixed rather than left broken.
+- Evidence: `frontend/src/components/OnboardingWizard.test.tsx` (jsdom,
+  scripted through `<App/>`) is the primary evidence — a full step-by-step
+  walkthrough asserting each step's gating, count feedback, and the final
+  populated Financial position. No manual screenshots were captured this
+  round (no new visual direction beyond reusing existing card/form/button
+  conventions verbatim).
 - Deviations from approved design:
-- Known limitations:
+  - **Per-step "already added" feedback is a count, not the itemized
+    `AssetTable`/`LiabilityTable`/etc. lists the brief describes.** The
+    brief's own "no skeleton needed — there's nothing to fetch, only submit"
+    loading-state decision rules out re-fetching from the server to build
+    those lists (which is how those tables normally get correctly-typed
+    data), and the reused WAP-25 forms' `onCreated` callbacks are
+    intentionally zero-argument (`() => void`) — reusing them **unmodified**
+    (also required by the brief) means the wizard never sees the created
+    record's data. A plain count ("2 assets added.") satisfies every
+    acceptance criterion (visible progress feedback, "Next" gated on ≥1
+    record) without fetching or touching the WAP-25 forms.
+  - **AppNav is not hidden during the fresh-onboarding wizard.** The brief
+    states "there's no household yet, so there's nothing for AppNav to
+    navigate between," but Forecasting and Scenarios are stateless
+    calculators already reachable with no household configured at all
+    (pre-dating this ticket — see their own passing navigation tests,
+    `ForecastingPage.test.tsx`/`ScenariosPage.test.tsx`). Hiding AppNav would
+    have silently regressed that existing, tested behavior, so AppNav stays
+    in every branch, matching every other config-status branch in `App.tsx`.
+  - Household base currency and person role inputs are plain text (no
+    reused select/enum), matching the backend contract discovered during
+    implementation: `CreateHouseholdRequest.baseCurrency` is a 3-letter
+    pattern-validated string and `CreatePersonRequest.role` is deliberately
+    free text (PD-003), neither is a backend enum.
+- Known limitations: refreshing the browser mid-wizard (after the household
+  step but before finishing the entity steps) drops the user into the
+  ordinary app with an empty-state Financial position, since the household
+  id override is written as soon as the household is created — they resume
+  the remaining steps via the "New here? Run guided setup" banner rather
+  than mid-wizard. This is consistent with the brief's own resume design
+  (banner-triggered, skips household/person), not a gap the brief called out
+  explicitly.
 
 Feature acceptance (met/unmet criteria, ACCEPTED/RETURNED, follow-up work) is
 recorded as a comment on the Jira issue, not here — see

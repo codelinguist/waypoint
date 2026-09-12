@@ -388,9 +388,9 @@ real, ephemeral PostgreSQL container (Flyway migrations included).
 
 ## Frontend
 
-The `frontend/` directory is a private, read-only React/TypeScript app for
-one already-configured household, with multiple sections reachable through
-a minimal in-page nav (no router; see `App.tsx`'s `AppNav`). Notably:
+The `frontend/` directory is a private React/TypeScript app for one
+household, with multiple sections reachable through a minimal in-page nav
+(no router; see `App.tsx`'s `AppNav`). Notably:
 
 - **Financial position** (Phase 9 early slice, WAP-15) follows the approved
   design in `agent/ui/financial-position/design-brief.md` (currency-first
@@ -403,19 +403,35 @@ a minimal in-page nav (no router; see `App.tsx`'s `AppNav`). Notably:
   flagged, consistent with AGENTS.md's facts-vs-assumptions rule. It reuses
   the financial-position page's table/badge/loading/error conventions rather
   than introducing a new visual language.
+- **Data entry** (WAP-25) adds an inline "Add"/correction form to every
+  section for its entity types (assets, liabilities, income streams,
+  obligations, goals, snapshots, planning assumptions) — the ordinary,
+  anytime way to record or fix a value once a household exists.
+- **Household onboarding wizard** (WAP-26) is the one path to create a
+  household and its people at all; see "Configuring the displayed household"
+  below.
 
-Record creation/editing, household creation/selection, authentication, and
-FX conversion are explicitly out of scope for every section.
+Authentication and FX conversion remain explicitly out of scope for every
+section.
 
 ### Configuring the displayed household
 
-The frontend never creates or selects a household itself — an operator
-configures an existing one outside the ordinary product flow, via the
-`HOUSEHOLD_ID` environment variable (a household's `id`, returned when you
-create it — see the `curl -X POST .../api/households` example above). Leave
-it unset to see the app's own "no household is configured" state instead of
-a broken page; an ID that doesn't match any household shows a distinct
-"household not found" state naming the configured ID.
+`HOUSEHOLD_ID` remains the durable, production way to pin a deployment to a
+household: set it to an existing household's `id` (returned when you create
+one — see the `curl -X POST .../api/households` example above) and restart
+the app; an ID that doesn't match any household shows a distinct "household
+not found" state naming the configured ID.
+
+Leave it unset and the app instead shows an onboarding wizard (WAP-26) —
+create the household and its first person, then add at least one asset,
+liability, income stream, obligation, and goal, and close with the
+household's first financial snapshot. On success the wizard writes the new
+household's id to that browser's local storage (checked before
+`HOUSEHOLD_ID`), so the app works immediately in that browser without a
+container restart; `HOUSEHOLD_ID` is unaffected and still governs every
+other browser and deployment. An already-configured household with no data
+yet can reach the same wizard from a "New here? Run guided setup" banner on
+Financial position, skipping the household/person step.
 
 ### Run with Docker Compose
 

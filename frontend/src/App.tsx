@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { readHouseholdConfig } from './config';
-import { ConfigInvalid, ConfigMissing, ConfigNotFound } from './components/ConfigProblem';
+import { ConfigInvalid, ConfigNotFound } from './components/ConfigProblem';
 import { CurrencyCard } from './components/CurrencyCard';
 import { AddAssetForm } from './components/entry/AddAssetForm';
 import { AddLiabilityForm } from './components/entry/AddLiabilityForm';
@@ -8,6 +8,7 @@ import { CreateSnapshotForm } from './components/entry/CreateSnapshotForm';
 import { ForecastingPage } from './components/ForecastingPage';
 import { IncomeObligationsPage } from './components/IncomeObligationsPage';
 import { LoadingSkeleton } from './components/LoadingSkeleton';
+import { OnboardingWizard } from './components/OnboardingWizard';
 import { PlanningAssumptionsPage } from './components/PlanningAssumptionsPage';
 import { PlanVersusActualPage } from './components/PlanVersusActualPage';
 import { ScenariosPage } from './components/ScenariosPage';
@@ -34,6 +35,20 @@ const EXPLAINER =
 
 function FinancialPositionPage({ householdId }: { householdId: string }) {
   const { state, refresh, retryInitial } = useFinancialPosition(householdId);
+  const [wizardOpen, setWizardOpen] = useState(false);
+
+  if (wizardOpen) {
+    return (
+      <OnboardingWizard
+        initialHouseholdId={householdId}
+        onComplete={() => {
+          setWizardOpen(false);
+          refresh();
+        }}
+        onCancel={() => setWizardOpen(false)}
+      />
+    );
+  }
 
   if (state.status === 'not-found') {
     return (
@@ -117,6 +132,11 @@ function FinancialPositionPage({ householdId }: { householdId: string }) {
             <strong>No assets or liabilities are recorded for this household yet.</strong>
           </p>
           <p>Use &ldquo;Add asset&rdquo; or &ldquo;Add liability&rdquo; above to record one.</p>
+          <p>
+            <button type="button" className="toggle-btn" onClick={() => setWizardOpen(true)}>
+              New here? Run guided setup
+            </button>
+          </p>
         </div>
       ) : (
         data.totalsByCurrency.map((totals) => (
@@ -264,6 +284,7 @@ function AppNav({ view, onSelect }: { view: View; onSelect: (view: View) => void
 
 export function App() {
   const [view, setView] = useState<View>('position');
+  const [, forceConfigRecheck] = useState(false);
   const config = readHouseholdConfig();
 
   if (view === 'forecasting') {
@@ -285,15 +306,15 @@ export function App() {
   }
 
   if (config.status === 'missing') {
+    // AppNav stays, matching every other branch below: Forecasting and
+    // Scenarios are stateless calculators reachable with no household
+    // configured (pre-dating this wizard — see their own navigation tests).
+    // Only the "position" default view's content is replaced: the wizard
+    // takes the place of the old static "set HOUSEHOLD_ID" message.
     return (
       <>
         <AppNav view={view} onSelect={setView} />
-        <div className="page">
-          <header className="app-header">
-            <h1>Financial position</h1>
-          </header>
-          <ConfigMissing />
-        </div>
+        <OnboardingWizard onComplete={() => forceConfigRecheck((t) => !t)} />
       </>
     );
   }

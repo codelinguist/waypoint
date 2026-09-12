@@ -1,17 +1,3 @@
-export function ConfigMissing() {
-  return (
-    <div className="config-state">
-      <p>
-        <strong>No household is configured for this app instance.</strong>
-      </p>
-      <p>
-        Set the <code>HOUSEHOLD_ID</code> environment variable to an existing household&apos;s ID and restart the
-        app.
-      </p>
-    </div>
-  );
-}
-
 export function ConfigInvalid({ rawValue }: { rawValue: string }) {
   return (
     <div className="config-state">
