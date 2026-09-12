@@ -17,14 +17,19 @@ const projectionResponse: CashFlowProjectionResponse = {
   startingCash: 1000,
   monthlyInflow: 300,
   monthlyOutflow: 500,
-  months: 6,
+  months: 7,
   rows: [
     { month: '2027-01', openingCash: 1000, inflow: 300, outflow: 500, netCashFlow: -200, closingCash: 800 },
     { month: '2027-06', openingCash: 0, inflow: 300, outflow: 500, netCashFlow: -200, closingCash: -200 },
+    // A row past firstNegativeMonth, where openingCash itself is negative
+    // (opening carries forward the prior month's negative closing balance)
+    // — regression coverage for the sign-stripped "Opening cash" bug found
+    // in review (BLOCKING-1).
+    { month: '2027-07', openingCash: -200, inflow: 300, outflow: 500, netCashFlow: -200, closingCash: -400 },
   ],
-  endingCash: -200,
-  lowestClosingBalance: -200,
-  lowestClosingBalanceMonth: '2027-06',
+  endingCash: -400,
+  lowestClosingBalance: -400,
+  lowestClosingBalanceMonth: '2027-07',
   firstNegativeMonth: '2027-06',
   status: 'BECOMES_NEGATIVE',
 };
@@ -79,7 +84,7 @@ describe('cash-flow projection', () => {
     await userEvent.type(screen.getByLabelText('Monthly inflow'), '300.00');
     await userEvent.type(screen.getByLabelText('Monthly outflow'), '500.00');
     await userEvent.clear(screen.getByLabelText('Months to project'));
-    await userEvent.type(screen.getByLabelText('Months to project'), '6');
+    await userEvent.type(screen.getByLabelText('Months to project'), '7');
 
     await userEvent.click(screen.getByRole('button', { name: 'Run projection' }));
 
@@ -95,15 +100,38 @@ describe('cash-flow projection', () => {
           startingCash: '1000.00',
           monthlyInflow: '300.00',
           monthlyOutflow: '500.00',
-          months: 6,
+          months: 7,
         }),
       })
     );
 
     // Summary fields and a row's month.
     expect(screen.getByText('Jan 2027')).toBeInTheDocument();
-    expect(screen.getAllByText(/200\.00 USD/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/400\.00 USD/).length).toBeGreaterThan(0);
     expect(screen.getAllByText('Jun 2027').length).toBeGreaterThan(0);
+  });
+
+  it('renders a negative opening cash with its sign preserved, on a row past the first negative month', async () => {
+    // Regression coverage for BLOCKING-1 from review: openingCash carries
+    // forward the prior month's closing balance and can itself go negative,
+    // but was rendered through the sign-stripping magnitude formatter.
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(projectionResponse)));
+    await goToForecasting();
+
+    await userEvent.type(screen.getByLabelText('Start month'), '2027-01');
+    await userEvent.type(screen.getByLabelText('Starting cash'), '1000.00');
+    await userEvent.type(screen.getByLabelText('Monthly inflow'), '300.00');
+    await userEvent.type(screen.getByLabelText('Monthly outflow'), '500.00');
+    await userEvent.clear(screen.getByLabelText('Months to project'));
+    await userEvent.type(screen.getByLabelText('Months to project'), '7');
+    await userEvent.click(screen.getByRole('button', { name: 'Run projection' }));
+
+    const julyRow = (await screen.findByText('Jul 2027')).closest('tr');
+    expect(julyRow).not.toBeNull();
+    const openingCashCell = julyRow!.querySelector('td[data-label="Opening cash"]');
+    expect(openingCashCell).toHaveTextContent('200.00');
+    expect(openingCashCell!.querySelector('.negative')).not.toBeNull();
+    expect(openingCashCell!.querySelector('.positive')).toBeNull();
   });
 
   it('surfaces an API validation error instead of failing silently', async () => {
@@ -146,7 +174,7 @@ describe('emergency-fund runway', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Calculate runway' }));
 
     expect(await screen.findByText(/finite runway/i)).toBeInTheDocument();
-    expect(screen.getByText('5 months')).toBeInTheDocument();
+    expect(screen.getByText('5.00 months')).toBeInTheDocument();
     expect(screen.getByText(runwayResponse.modelNote)).toBeInTheDocument();
 
     expect(fetchMock).toHaveBeenCalledWith(

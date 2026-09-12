@@ -215,11 +215,9 @@ function CashFlowProjectionResults({ response }: { response: CashFlowProjectionR
           <tbody>
             {response.rows.map((row) => (
               <tr key={row.month}>
-                <td className="record-title" data-label="Month">
-                  {formatYearMonth(row.month)}
-                </td>
+                <td className="record-title">{formatYearMonth(row.month)}</td>
                 <td className="amount" data-label="Opening cash">
-                  {formatAmountMagnitude(row.openingCash)}
+                  <SignedAmount value={row.openingCash} />
                 </td>
                 <td className="amount" data-label="Inflow">
                   {formatAmountMagnitude(row.inflow)}

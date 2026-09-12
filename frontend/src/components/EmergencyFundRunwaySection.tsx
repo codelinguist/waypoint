@@ -132,7 +132,9 @@ function EmergencyFundRunwayResults({ response }: { response: EmergencyFundRunwa
         </div>
         <div className="summary-item">
           Runway
-          <strong>{response.runwayMonths === null ? 'Not applicable' : `${response.runwayMonths} months`}</strong>
+          <strong>
+            {response.runwayMonths === null ? 'Not applicable' : `${formatAmountMagnitude(response.runwayMonths)} months`}
+          </strong>
         </div>
         <div className="summary-item">
           Full months covered
