@@ -528,7 +528,8 @@ nav.app-nav {
   color: var(--text-muted);
 }
 
-.field input {
+.field input,
+.field select {
   font: inherit;
   padding: 8px 10px;
   border: 1px solid var(--border);
@@ -538,7 +539,8 @@ nav.app-nav {
   width: 100%;
 }
 
-.field input:focus-visible {
+.field input:focus-visible,
+.field select:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 1px;
 }
@@ -602,4 +604,16 @@ nav.app-nav {
   border-radius: 8px;
   padding: 10px 14px;
   margin-top: 14px;
+}
+
+/* Plan vs. actual (WAP-23): a variance cell holds two inline children (the
+   signed amount and its direction badge) rather than one text node like
+   every other .amount cell here — without this, table.stackable's flex td
+   treats them as separate flex items and overflows/clips on narrow widths. */
+.variance-value {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 4px 8px;
 }

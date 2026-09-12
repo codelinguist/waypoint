@@ -5,10 +5,11 @@ import { CurrencyCard } from './components/CurrencyCard';
 import { ForecastingPage } from './components/ForecastingPage';
 import { LoadingSkeleton } from './components/LoadingSkeleton';
 import { GoalsPage } from './GoalsPage';
+import { PlanVersusActualPage } from './components/PlanVersusActualPage';
 import { useFinancialPosition } from './hooks/useFinancialPosition';
 import { formatInstantUtc, formatTimeUtc } from './dates';
 
-type View = 'position' | 'goals' | 'forecasting';
+type View = 'position' | 'goals' | 'forecasting' | 'plan-vs-actual';
 
 const EXPLAINER =
   'Net worth is recorded asset planning values minus outstanding liability balances. ' +
@@ -128,6 +129,13 @@ function AppNav({ view, onSelect }: { view: View; onSelect: (view: View) => void
       >
         Forecasting
       </button>
+      <button
+        type="button"
+        aria-current={view === 'plan-vs-actual' ? 'page' : undefined}
+        onClick={() => onSelect('plan-vs-actual')}
+      >
+        Plan vs. actual
+      </button>
     </nav>
   );
 }
@@ -169,6 +177,15 @@ export function App() {
           </header>
           <ConfigInvalid rawValue={config.rawValue} />
         </div>
+      </>
+    );
+  }
+
+  if (view === 'plan-vs-actual') {
+    return (
+      <>
+        <AppNav view={view} onSelect={setView} />
+        <PlanVersusActualPage householdId={config.householdId} />
       </>
     );
   }
