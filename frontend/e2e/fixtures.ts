@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import type { FinancialPositionResponse } from '../src/api/types';
+import type { FinancialPositionResponse, IncomeStream, Obligation } from '../src/api/types';
 
 export const HOUSEHOLD_ID = '3f7b1e2a-9c4d-4a1b-8f2e-6d5c4b3a2f10';
 
@@ -145,3 +145,127 @@ export const emptyHouseholdFixture: FinancialPositionResponse = {
   liabilities: [],
   totalsByCurrency: [],
 };
+
+/** Mocks GET /api/households/{id}/income-streams. `onRequest` fires per call for sequencing/race tests. */
+export async function mockIncomeStreams(
+  page: Page,
+  householdId: string,
+  responder: (callIndex: number) => { status: number; body: unknown }
+) {
+  let callIndex = 0;
+  await page.route(`**/api/households/${householdId}/income-streams`, async (route) => {
+    const index = callIndex++;
+    const { status, body } = responder(index);
+    await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+  });
+}
+
+/** Mocks GET /api/households/{id}/obligations. `onRequest` fires per call for sequencing/race tests. */
+export async function mockObligations(
+  page: Page,
+  householdId: string,
+  responder: (callIndex: number) => { status: number; body: unknown }
+) {
+  let callIndex = 0;
+  await page.route(`**/api/households/${householdId}/obligations`, async (route) => {
+    const index = callIndex++;
+    const { status, body } = responder(index);
+    await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+  });
+}
+
+export const incomeStreamsFixture: IncomeStream[] = [
+  {
+    id: '5a555555-5555-5555-5555-555555555555',
+    householdId: HOUSEHOLD_ID,
+    name: 'New Job Salary',
+    incomeType: 'SALARY',
+    amount: 50000,
+    frequency: 'MONTHLY',
+    currency: 'PHP',
+    compensationClassification: 'GROSS',
+    certainty: 'EXPECTED',
+    startDate: '2026-10-01',
+    endDate: null,
+    sourceType: 'MANUAL_ENTRY',
+    createdAt: '2026-09-03T02:10:00Z',
+    updatedAt: '2026-09-03T02:10:00Z',
+  },
+  {
+    id: '6b666666-6666-6666-6666-666666666666',
+    householdId: HOUSEHOLD_ID,
+    name: 'Spouse Salary',
+    incomeType: 'SALARY',
+    amount: 45000,
+    frequency: 'MONTHLY',
+    currency: 'PHP',
+    compensationClassification: 'NET',
+    certainty: 'CONFIRMED',
+    startDate: '2026-01-01',
+    endDate: null,
+    sourceType: 'MANUAL_ENTRY',
+    createdAt: '2026-09-03T02:11:00Z',
+    updatedAt: '2026-09-03T02:11:00Z',
+  },
+  {
+    id: '7c777777-7777-7777-7777-777777777777',
+    householdId: HOUSEHOLD_ID,
+    name: 'US Freelance Retainer',
+    incomeType: 'BUSINESS_DISTRIBUTION',
+    amount: 800,
+    frequency: 'MONTHLY',
+    currency: 'USD',
+    compensationClassification: 'UNKNOWN',
+    certainty: 'VARIABLE',
+    startDate: '2026-06-01',
+    endDate: '2027-06-01',
+    sourceType: 'MANUAL_ENTRY',
+    createdAt: '2026-09-03T02:12:00Z',
+    updatedAt: '2026-09-03T02:12:00Z',
+  },
+];
+
+export const obligationsFixture: Obligation[] = [
+  {
+    id: '8d888888-8888-8888-8888-888888888888',
+    householdId: HOUSEHOLD_ID,
+    name: 'Mortgage',
+    obligationType: 'MORTGAGE',
+    amount: 22000,
+    frequency: 'MONTHLY',
+    currency: 'PHP',
+    startDate: '2026-09-01',
+    endDate: null,
+    sourceType: 'MANUAL_ENTRY',
+    createdAt: '2026-09-03T02:13:00Z',
+    updatedAt: '2026-09-03T02:13:00Z',
+  },
+  {
+    id: '9e999999-9999-9999-9999-999999999999',
+    householdId: HOUSEHOLD_ID,
+    name: 'Household Baseline Expenses',
+    obligationType: 'HOUSEHOLD_BASELINE',
+    amount: 35000,
+    frequency: 'MONTHLY',
+    currency: 'PHP',
+    startDate: '2026-01-01',
+    endDate: null,
+    sourceType: 'MANUAL_ENTRY',
+    createdAt: '2026-09-03T02:14:00Z',
+    updatedAt: '2026-09-03T02:14:00Z',
+  },
+  {
+    id: '0f000000-0000-0000-0000-000000000000',
+    householdId: HOUSEHOLD_ID,
+    name: 'Car Loan',
+    obligationType: 'LOAN_PAYMENT',
+    amount: 12500.5,
+    frequency: 'MONTHLY',
+    currency: 'PHP',
+    startDate: '2025-03-01',
+    endDate: '2028-03-01',
+    sourceType: 'MANUAL_ENTRY',
+    createdAt: '2026-09-03T02:15:00Z',
+    updatedAt: '2026-09-03T02:15:00Z',
+  },
+];
